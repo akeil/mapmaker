@@ -23,6 +23,7 @@ setup(
     name='mapmaker',
     version=VERSION,
     author='Alexander Keil',
+    author_email='alex@akeil.net',
     maintainer='Alexander Keil',
     url='http://github.com/akeil/mapmaker',
     project_urls={
@@ -31,6 +32,7 @@ setup(
     },
     description='Create map images from slippy map tiles.',
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     # single python file
     py_modules=['mapmaker'],
     install_requires=required,
