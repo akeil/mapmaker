@@ -22,10 +22,16 @@ with open('README.rst') as f:
 setup(
     name='mapmaker',
     version=VERSION,
-    author='akeil',
+    author='Alexander Keil',
+    maintainer='Alexander Keil',
     url='http://github.com/akeil/mapmaker',
+    project_urls={
+        'Source': 'http://github.com/akeil/mapmaker',
+        'Bug Reports': 'http://github.com/akeil/mapmaker/issues',
+    },
     description='Create map images from slippy map tiles.',
     long_description=long_description,
+    # single python file
     py_modules=['mapmaker'],
     install_requires=required,
     entry_points = {
@@ -33,13 +39,18 @@ setup(
             'mapmaker = mapmaker:main',
         ]
     },
-    license='???',
+    license='MIT',
+    license_file = 'LICENSE.txt',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'Natural Language :: English',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.2',
+        'Programming Language :: Python :: 3',
+        'Topic :: Scientific/Engineering :: GIS',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+        'Topic :: Utilities',
     ],
+    keywords = 'osm, openstreetmap, tiles, map, image, cli',
+    python_requires='>=3'
 )
