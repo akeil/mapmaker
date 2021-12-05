@@ -28,7 +28,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.1.0dev2'
+__version__ = '1.1.0dev4'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -496,7 +496,11 @@ class DrawLayer:
             return
 
         xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
-        draw.line(xy, fill=self.line_color, joint='curve')
+        draw.line(xy,
+            fill=self.line_color,
+            width=self.line_width,
+            joint='curve'
+        )
 
     def _draw_points(self, rc, draw):
         if not self.points:
