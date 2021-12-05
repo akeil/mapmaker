@@ -2,6 +2,8 @@ NAME := mapmaker
 BASE := $(shell pwd)
 DIST := file://$(BASE)/dist
 
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+
 .PHONY: samples
 
 # Dependencies:
@@ -24,9 +26,13 @@ check: build
 	# check the distribution
 	twine check dist/*
 
-pypi: clean check
+pypi: check-master clean check
 	# upload to PyPi, relies an ~/.pypirc for authentication
 	twine upload dist/*
+
+check-master:
+	# make sure we are on the "master" branch
+	if [ "$(BRANCH)" != "master" ] ; then echo "not on master" && exit 1 ; fi
 
 clean:
 	rm dist/* || true
