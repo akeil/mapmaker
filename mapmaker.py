@@ -15,6 +15,7 @@ from math import log
 from math import pi as PI
 from math import radians
 from math import sin
+from math import sqrt
 from math import tan
 from pathlib import Path
 import queue
@@ -23,11 +24,11 @@ import threading
 from urllib.parse import urlparse
 
 import appdirs
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.1.0dev1'
+__version__ = '1.1.0dev2'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -473,15 +474,119 @@ def _to_relative_xy(lat, lon, zoom):
     return x, y
 
 
+class DrawLayer:
+    '''Keeps data for map overlays.'''
+
+    def __init__(self, waypoints, points, line_color, line_width, fill_color, size):
+        # for tracks
+        self.waypoints = waypoints
+        self.points = points
+        self.line_color = line_color
+        self.line_width = line_width
+        self.fill_color = fill_color
+        self.size = size
+
+    def _draw(self, rc, draw):
+        ''''Internal draw method, used by the rendering contet.'''
+        self._draw_waypoints(rc, draw)
+        self._draw_points(rc, draw)
+
+    def _draw_waypoints(self, rc, draw):
+        if not self.waypoints:
+            return
+
+        xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
+        draw.line(xy, fill=self.line_color, joint='curve')
+
+    def _draw_points(self, rc, draw):
+        if not self.points:
+            return
+
+        symbols = {
+            'dot': self._dot,
+            'square': self._square,
+            'triangle': self._triangle,
+        }
+
+        # attempt to open a font
+        try:
+            font = ImageFont.truetype(font='DejaVuSans.ttf', size=12)
+        except OSError:
+            font = None
+
+        for pt in self.points:
+            lat, lon, sym, label = pt
+            x, y = rc.to_pixels(lat, lon)
+            brush = symbols.get(sym, self._dot)
+            brush(draw, x, y)
+
+            if label:
+                # place label below marker
+                loc = (x, y + self.size / 2 + 2)
+                draw.text(loc, label,
+                    font=font,
+                    anchor='ma',  # middle ascender
+                    fill=(0, 0, 0, 255),
+                    stroke_width=1,
+                    stroke_fill=(255, 255, 255, 255),
+                )
+
+    def _dot(self, draw, x, y):
+        d = self.size / 2
+        xy = [x-d, y-d, x+d, y+d]
+        draw.ellipse(xy,
+            fill=self.fill_color,
+            outline=self.line_color,
+            width=self.line_width
+        )
+
+    def _square(self, draw, x, y):
+        d = self.size / 2
+        xy = [x-d, y-d, x+d, y+d]
+        draw.rectangle(xy,
+            fill=self.fill_color,
+            outline=self.line_color,
+            width=self.line_width
+        )
+
+    def _triangle(self, draw, x, y):
+        '''Draw a triangle with equally sized sides and the center point on the XY location.'''
+        h = self.size
+        angle = radians(60.0)  # all angles are the same
+
+        # Formula for the Side
+        # b = h / sin(alpha)
+        side = h / sin(angle)
+
+        top = (x, y - h / 2)
+        left = (x - side / 2, y + h / 2)
+        right = (x + side / 2, y + h / 2)
+
+        draw.polygon([top, right, left],
+            fill=self.fill_color,
+            outline=self.line_color,
+            # width=self.line_width  # not supported with ploygon
+        )
+
+    @classmethod
+    def for_track(cls, waypoints, color=(0, 0, 0, 255), width=1):
+        return cls(waypoints, None, color, width, None, None)
+
+    @classmethod
+    def for_points(cls, points, color=(0, 0, 0, 255), fill=(255, 255, 255, 255), border=0, size=4):
+        return cls(None, points, color, border, fill, size)
+
+
 # Rendering -------------------------------------------------------------------
 
 
 class RenderContext:
     '''Renders a map, downloading required tiles on the fly.'''
 
-    def __init__(self, service, map, reporter=None):
+    def __init__(self, service, map, overlays=None, reporter=None):
         self._service = service
         self._map = map
+        self._overlays = overlays or []
         self._report = reporter or _no_reporter
         self._queue = queue.Queue()
         self._lock = threading.Lock()
@@ -519,20 +624,36 @@ class RenderContext:
 
         self._report('Download complete, create map image')
 
+        if self._overlays:
+            self._report('Draw %d overlays', len(self._overlays))
+            self._draw_overlays()
+
         self._crop()
         return self._img
+
+    def to_pixels(self, lat, lon):
+        '''Convert the given lat,lon coordinates to pixels on the map image.
+
+        This method can only be used after the first tiles have been downloaded
+        and the tile size is known.
+        '''
+        frac_x, frac_y = self._map.to_pixel_fractions(lat, lon)
+        w, h = self._tile_size
+
+        px = lambda v: int(ceil(v))
+
+        return px(frac_x * w), px(frac_y * h)
+
+    def _draw_overlays(self):
+        draw = ImageDraw.Draw(self._img, mode='RGBA')
+        for layer in self._overlays:
+            layer._draw(self, draw)
 
     def _crop(self):
         '''Crop the map image to the bounding box.'''
         bbox = self._map.bbox
-        af = self._map.to_pixel_fractions(bbox.minlat, bbox.minlon)
-        bf = self._map.to_pixel_fractions(bbox.maxlat, bbox.maxlon)
-
-        w, h = self._tile_size
-        px = lambda v: int(ceil(v))
-
-        left, bottom = px(af[0] * w), px(af[1] * h)
-        right, top = px(bf[0] * w), px(bf[1] * h)
+        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
+        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
 
         self._img = self._img.crop((left, top, right, bottom))
 
