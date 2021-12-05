@@ -1,0 +1,3 @@
+appdirs
+Pillow
+requests

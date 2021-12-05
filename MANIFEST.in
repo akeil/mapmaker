@@ -1,0 +1,5 @@
+# controls contents of sdist
+include README.rst
+include requirements.txt
+include default.ini
+#include *.py
