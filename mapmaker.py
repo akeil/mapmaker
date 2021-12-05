@@ -28,7 +28,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.1.0dev4'
+__version__ = '1.1.0'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -175,7 +175,6 @@ def main():
         return 1
 
     return 0
-
 
 
 def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False):
