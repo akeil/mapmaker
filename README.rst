@@ -1,22 +1,34 @@
 Map Maker
 #########
-
-`mapmaker` is a simple script to generate map images for "Slippy Tile" maps.
-
+``mapmaker`` is a simple script to generate map images for "Slippy Tile" maps.
 Map tiles are downloaded from services such as OpenStreetMap and are combined
 into a single image.
+
+
+Installation
+============
+Use the installation script:
+
+.. code:: shell-session
+
+    $ python setup.py install
+
+Or install using pip:
+
+.. code:: shell-session
+
+    $ pip install mapmaker
 
 
 Command Line Usage
 ==================
 Use ``mapmaker --help`` to show a detailed list of options.
 
-This will create a file ``map.png`` in the current directory. The map will
-cover the bounding box specified with two pairs of lat/lon coordinates:
-
 
 Basic Usage
 -----------
+This will create a file ``map.png`` in the current directory. The map will
+cover the bounding box specified with two pairs of lat/lon coordinates:
 
 .. code:: shell-session
 

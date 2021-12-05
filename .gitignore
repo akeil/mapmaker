@@ -3,8 +3,6 @@ map.png
 samples/*
 todo
 
-.cache/*
-.local/*
 
 *.py[cod]
 
