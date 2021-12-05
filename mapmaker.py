@@ -27,7 +27,7 @@ from PIL import Image
 import requests
 
 
-__version__ = '1.0.0'
+__version__ = '1.1.0dev1'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -83,7 +83,7 @@ def main():
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
 
-    patterns, api_keys = _read_config(conf_file)
+    patterns, api_keys = read_config(conf_file)
     styles = sorted(x for x in patterns.keys())
 
     parser = argparse.ArgumentParser(
@@ -179,15 +179,14 @@ def main():
 
 def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False):
     '''Build the tilemap, download tiles and create the image.'''
-    cache_dir = appdirs.user_cache_dir(appname='mapmaker', appauthor='akeil')
     map = TileMap.from_bbox(bbox, zoom)
 
-    service = Cache(TileService(style, patterns[style], api_keys), cache_dir)
-    img = RenderContext(service, map, report).build()
+    service = Cache.user_dir(TileService(style, patterns[style], api_keys))
+    img = RenderContext(service, map, reporter=report).build()
 
     if hillshading:
-        shading = Cache(TileService(HILLSHADE, patterns[HILLSHADE], api_keys), cache_dir)
-        shade = RenderContext(shading, map, report).build()
+        shading = Cache.user_dir(TileService(HILLSHADE, patterns[HILLSHADE], api_keys))
+        shade = RenderContext(shading, map, reporter=report).build()
         img.paste(shade.convert('RGB'), mask=shade)
 
     with open(dst, 'wb') as f:
@@ -276,7 +275,10 @@ def _no_reporter(msg, *args):
     pass
 
 
-def _read_config(path):
+def read_config(path):
+    '''Read configuration from the given file in .ini format.
+    Returns names and url patterns for services and API keys, combined from
+    built-in configuration and the specified file.'''
     cfg = configparser.ConfigParser()
     # we cannot package default.ini if we distribute as a single .py file.
     # from pkg_resources import resource_stream
@@ -477,10 +479,10 @@ def _to_relative_xy(lat, lon, zoom):
 class RenderContext:
     '''Renders a map, downloading required tiles on the fly.'''
 
-    def __init__(self, service, map, report):
+    def __init__(self, service, map, reporter=None):
         self._service = service
         self._map = map
-        self._report = report or _no_reporter
+        self._report = reporter or _no_reporter
         self._queue = queue.Queue()
         self._lock = threading.Lock()
         self._tile_size = None
@@ -715,6 +717,10 @@ class Cache:
             filename,
         )
 
+    @classmethod
+    def user_dir(cls, service):
+        cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
+        return cls(service, cache_dir)
 
 if __name__ == '__main__':
     sys.exit(main())
