@@ -84,7 +84,7 @@ To control the resulting image format, use ``--aspect``:
 
     $ mapmaker --aspect 16:9 45.83,6.88 100km
 
-The aspect ration is given in the format ``W:H`` (e.g. 4:3 or 19:9).
+The aspect ratio is given in the format ``W:H`` (e.g. 4:3 or 19:9).
 The resulting map image will contain the given bounding box (or point w/ radius)
 and max be extended to North/South or East/West to match the aspect ratio.
 Note that the *resolution* of the image depends on the ``--zoom`` factor.
