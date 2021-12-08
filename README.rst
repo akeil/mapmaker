@@ -70,13 +70,24 @@ Use ``--style`` to control the **look** of the map:
     $ mapmaker --style human 63.0695,-151.0074 100km
 
 Use the ``--shading`` flag to overlay a hillshading layer over the map image.
-Note that hillshading is not available for all reagions.
+Note that hillshading is not available for all regions.
 
 .. code:: shell-session
 
     $ mapmaker --shading 45.83,6.88 100km
 
 Note that some map styles already come with hillshading.
+
+To control the resulting image format, use ``--aspect``:
+
+.. code:: shell-session
+
+    $ mapmaker --aspect 16:9 45.83,6.88 100km
+
+The aspect ration is given in the format ``W:H`` (e.g. 4:3 or 19:9).
+The resulting map image will contain the given bounding box (or point w/ radius)
+and max be extended to North/South or East/West to match the aspect ratio.
+Note that the *resolution* of the image depends on the ``--zoom`` factor.
 
 
 Create a Gallery

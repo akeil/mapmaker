@@ -28,7 +28,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -118,7 +118,7 @@ def main():
     def zoom(raw):
         v = int(raw)
         if v < 0 or v > 19:
-            raise ValueError
+            raise ValueError('Zoom value must be in interval 0..19')
         return v
 
     default_zoom = 8
@@ -136,14 +136,21 @@ def main():
         help='Map style (default: %r)' % default_style,
     )
     parser.add_argument(
-        '--gallery',
-        action='store_true',
-        help='Create a map image for each available style. WARNING: generates a lot of images.',
+        '-a', '--aspect',
+        type=_aspect,
+        default=1.0,
+        help=('Aspect ratio (e.g. "16:9") for the generated map. Extends the'
+            ' bounding box to match the given aspect ratio.'),
     )
     parser.add_argument(
         '--shading',
         action='store_true',
         help='Add hillshading',
+    )
+    parser.add_argument(
+        '--gallery',
+        action='store_true',
+        help='Create a map image for each available style. WARNING: generates a lot of images.',
     )
     parser.add_argument(
         '--silent',
@@ -154,6 +161,7 @@ def main():
     args = parser.parse_args()
 
     reporter = _no_reporter if args.silent else _print_reporter
+    bbox = _apply_aspect(args.bbox, args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
 
@@ -164,12 +172,12 @@ def main():
             for style in styles:
                 dst = base.joinpath(style + '.png')
                 try:
-                    run(args.bbox, args.zoom, dst, style, reporter, patterns, api_keys, hillshading=args.shading)
+                    run(bbox, args.zoom, dst, style, reporter, patterns, api_keys, hillshading=args.shading)
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            run(args.bbox, args.zoom, args.dst, args.style, reporter, patterns, api_keys, hillshading=args.shading)
+            run(bbox, args.zoom, args.dst, args.style, reporter, patterns, api_keys, hillshading=args.shading)
     except Exception as err:
         reporter('ERROR: %s', err)
         return 1
@@ -265,6 +273,60 @@ class _BBoxAction(argparse.Action):
             raise ValueError
 
         setattr(namespace, self.dest, bbox)
+
+
+def _aspect(raw):
+    '''Parse an aspect ration given in the form of "19:9" into a float.'''
+    if not raw:
+        raise ValueError('Invalid argument (empty)')
+
+    parts = raw.split(':')
+    if len(parts) != 2:
+        raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
+
+    w, h = parts
+    return float(w) / float(h)
+
+
+def _apply_aspect(bbox, aspect):
+    '''Extend the given bounding box so that it adheres to the given aspect
+    ratio (given as a floating point number).
+    Returns a new bounding box with the desired aspect ration that contains
+    the initial box in its center'''
+    #  4:3  =>  1.32  width > height, aspect is > 1.0
+    #  2:3  =>  0.66  width < height, aspect is < 1.0
+    if aspect == 1.0:
+        return bbox
+
+    lat = bbox.minlat
+    lon = bbox.minlon
+    width = _distance(bbox.minlat, lon, bbox.maxlat, lon)
+    height = _distance(lat, bbox.minlon, lat, bbox.maxlon)
+
+    if aspect < 1.0:
+        # extend "height" (latitude)
+        target_height = width / aspect
+        extend_height = (target_height - height) / 2
+        new_minlat, _ = _destination_point(bbox.minlat, lon, BRG_SOUTH, extend_height)
+        new_maxlat, _ = _destination_point(bbox.maxlat, lon, BRG_NORTH, extend_height)
+        return BBox(
+            minlat=new_minlat,
+            minlon=bbox.minlon,
+            maxlat=new_maxlat,
+            maxlon=bbox.maxlon
+        )
+    else:  # aspect > 1.0
+        # extend "width" (longitude)
+        target_width = height * aspect
+        extend_width = (target_width - width) / 2
+        _, new_minlon = _destination_point(lat, bbox.minlon, BRG_WEST, extend_width)
+        _, new_maxlon = _destination_point(lat, bbox.maxlon, BRG_EAST, extend_width)
+        return BBox(
+            minlat=bbox.minlat,
+            minlon=new_minlon,
+            maxlat=bbox.maxlat,
+            maxlon=new_maxlon
+        )
 
 
 def _print_reporter(msg, *args):
@@ -423,6 +485,29 @@ class Tile:
 
 def _mercator_to_lat(mercator_y):
     return math.degrees(math.atan(math.sinh(mercator_y)))
+
+
+def _distance(lat0, lon0, lat1, lon1):
+    '''Calculate the distance as-the-crow-flies between two points in meters.
+
+        P0 ------------> P1
+
+    '''
+    lat0 = radians(lat0)
+    lon0 = radians(lon0)
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+
+    d_lat = lat1 - lat0
+    d_lon = lon1 - lon0
+
+    a = sin(d_lat / 2) * sin(d_lat / 2)
+    b = cos(lat0) * cos(lat1) * sin(d_lon / 2) * sin(d_lon / 2)
+    c = a + b
+
+    d = 2 * atan2(sqrt(c), sqrt(1 - c))
+
+    return d * EARTH_RADIUS
 
 
 def _destination_point(lat, lon, bearing, distance):

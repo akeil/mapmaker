@@ -4,7 +4,7 @@ DIST := file://$(BASE)/dist
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-.PHONY: samples
+.PHONY: build samples
 
 # Dependencies:
 # sdist and  wheel require the "build" package to be installed.
