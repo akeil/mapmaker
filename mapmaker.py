@@ -350,7 +350,11 @@ def _aspect(raw):
         raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
 
     w, h = parts
-    return float(w) / float(h)
+    w, h = float(w), float(h)
+    if w <= 0 or h <= 0:
+        raise ValueError
+
+    return w / h
 
 
 def _apply_aspect(bbox, aspect):
