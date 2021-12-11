@@ -1,3 +1,4 @@
+import argparse
 import unittest
 from unittest import TestCase
 
@@ -77,6 +78,37 @@ class TestParseAspect(TestCase):
         for raw, expected in cases.items():
             actual = mapmaker._aspect(raw)
             self.assertAlmostEqual(actual, expected, places=4)
+
+
+class TestParseBBox(TestCase):
+
+    def test_valid(self):
+        cases = (
+            ['47.1,6.5', '47.2,6.6'],
+            ['47.1, 6.5', '4km'],
+            ['47.1,6.5', '4'],
+            ["43°21'18'', 42°26'21''", '4km'],
+        )
+
+        action = mapmaker._BBoxAction(None, 'bbox')
+        for values in cases:
+            ns = argparse.Namespace()
+            action(None, ns, values)
+            self.assertIsNotNone(ns.bbox)
+
+    def test_should_fail(self):
+        cases = (
+            ['', ''],
+            ['47.1,6.5', ''],
+            ['47.1,6.5', '4 miles'],
+            ['47.1,6.5', 'foo'],
+            ['123', '4km'],
+            ['abc', '4km'],
+        )
+        action = mapmaker._BBoxAction(None, 'bbox')
+        for values in cases:
+            ns = argparse.Namespace()
+            self.assertRaises(ValueError, action, None, ns, values)
 
 
 if __name__ == "__main__":

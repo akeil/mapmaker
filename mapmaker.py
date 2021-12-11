@@ -302,7 +302,7 @@ def _parse_coordinates(raw):
 
     parts = raw.lower().split(',')
     if len(parts) != 2:
-        raise ValueError
+        raise ValueError(raw)
 
     a, b = parts
 
