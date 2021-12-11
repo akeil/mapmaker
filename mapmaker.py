@@ -17,6 +17,7 @@ from math import radians
 from math import sin
 from math import sqrt
 from math import tan
+import os
 from pathlib import Path
 import queue
 import sys
@@ -75,6 +76,10 @@ klokantech  = https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png
 [keys]
 tile.thunderforest.com  = <YOUR_API_KEY>
 maps.geoapify.com       = <YOUR_API_KEY>
+
+[cache]
+# 256 MB
+limit = 256000000
 '''
 
 BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
@@ -88,7 +93,7 @@ def main():
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
 
-    patterns, api_keys = read_config(conf_file)
+    patterns, api_keys, cache_limit = read_config(conf_file)
     styles = sorted(x for x in patterns.keys())
 
     parser = argparse.ArgumentParser(
@@ -176,12 +181,20 @@ def main():
             for style in styles:
                 dst = base.joinpath(style + '.png')
                 try:
-                    run(bbox, args.zoom, dst, style, reporter, patterns, api_keys, hillshading=args.shading)
+                    run(bbox, args.zoom, dst, style, reporter, patterns,
+                        api_keys,
+                        hillshading=args.shading,
+                        cache_limit=cache_limit
+                    )
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            run(bbox, args.zoom, args.dst, args.style, reporter, patterns, api_keys, hillshading=args.shading)
+            run(bbox, args.zoom, args.dst, args.style, reporter, patterns,
+                api_keys,
+                hillshading=args.shading,
+                cache_limit=cache_limit
+            )
     except Exception as err:
         reporter('ERROR: %s', err)
         return 1
@@ -189,15 +202,15 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False):
+def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
-    service = Cache.user_dir(TileService(style, patterns[style], api_keys))
+    service = Cache.user_dir(TileService(style, patterns[style], api_keys), limit=cache_limit)
     img = RenderContext(service, map, reporter=report).build()
 
     if hillshading:
-        shading = Cache.user_dir(TileService(HILLSHADE, patterns[HILLSHADE], api_keys))
+        shading = Cache.user_dir(TileService(HILLSHADE, patterns[HILLSHADE], api_keys), limit=cache_limit)
         shade = RenderContext(shading, map, reporter=report).build()
         img.paste(shade.convert('RGB'), mask=shade)
 
@@ -431,7 +444,9 @@ def read_config(path):
     patterns = {k: v for k, v in cfg.items('services')}
     keys = {k: v for k, v in cfg.items('keys')}
 
-    return patterns, keys
+    cache_limit = cfg.getint('cache', 'limit', fallback=None)
+
+    return patterns, keys, cache_limit
 
 
 # Tile Map --------------------------------------------------------------------
@@ -894,9 +909,11 @@ class TileService:
 
 class Cache:
 
-    def __init__(self, service, basedir):
+    def __init__(self, service, basedir, limit=None):
         self._service = service
         self._base = Path(basedir)
+        self._limit = limit
+        self._lock = threading.Lock()
 
     @property
     def name(self):
@@ -979,7 +996,10 @@ class Cache:
         with p.open('wb') as f:
             f.write(data)
 
+        self._vacuum()
+
     def _clean(self, tile, current):
+        '''Remove outdated cache entries for a given tile.'''
         existing = self._find(tile)
         if existing and existing != current:
             p = self._path(tile, existing)
@@ -996,10 +1016,40 @@ class Cache:
             filename,
         )
 
+    def _vacuum(self):
+        '''Trim the cache up to or below the limit.
+        Deletes older tiles before newer ones.'''
+        if not self._limit:
+            return
+
+        with self._lock:
+            used = 0
+            entries = []
+            for base, dirname, filenames in os.walk(self._base):
+                for filename in filenames:
+                    path = Path(base).joinpath(filename)
+                    stat = path.stat()
+                    used += stat.st_size
+                    entries.append((stat.st_ctime, stat.st_size, path))
+
+            excess = used - self._limit
+            if excess <= 0:
+                return
+
+            # delete some additional entries to avoid frequent deletes
+            excess *= 1.1
+
+            entries.sort()  # oldest first
+            for _, size, path in entries:
+                path.unlink()
+                excess -= size
+                if excess <= 0:
+                    break
+
     @classmethod
-    def user_dir(cls, service):
+    def user_dir(cls, service, limit=None):
         cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-        return cls(service, cache_dir)
+        return cls(service, cache_dir, limit=limit)
 
 if __name__ == '__main__':
     sys.exit(main())
