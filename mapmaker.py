@@ -502,7 +502,7 @@ class TileMap:
 
 
 class Tile:
-    '''Represents a single slippy map tile  for a given zoom level.'''
+    '''Represents a single slippy map tile for a given zoom level.'''
 
     def __init__(self, x, y, zoom):
         self.x = x
