@@ -102,7 +102,7 @@ def main():
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
 
-    patterns, api_keys, cache_limit = read_config(conf_file)
+    patterns, api_keys, copyrights, cache_limit = read_config(conf_file)
     styles = sorted(x for x in patterns.keys())
 
     parser = argparse.ArgumentParser(
@@ -199,6 +199,7 @@ def main():
                         api_keys,
                         hillshading=args.shading,
                         cache_limit=cache_limit,
+                        copyrights=copyrights,
                         copyright=args.copyright,
                     )
                 except Exception as err:
@@ -209,6 +210,7 @@ def main():
                 api_keys,
                 hillshading=args.shading,
                 cache_limit=cache_limit,
+                copyrights=copyrights,
                 copyright=args.copyright,
             )
     except Exception as err:
@@ -218,22 +220,25 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None, copyright=False):
+def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None, copyrights=None, copyright=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
-    overlays = []
-    if copyright:
-        overlays.append(TextLayer('(c) OpenStreetMap contributors',
-            align=TextLayer.BOTTOM_RIGHT,
-            color=(0, 0, 0, 255),
-            outline=(255, 255, 255, 255),
-            background=(200, 200, 200, 200),
-            padding=1,
-        ))
-
     service = TileService(style, patterns[style], api_keys)
     service = Cache.user_dir(service, limit=cache_limit)
+
+    overlays = []
+    if copyright and copyrights:
+        text = copyrights.get(service.top_level_domain)
+        if text:
+            overlays.append(TextLayer(text,
+                align=TextLayer.BOTTOM_RIGHT,
+                color=(0, 0, 0, 255),
+                outline=(255, 255, 255, 255),
+                background=(200, 200, 200, 200),
+                padding=1,
+            ))
+
     img = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8).build()
 
     if hillshading:
@@ -471,10 +476,10 @@ def read_config(path):
 
     patterns = {k: v for k, v in cfg.items('services')}
     keys = {k: v for k, v in cfg.items('keys')}
-
+    copyrights = {k: v for k, v in cfg.items('copyright')}
     cache_limit = cfg.getint('cache', 'limit', fallback=None)
 
-    return patterns, keys, cache_limit
+    return patterns, keys, copyrights, cache_limit
 
 
 # Tile Map --------------------------------------------------------------------
@@ -1015,6 +1020,18 @@ class TileService:
         self.url_pattern=url_pattern
         self._api_keys = api_keys or {}
 
+    @property
+    def top_level_domain(self):
+        domain = self.domain
+        parts = self.domain.split('.')
+        # TODO: not quite correct, will fail e.g. for 'foo.co.uk'
+        return '.'.join(parts[-2:])
+
+    @property
+    def domain(self):
+        parts = urlparse(self.url_pattern)
+        return parts.netloc
+
     def fetch(self, tile, etag=None):
         '''Fetch the given tile from the Map Tile Service.
 
@@ -1044,9 +1061,7 @@ class TileService:
         return recv_etag, res.content
 
     def _api_key(self):
-        parts = urlparse(self.url_pattern)
-        host = parts.netloc
-        return self._api_keys.get(host, '')
+        return self._api_keys.get(self.domain, '')
 
 
 class Cache:
@@ -1060,6 +1075,14 @@ class Cache:
     @property
     def name(self):
         return self._service.name
+
+    @property
+    def top_level_domain(self):
+        return self._service.top_level_domain
+
+    @property
+    def domain(self):
+        return self._service.domain
 
     def fetch(self, tile, etag=None):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
