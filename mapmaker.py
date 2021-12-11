@@ -276,7 +276,7 @@ class _BBoxAction(argparse.Action):
 
 
 def _aspect(raw):
-    '''Parse an aspect ration given in the form of "19:9" into a float.'''
+    '''Parse an aspect ratio given in the form of "19:9" into a float.'''
     if not raw:
         raise ValueError('Invalid argument (empty)')
 
@@ -291,7 +291,7 @@ def _aspect(raw):
 def _apply_aspect(bbox, aspect):
     '''Extend the given bounding box so that it adheres to the given aspect
     ratio (given as a floating point number).
-    Returns a new bounding box with the desired aspect ration that contains
+    Returns a new bounding box with the desired aspect ratio that contains
     the initial box in its center'''
     #  4:3  =>  1.32  width > height, aspect is > 1.0
     #  2:3  =>  0.66  width < height, aspect is < 1.0
