@@ -51,5 +51,33 @@ class TestParseCoordinates(TestCase):
             self.assertAlmostEqual(actual_lon, expected_lon, places=5)
 
 
+class TestParseAspect(TestCase):
+
+    def test_should_fail(self):
+        cases = (
+            '',
+            '123',
+            'abc:def',
+            '4:3:4',
+            '4-3',
+            '4/3',
+            '-16:9',
+            '0:2',
+            '2:0',
+        )
+        for case in cases:
+            self.assertRaises(ValueError, mapmaker._aspect, case)
+
+    def test_valid(self):
+        cases = {
+            '4:2': 2.0,
+            '16:9': 1.77777,
+            '2:3': 0.66666,
+        }
+        for raw, expected in cases.items():
+            actual = mapmaker._aspect(raw)
+            self.assertAlmostEqual(actual, expected, places=4)
+
+
 if __name__ == "__main__":
     unittest.main()
