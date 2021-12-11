@@ -166,6 +166,11 @@ def main():
         help='Add hillshading',
     )
     parser.add_argument(
+        '--copyright',
+        action='store_true',
+        help='Add copyright notice',
+    )
+    parser.add_argument(
         '--gallery',
         action='store_true',
         help='Create a map image for each available style. WARNING: generates a lot of images.',
@@ -193,7 +198,8 @@ def main():
                     run(bbox, args.zoom, dst, style, reporter, patterns,
                         api_keys,
                         hillshading=args.shading,
-                        cache_limit=cache_limit
+                        cache_limit=cache_limit,
+                        copyright=args.copyright,
                     )
                 except Exception as err:
                     # on error, continue with next service
@@ -202,7 +208,8 @@ def main():
             run(bbox, args.zoom, args.dst, args.style, reporter, patterns,
                 api_keys,
                 hillshading=args.shading,
-                cache_limit=cache_limit
+                cache_limit=cache_limit,
+                copyright=args.copyright,
             )
     except Exception as err:
         reporter('ERROR: %s', err)
@@ -211,12 +218,12 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None):
+def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None, copyright=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
     overlays = []
-    if True:
+    if copyright:
         overlays.append(TextLayer('(c) OpenStreetMap contributors',
             align=TextLayer.BOTTOM_RIGHT,
             color=(0, 0, 0, 255),
