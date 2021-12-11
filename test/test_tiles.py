@@ -55,3 +55,17 @@ class TestTiles(TestCase):
             x, y = tile_coordinates(*se, zoom)
             self.assertTrue(x >= half)
             self.assertTrue(y >= half)
+
+    def disabled_test_bounds(self):
+        # this fails on the extreme values for lat/lon and some(?) zoom factors
+        # why?
+        for lat in range(-90, 91, 1):
+            for lon in range(-180, 181, 1):
+                for zoom in range(20):
+                    max_tiles = 2**zoom
+                    x, y = tile_coordinates(lat, lon, zoom)
+                    #print('lat/lon', lat, lon, 'Zoom/Tiles', zoom, max_tiles, 'XY', x, y)
+                    self.assertTrue(x >= 0)
+                    self.assertTrue(x <= max_tiles)
+                    self.assertTrue(y >= 0)
+                    self.assertTrue(y <= max_tiles)

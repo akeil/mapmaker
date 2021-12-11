@@ -5,7 +5,7 @@ from collections import namedtuple
 import configparser
 import io
 import math
-from math import asin
+from math import asin, asinh
 from math import atan2
 from math import ceil
 from math import cos
@@ -608,21 +608,17 @@ def tile_coordinates(lat, lon, zoom):
     given point at the given zoom level.'''
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = math.pow(2.0, zoom)
-    x_rel, y_rel = _to_relative_xy(lat, lon, zoom)
 
-    x = int(x_rel * n)
-    y = int(y_rel * n)
-    return x, y
+    x = (lon + 180.0) / 360.0 * n
+    x = int(x)
 
-
-def _to_relative_xy(lat, lon, zoom):
-    '''Calculate the x,y indices for a tile'''
-    x = (lon + 180.0) / 360.0
-
-    lat_rad = radians(lat)
-    lat_sec = 1 / cos(lat_rad)
-    a = log(tan(lat_rad) + lat_sec)
-    y = (1.0 - a / PI) / 2.0
+    if lat == -90:
+        y = 0
+    else:
+        lat_rad = radians(lat)
+        a = asinh(tan(lat_rad))
+        y = (1.0 - a / PI) / 2.0 * n
+        y = int(y)
 
     return x, y
 
