@@ -4,7 +4,7 @@ DIST := file://$(BASE)/dist
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-.PHONY: build samples
+.PHONY: build samples test
 
 # Dependencies:
 # sdist and  wheel require the "build" package to be installed.
@@ -42,3 +42,7 @@ dev-install:
 
 samples:
 	./mapmaker.py --zoom 10 --gallery 63.0695,-151.0074 30km ./samples
+
+test:
+	# if tox is not installed, use `python -m unittest discover`
+	tox
