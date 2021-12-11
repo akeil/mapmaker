@@ -206,12 +206,14 @@ def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, c
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
-    service = Cache.user_dir(TileService(style, patterns[style], api_keys), limit=cache_limit)
-    img = RenderContext(service, map, reporter=report).build()
+    service = TileService(style, patterns[style], api_keys)
+    service = Cache.user_dir(service, limit=cache_limit)
+    img = RenderContext(service, map, reporter=report, parallel_downloads=8).build()
 
     if hillshading:
-        shading = Cache.user_dir(TileService(HILLSHADE, patterns[HILLSHADE], api_keys), limit=cache_limit)
-        shade = RenderContext(shading, map, reporter=report).build()
+        shading = TileService(HILLSHADE, patterns[HILLSHADE], api_keys)
+        shading = Cache.user_dir(shading, limit=cache_limit)
+        shade = RenderContext(shading, map, reporter=report, parallel_downloads=8).build()
         img.paste(shade.convert('RGB'), mask=shade)
 
     with open(dst, 'wb') as f:
@@ -756,10 +758,11 @@ class DrawLayer:
 class RenderContext:
     '''Renders a map, downloading required tiles on the fly.'''
 
-    def __init__(self, service, map, overlays=None, reporter=None):
+    def __init__(self, service, map, overlays=None, parallel_downloads=None, reporter=None):
         self._service = service
         self._map = map
         self._overlays = overlays or []
+        self._parallel_downloads = parallel_downloads or 1
         self._report = reporter or _no_reporter
         self._queue = queue.Queue()
         self._lock = threading.Lock()
@@ -780,17 +783,16 @@ class RenderContext:
 
     def build(self):
         '''Download tiles on the fly and render them into an image.'''
-        num_workers = 8
         # fill the task queue
         for tile in self._map.tiles.values():
             self._queue.put(tile)
 
         self._total_tiles = self._queue.qsize()
         self._report('Download %s tiles for map style %r', self._total_tiles, self._service.name)
-        self._report('Parallel downloads: %s', num_workers)
+        self._report('Parallel downloads: %s', self._parallel_downloads)
 
         # start parallel downloads
-        for w in range(num_workers):
+        for w in range(self._parallel_downloads):
             threading.Thread(daemon=True, target=self._work).run()
 
         self._queue.join()
