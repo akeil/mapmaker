@@ -275,6 +275,74 @@ class _BBoxAction(argparse.Action):
         setattr(namespace, self.dest, bbox)
 
 
+def _parse_coordinates(raw):
+
+    def _parse_dms(dms):
+        d, remainder = dms.split('°')
+        d = float(d)
+
+        m = 0
+        if remainder and "'" in remainder:
+            m, remainder = remainder.split("'", 1)
+            m = float(m)
+
+        s = 0
+        if remainder and "''" in remainder:
+            s, remainder = remainder.split("''")
+            s = float(s)
+
+        if remainder.strip():
+            raise ValueError
+
+        # combine + return
+        m += s / 60.0  # seconds to minutes
+        d += m / 60.0  # minutes to degrees
+
+        return d
+
+    if not raw:
+        raise ValueError
+
+    parts = raw.lower().split(',')
+    if len(parts) != 2:
+        raise ValueError
+
+    a, b = parts
+
+    # Optional N/S and E/W suffix to sign
+    # 123 N => 123
+    # 123 S => -123
+    sign_lat = 1
+    sign_lon = 1
+    if a.endswith('n'):
+        a = a[:-1]
+    elif a.endswith('s'):
+        a = a[:-1]
+        sign_lat = -1
+
+    if b.endswith('e'):
+        b = b[:-1]
+    elif b.endswith('w'):
+        b = b[:-1]
+        sign_lon = -1
+
+    # try to parse floats (decimal)
+    try:
+        lat, lon = float(a), float(b)
+    except ValueError:
+        # assume DMS
+        lat, lon = _parse_dms(a), _parse_dms(b)
+
+    lat, lon = lat * sign_lat, lon * sign_lon
+    # check bounds
+    if lat < -90.0 or lat > 90.0:
+        raise ValueError
+    if lon < -180.0 or lon > 180.0:
+        raise ValueError
+
+    return lat, lon
+
+
 def _aspect(raw):
     '''Parse an aspect ratio given in the form of "19:9" into a float.'''
     if not raw:
