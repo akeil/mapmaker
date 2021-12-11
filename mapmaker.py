@@ -610,7 +610,6 @@ def tile_coordinates(lat, lon, zoom):
     n = math.pow(2.0, zoom)
 
     x = (lon + 180.0) / 360.0 * n
-    x = int(x)
 
     if lat == -90:
         y = 0
@@ -618,9 +617,8 @@ def tile_coordinates(lat, lon, zoom):
         lat_rad = radians(lat)
         a = asinh(tan(lat_rad))
         y = (1.0 - a / PI) / 2.0 * n
-        y = int(y)
 
-    return x, y
+    return int(x), int(y)
 
 
 class DrawLayer:
