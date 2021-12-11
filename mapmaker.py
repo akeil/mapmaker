@@ -216,7 +216,14 @@ def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, c
     map = TileMap.from_bbox(bbox, zoom)
 
     overlays = []
-    overlays.append(TextLayer('(c) OpenStreetMap contributors', align=TextLayer.BOTTOM_RIGHT))
+    if True:
+        overlays.append(TextLayer('(c) OpenStreetMap contributors',
+            align=TextLayer.BOTTOM_RIGHT,
+            color=(0, 0, 0, 255),
+            outline=(255, 255, 255, 255),
+            background=(200, 200, 200, 200),
+            padding=1,
+        ))
 
     service = TileService(style, patterns[style], api_keys)
     service = Cache.user_dir(service, limit=cache_limit)
@@ -790,64 +797,87 @@ class TextLayer:
         CENTER_LEFT: 'lm',
     }
 
-    def __init__(self, text, align=CENTER):
+    def __init__(self, text, align=CENTER, padding=2, color=None, outline=None, background=None):
         self.text = text
         self.align = align or TextLayer.CENTER
+        self.padding = padding or 0
+        self.color = color or (0, 0, 0, 255)
+        self.outline = outline
+        self.background = background
 
     def _draw(self, rc, draw):
         ''''Internal draw method, used by the rendering context.'''
-        # attempt to open a font
+        if not self.text:
+            # erly exit
+            return
+
         try:
-            font = ImageFont.truetype(font='DejaVuSans.ttf', size=8)
+            font = ImageFont.truetype(font='DejaVuSans.ttf', size=10)
         except OSError:
             font = ImageFont.load_default()
 
         text_w, text_h = font.getsize(self.text)
-        total_w, total_h = rc.uncropped_size
+        text_w += 2 * self.padding
+        text_h += 2 * self.padding
+        left, top, right, bottom = rc.crop_box
+        total_w = right - left
+        total_h = bottom - top
 
         x, y = None, None
-        # TODO: padding?
+        rect = [None, None, None, None]
 
         if self.align in (TextLayer.TOP_LEFT, TextLayer.CENTER_LEFT, TextLayer.BOTTOM_LEFT):
             x = 0
+            x_pad = x + self.padding
+            rect[0] = 0
+            rect[2] = text_w
         elif self.align in (TextLayer.TOP_RIGHT, TextLayer.CENTER_RIGHT, TextLayer.BOTTOM_RIGHT):
-            x = total_w - text_w
+            x = total_w
+            x_pad = x - self.padding
+            rect[0] = total_w - text_w
+            rect[2] = total_w
         else:  # CENTER
             x = total_w // 2
+            x_pad = x
+            rect[0] = x - text_w // 2
+            rect[2] = x + text_w // 2
 
         if self.align in (TextLayer.TOP_LEFT, TextLayer.TOP_CENTER, TextLayer.TOP_RIGHT):
             y = 0
+            y_pad = y + self.padding
+            rect[1] = 0
+            rect[3] = text_h
         elif self.align in (TextLayer.BOTTOM_LEFT, TextLayer.BOTTOM_CENTER, TextLayer.BOTTOM_RIGHT):
-            y = total_h - text_h
+            y = total_h
+            y_pad = y - self.padding
+            rect[1] = total_h - text_h
+            rect[3] = total_h
         else:  # CENTER
             y = total_h // 2
+            y_pad = y
+            rect[1] = y - text_h // 2
+            rect[3] = y + text_h // 2
 
-        # TODO: offset from crop box
+        # apply offset from crop box
+        x += left
+        y += top
+        x_pad += left
+        y_pad += top
+        rect[0] += left
+        rect[1] += top
+        rect[2] += left
+        rect[3] += top
 
-        print('Text ', text_w, text_h)
-        print('Image', total_w, total_h)
-        print('Loc  ', x, y)
+        if self.background:
+            draw.rectangle(rect, fill=self.background)
 
-        #dx = text_w // 2
-        #dy = text_h // 2
-        #draw.rectangle([x-dx, y-dy, x+dx, y+dy],
-        #    fill=(200, 200, 200, 255)
-        #)
-
-        draw.text([x, y], self.text,
+        draw.text([x_pad, y_pad], self.text,
             font=font,
             anchor=TextLayer._ANCHOR[self.align],
-            fill=(0, 0, 0, 255),
+            fill=self.color,
             stroke_width=1,
-            stroke_fill=(255, 255, 255, 255),
+            stroke_fill=self.outline,
         )
-
-        #d = 4
-        #xy = [x-d, y-d, x+d, y+d]
-        #draw.ellipse(xy,
-        #    fill=(255, 0, 0, 255),
-        #    width=1
-        #)
 
 
 # Rendering -------------------------------------------------------------------
@@ -880,24 +910,13 @@ class RenderContext:
         )
 
     @property
-    def image_size(self):
-        # duplicated from `_crop()`
+    def crop_box(self):
+        '''Get the crop box that will be applied to the stiched map.'''
         bbox = self._map.bbox
         left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
         right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
 
-        return right - left, bottom - top
-
-    @property
-    def uncropped_size(self):
-        if not self._tile_size:
-            return None, None
-
-        w, h = self._tile_size
-        dx = self._map.bx - self._map.ax
-        dy = self._map.by - self._map.ay
-        return dx * w, dy * h
-
+        return (left, top, right, bottom)
 
     def build(self):
         '''Download tiles on the fly and render them into an image.'''
@@ -944,11 +963,7 @@ class RenderContext:
 
     def _crop(self):
         '''Crop the map image to the bounding box.'''
-        bbox = self._map.bbox
-        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
-        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
-
-        self._img = self._img.crop((left, top, right, bottom))
+        self._img = self._img.crop(self.crop_box)
 
     def _work(self):
         '''Download map tiles and paste them onto the result image.'''
