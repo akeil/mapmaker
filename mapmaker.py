@@ -78,13 +78,13 @@ tile.thunderforest.com  = <YOUR_API_KEY>
 maps.geoapify.com       = <YOUR_API_KEY>
 
 [copyright]
-openstreetmap.org = (c) OpenStreetMap contributors
-openstreetmap.fr = (c) OpenStreetMap contributors
-opentopomap.org = (c) OpenStreetMap contributors
-wmflabs.org = (c) OpenStreetMap contributors
-geoapify.com = Powered by Geoapify | (c) OpenStreetMap contributors
-thunderforest.com = Maps (c) Thunderforest, Data (c) OpenStreetMap contributors
-stamen.com = Maps (c) Stamen Design, Data (c) OpenStreetMap contributors
+openstreetmap.org = \u00A9 OpenStreetMap contributors
+openstreetmap.fr = \u00A9 OpenStreetMap contributors
+opentopomap.org = \u00A9 OpenStreetMap contributors
+wmflabs.org = \u00A9 OpenStreetMap contributors
+geoapify.com = Powered by Geoapify | \u00A9 OpenStreetMap contributors
+thunderforest.com = Maps \u00A9 Thunderforest, Data \u00A9 OpenStreetMap contributors
+stamen.com = Maps \u00A9 Stamen Design, Data \u00A9 OpenStreetMap contributors
 
 [cache]
 # 256 MB
