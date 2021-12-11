@@ -268,7 +268,7 @@ def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, c
     with open(dst, 'wb') as f:
         img.save(f, format='png')
 
-    report('Map saved to %r', dst)
+    report('Map saved to %s', dst)
 
 
 class _BBoxAction(argparse.Action):
