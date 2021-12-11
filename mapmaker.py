@@ -216,23 +216,20 @@ class _BBoxAction(argparse.Action):
         #
         # B: lat/lon and radius
         #    e.g. 47.437,10.953 2km
-        a = values[0].split(',')
-        lat0 = float(a[0])
-        lon0 = float(a[1])
-
-        b = values[1].split(',')
+        lat0, lon0 = _parse_coordinates(values[0])
 
         # simple case, BBox from lat,lon pairs
-        if len(b) == 2:
+        if ',' in values[1]:
+            lat1, lon1 = _parse_coordinates(values[1])
             bbox = BBox(
                 minlat=lat0,
                 minlon=lon0,
-                maxlat=float(b[0]),
-                maxlon=float(b[1]),
+                maxlat=lat1,
+                maxlon=lon1,
             )
         # bbox from point and radius
         else:
-            s = b[0].lower()
+            s = values[1].lower()
             unit = None
             value = None
             allowed_units = ('km', 'm')
