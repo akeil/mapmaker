@@ -5,7 +5,7 @@ from collections import namedtuple
 import configparser
 import io
 import math
-from math import asin
+from math import asin, asinh
 from math import atan2
 from math import ceil
 from math import cos
@@ -302,7 +302,7 @@ def _parse_coordinates(raw):
 
     parts = raw.lower().split(',')
     if len(parts) != 2:
-        raise ValueError
+        raise ValueError(raw)
 
     a, b = parts
 
@@ -350,7 +350,11 @@ def _aspect(raw):
         raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
 
     w, h = parts
-    return float(w) / float(h)
+    w, h = float(w), float(h)
+    if w <= 0 or h <= 0:
+        raise ValueError
+
+    return w / h
 
 
 def _apply_aspect(bbox, aspect):
@@ -498,7 +502,7 @@ class TileMap:
 
 
 class Tile:
-    '''Represents a single slippy map tile  for a given zoom level.'''
+    '''Represents a single slippy map tile for a given zoom level.'''
 
     def __init__(self, x, y, zoom):
         self.x = x
@@ -604,23 +608,17 @@ def tile_coordinates(lat, lon, zoom):
     given point at the given zoom level.'''
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = math.pow(2.0, zoom)
-    x_rel, y_rel = _to_relative_xy(lat, lon, zoom)
 
-    x = int(x_rel * n)
-    y = int(y_rel * n)
-    return x, y
+    x = (lon + 180.0) / 360.0 * n
 
+    if lat == -90:
+        y = 0
+    else:
+        lat_rad = radians(lat)
+        a = asinh(tan(lat_rad))
+        y = (1.0 - a / PI) / 2.0 * n
 
-def _to_relative_xy(lat, lon, zoom):
-    '''Calculate the x,y indices for a tile'''
-    x = (lon + 180.0) / 360.0
-
-    lat_rad = radians(lat)
-    lat_sec = 1 / cos(lat_rad)
-    a = log(tan(lat_rad) + lat_sec)
-    y = (1.0 - a / PI) / 2.0
-
-    return x, y
+    return int(x), int(y)
 
 
 class DrawLayer:
