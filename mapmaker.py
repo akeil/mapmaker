@@ -77,6 +77,15 @@ klokantech  = https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png
 tile.thunderforest.com  = <YOUR_API_KEY>
 maps.geoapify.com       = <YOUR_API_KEY>
 
+[copyright]
+openstreetmap.org = (c) OpenStreetMap contributors
+openstreetmap.fr = (c) OpenStreetMap contributors
+opentopomap.org = (c) OpenStreetMap contributors
+wmflabs.org = (c) OpenStreetMap contributors
+geoapify.com = Powered by Geoapify | (c) OpenStreetMap contributors
+thunderforest.com = Maps (c) Thunderforest, Data (c) OpenStreetMap contributors
+stamen.com = Maps (c) Stamen Design, Data (c) OpenStreetMap contributors
+
 [cache]
 # 256 MB
 limit = 256000000
@@ -206,9 +215,12 @@ def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, c
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
+    overlays = []
+    overlays.append(TextLayer('(c) OpenStreetMap contributors', align=TextLayer.BOTTOM_RIGHT))
+
     service = TileService(style, patterns[style], api_keys)
     service = Cache.user_dir(service, limit=cache_limit)
-    img = RenderContext(service, map, reporter=report, parallel_downloads=8).build()
+    img = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8).build()
 
     if hillshading:
         shading = TileService(HILLSHADE, patterns[HILLSHADE], api_keys)
@@ -658,7 +670,7 @@ class DrawLayer:
         self.size = size
 
     def _draw(self, rc, draw):
-        ''''Internal draw method, used by the rendering contet.'''
+        ''''Internal draw method, used by the rendering context.'''
         self._draw_waypoints(rc, draw)
         self._draw_points(rc, draw)
 
@@ -752,6 +764,92 @@ class DrawLayer:
         return cls(None, points, color, border, fill, size)
 
 
+class TextLayer:
+    '''A map layer which places text on the map.
+    The text is relative to the maps *pixel values*.'''
+
+    CENTER = 0
+    TOP_LEFT = 1
+    TOP_CENTER = 2
+    TOP_RIGHT = 3
+    CENTER_RIGHT = 4
+    BOTTOM_RIGHT = 5
+    BOTTOM_CENTER = 6
+    BOTTOM_LEFT = 7
+    CENTER_LEFT = 8
+
+    _ANCHOR = {
+        CENTER: 'mm',
+        TOP_LEFT: 'la',
+        TOP_CENTER: 'ma',
+        TOP_RIGHT: 'ra',
+        CENTER_RIGHT: 'rm',
+        BOTTOM_LEFT: 'ld',
+        BOTTOM_CENTER: 'md',
+        BOTTOM_RIGHT: 'rd',
+        CENTER_LEFT: 'lm',
+    }
+
+    def __init__(self, text, align=CENTER):
+        self.text = text
+        self.align = align or TextLayer.CENTER
+
+    def _draw(self, rc, draw):
+        ''''Internal draw method, used by the rendering context.'''
+        # attempt to open a font
+        try:
+            font = ImageFont.truetype(font='DejaVuSans.ttf', size=8)
+        except OSError:
+            font = ImageFont.load_default()
+
+        text_w, text_h = font.getsize(self.text)
+        total_w, total_h = rc.uncropped_size
+
+        x, y = None, None
+        # TODO: padding?
+
+        if self.align in (TextLayer.TOP_LEFT, TextLayer.CENTER_LEFT, TextLayer.BOTTOM_LEFT):
+            x = 0
+        elif self.align in (TextLayer.TOP_RIGHT, TextLayer.CENTER_RIGHT, TextLayer.BOTTOM_RIGHT):
+            x = total_w - text_w
+        else:  # CENTER
+            x = total_w // 2
+
+        if self.align in (TextLayer.TOP_LEFT, TextLayer.TOP_CENTER, TextLayer.TOP_RIGHT):
+            y = 0
+        elif self.align in (TextLayer.BOTTOM_LEFT, TextLayer.BOTTOM_CENTER, TextLayer.BOTTOM_RIGHT):
+            y = total_h - text_h
+        else:  # CENTER
+            y = total_h // 2
+
+        # TODO: offset from crop box
+
+        print('Text ', text_w, text_h)
+        print('Image', total_w, total_h)
+        print('Loc  ', x, y)
+
+        #dx = text_w // 2
+        #dy = text_h // 2
+        #draw.rectangle([x-dx, y-dy, x+dx, y+dy],
+        #    fill=(200, 200, 200, 255)
+        #)
+
+        draw.text([x, y], self.text,
+            font=font,
+            anchor=TextLayer._ANCHOR[self.align],
+            fill=(0, 0, 0, 255),
+            stroke_width=1,
+            stroke_fill=(255, 255, 255, 255),
+        )
+
+        #d = 4
+        #xy = [x-d, y-d, x+d, y+d]
+        #draw.ellipse(xy,
+        #    fill=(255, 0, 0, 255),
+        #    width=1
+        #)
+
+
 # Rendering -------------------------------------------------------------------
 
 
@@ -780,6 +878,26 @@ class RenderContext:
             self._total_tiles,
             self._service.name
         )
+
+    @property
+    def image_size(self):
+        # duplicated from `_crop()`
+        bbox = self._map.bbox
+        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
+        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
+
+        return right - left, bottom - top
+
+    @property
+    def uncropped_size(self):
+        if not self._tile_size:
+            return None, None
+
+        w, h = self._tile_size
+        dx = self._map.bx - self._map.ax
+        dy = self._map.by - self._map.ay
+        return dx * w, dy * h
+
 
     def build(self):
         '''Download tiles on the fly and render them into an image.'''
