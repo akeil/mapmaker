@@ -55,13 +55,30 @@ human       = http://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png
 hillshading = http://tiles.wmflabs.org/hillshading/{z}/{x}/{y}.png
 bw          = https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png
 nolabels    = https://tiles.wmflabs.org/osm-no-labels/{z}/{x}/{y}.png
-toner       = http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png
-watercolor  = http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg
-positron    = https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png
-darkmatter  = https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png
+
+# Stamen, http://maps.stamen.com/
+toner        = https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png
+toner-hybrid = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-hybrid/{z}/{x}/{y}.png
+toner-bg     = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png
+toner-lite   = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png
+watercolor   = https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg
+terrain      = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png
+terrain-bg   = https://stamen-tiles.{s}.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png
+
+# Carto, https://carto.com/help/building-maps/basemap-list/
+voyager            = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}.png
+voyager-nolabel    = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png
+positron           = https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png
+positron-nolabel   = https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png
+darkmatter         = https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png
+darkmatter-nolabel = https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}.png
+
+# Thunderforest
 landscape   = http://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey={api}
 outdoors    = http://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey={api}
 atlas       = https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey={api}
+
+# Geoapify
 grey        = https://maps.geoapify.com/v1/tile/osm-bright-grey/{z}/{x}/{y}.png?apiKey={api}
 smooth      = https://maps.geoapify.com/v1/tile/osm-bright-smooth/{z}/{x}/{y}.png?apiKey={api}
 toner-grey  = https://maps.geoapify.com/v1/tile/toner-grey/{z}/{x}/{y}.png?apiKey={api}
@@ -82,6 +99,7 @@ openstreetmap.org = \u00A9 OpenStreetMap contributors
 openstreetmap.fr = \u00A9 OpenStreetMap contributors
 opentopomap.org = \u00A9 OpenStreetMap contributors
 wmflabs.org = \u00A9 OpenStreetMap contributors
+cartocdn.com = Maps \u00A9 Carto, Data \u00A9 OpenStreetMap contributors
 geoapify.com = Powered by Geoapify | \u00A9 OpenStreetMap contributors
 thunderforest.com = Maps \u00A9 Thunderforest, Data \u00A9 OpenStreetMap contributors
 stamen.com = Maps \u00A9 Stamen Design, Data \u00A9 OpenStreetMap contributors
