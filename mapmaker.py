@@ -40,6 +40,10 @@ BRG_SOUTH = 180
 BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
+# supported lat bounds for slippy map
+MAX_LAT = 85.0511
+MIN_LAT = -85.0511
+
 HILLSHADE = 'hillshading'
 
 _DEFAULT_CONFIG = '''[services]
@@ -606,6 +610,9 @@ def _destination_point(lat, lon, bearing, distance):
 def tile_coordinates(lat, lon, zoom):
     '''Calculate the X and Y coordinates for the map tile that contains the
     given point at the given zoom level.'''
+    if lat <= MIN_LAT or lat >= MAX_LAT:
+        raise ValueError('latitude must be %s..%s' % (MIN_LAT, MAX_LAT))
+
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = math.pow(2.0, zoom)
 
