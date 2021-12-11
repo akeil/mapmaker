@@ -77,6 +77,15 @@ klokantech  = https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png
 tile.thunderforest.com  = <YOUR_API_KEY>
 maps.geoapify.com       = <YOUR_API_KEY>
 
+[copyright]
+openstreetmap.org = \u00A9 OpenStreetMap contributors
+openstreetmap.fr = \u00A9 OpenStreetMap contributors
+opentopomap.org = \u00A9 OpenStreetMap contributors
+wmflabs.org = \u00A9 OpenStreetMap contributors
+geoapify.com = Powered by Geoapify | \u00A9 OpenStreetMap contributors
+thunderforest.com = Maps \u00A9 Thunderforest, Data \u00A9 OpenStreetMap contributors
+stamen.com = Maps \u00A9 Stamen Design, Data \u00A9 OpenStreetMap contributors
+
 [cache]
 # 256 MB
 limit = 256000000
@@ -93,7 +102,7 @@ def main():
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
 
-    patterns, api_keys, cache_limit = read_config(conf_file)
+    patterns, api_keys, copyrights, cache_limit = read_config(conf_file)
     styles = sorted(x for x in patterns.keys())
 
     parser = argparse.ArgumentParser(
@@ -157,6 +166,11 @@ def main():
         help='Add hillshading',
     )
     parser.add_argument(
+        '--copyright',
+        action='store_true',
+        help='Add copyright notice',
+    )
+    parser.add_argument(
         '--gallery',
         action='store_true',
         help='Create a map image for each available style. WARNING: generates a lot of images.',
@@ -184,7 +198,9 @@ def main():
                     run(bbox, args.zoom, dst, style, reporter, patterns,
                         api_keys,
                         hillshading=args.shading,
-                        cache_limit=cache_limit
+                        cache_limit=cache_limit,
+                        copyrights=copyrights,
+                        copyright=args.copyright,
                     )
                 except Exception as err:
                     # on error, continue with next service
@@ -193,7 +209,9 @@ def main():
             run(bbox, args.zoom, args.dst, args.style, reporter, patterns,
                 api_keys,
                 hillshading=args.shading,
-                cache_limit=cache_limit
+                cache_limit=cache_limit,
+                copyrights=copyrights,
+                copyright=args.copyright,
             )
     except Exception as err:
         reporter('ERROR: %s', err)
@@ -202,13 +220,26 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None):
+def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None, copyrights=None, copyright=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
     service = TileService(style, patterns[style], api_keys)
     service = Cache.user_dir(service, limit=cache_limit)
-    img = RenderContext(service, map, reporter=report, parallel_downloads=8).build()
+
+    overlays = []
+    if copyright and copyrights:
+        text = copyrights.get(service.top_level_domain)
+        if text:
+            overlays.append(TextLayer(text,
+                align=TextLayer.BOTTOM_RIGHT,
+                color=(0, 0, 0, 255),
+                outline=(255, 255, 255, 255),
+                background=(200, 200, 200, 200),
+                padding=1,
+            ))
+
+    img = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8).build()
 
     if hillshading:
         shading = TileService(HILLSHADE, patterns[HILLSHADE], api_keys)
@@ -445,10 +476,10 @@ def read_config(path):
 
     patterns = {k: v for k, v in cfg.items('services')}
     keys = {k: v for k, v in cfg.items('keys')}
-
+    copyrights = {k: v for k, v in cfg.items('copyright')}
     cache_limit = cfg.getint('cache', 'limit', fallback=None)
 
-    return patterns, keys, cache_limit
+    return patterns, keys, copyrights, cache_limit
 
 
 # Tile Map --------------------------------------------------------------------
@@ -658,7 +689,7 @@ class DrawLayer:
         self.size = size
 
     def _draw(self, rc, draw):
-        ''''Internal draw method, used by the rendering contet.'''
+        ''''Internal draw method, used by the rendering context.'''
         self._draw_waypoints(rc, draw)
         self._draw_points(rc, draw)
 
@@ -752,6 +783,115 @@ class DrawLayer:
         return cls(None, points, color, border, fill, size)
 
 
+class TextLayer:
+    '''A map layer which places text on the map.
+    The text is relative to the maps *pixel values*.'''
+
+    CENTER = 0
+    TOP_LEFT = 1
+    TOP_CENTER = 2
+    TOP_RIGHT = 3
+    CENTER_RIGHT = 4
+    BOTTOM_RIGHT = 5
+    BOTTOM_CENTER = 6
+    BOTTOM_LEFT = 7
+    CENTER_LEFT = 8
+
+    _ANCHOR = {
+        CENTER: 'mm',
+        TOP_LEFT: 'la',
+        TOP_CENTER: 'ma',
+        TOP_RIGHT: 'ra',
+        CENTER_RIGHT: 'rm',
+        BOTTOM_LEFT: 'ld',
+        BOTTOM_CENTER: 'md',
+        BOTTOM_RIGHT: 'rd',
+        CENTER_LEFT: 'lm',
+    }
+
+    def __init__(self, text, align=CENTER, padding=2, color=None, outline=None, background=None):
+        self.text = text
+        self.align = align or TextLayer.CENTER
+        self.padding = padding or 0
+        self.color = color or (0, 0, 0, 255)
+        self.outline = outline
+        self.background = background
+
+    def _draw(self, rc, draw):
+        ''''Internal draw method, used by the rendering context.'''
+        if not self.text:
+            # erly exit
+            return
+
+        try:
+            font = ImageFont.truetype(font='DejaVuSans.ttf', size=10)
+        except OSError:
+            font = ImageFont.load_default()
+
+        text_w, text_h = font.getsize(self.text)
+        text_w += 2 * self.padding
+        text_h += 2 * self.padding
+        left, top, right, bottom = rc.crop_box
+        total_w = right - left
+        total_h = bottom - top
+
+        x, y = None, None
+        rect = [None, None, None, None]
+
+        if self.align in (TextLayer.TOP_LEFT, TextLayer.CENTER_LEFT, TextLayer.BOTTOM_LEFT):
+            x = 0
+            x_pad = x + self.padding
+            rect[0] = 0
+            rect[2] = text_w
+        elif self.align in (TextLayer.TOP_RIGHT, TextLayer.CENTER_RIGHT, TextLayer.BOTTOM_RIGHT):
+            x = total_w
+            x_pad = x - self.padding
+            rect[0] = total_w - text_w
+            rect[2] = total_w
+        else:  # CENTER
+            x = total_w // 2
+            x_pad = x
+            rect[0] = x - text_w // 2
+            rect[2] = x + text_w // 2
+
+        if self.align in (TextLayer.TOP_LEFT, TextLayer.TOP_CENTER, TextLayer.TOP_RIGHT):
+            y = 0
+            y_pad = y + self.padding
+            rect[1] = 0
+            rect[3] = text_h
+        elif self.align in (TextLayer.BOTTOM_LEFT, TextLayer.BOTTOM_CENTER, TextLayer.BOTTOM_RIGHT):
+            y = total_h
+            y_pad = y - self.padding
+            rect[1] = total_h - text_h
+            rect[3] = total_h
+        else:  # CENTER
+            y = total_h // 2
+            y_pad = y
+            rect[1] = y - text_h // 2
+            rect[3] = y + text_h // 2
+
+        # apply offset from crop box
+        x += left
+        y += top
+        x_pad += left
+        y_pad += top
+        rect[0] += left
+        rect[1] += top
+        rect[2] += left
+        rect[3] += top
+
+        if self.background:
+            draw.rectangle(rect, fill=self.background)
+
+        draw.text([x_pad, y_pad], self.text,
+            font=font,
+            anchor=TextLayer._ANCHOR[self.align],
+            fill=self.color,
+            stroke_width=1,
+            stroke_fill=self.outline,
+        )
+
+
 # Rendering -------------------------------------------------------------------
 
 
@@ -780,6 +920,15 @@ class RenderContext:
             self._total_tiles,
             self._service.name
         )
+
+    @property
+    def crop_box(self):
+        '''Get the crop box that will be applied to the stiched map.'''
+        bbox = self._map.bbox
+        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
+        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
+
+        return (left, top, right, bottom)
 
     def build(self):
         '''Download tiles on the fly and render them into an image.'''
@@ -826,11 +975,7 @@ class RenderContext:
 
     def _crop(self):
         '''Crop the map image to the bounding box.'''
-        bbox = self._map.bbox
-        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
-        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
-
-        self._img = self._img.crop((left, top, right, bottom))
+        self._img = self._img.crop(self.crop_box)
 
     def _work(self):
         '''Download map tiles and paste them onto the result image.'''
@@ -875,6 +1020,18 @@ class TileService:
         self.url_pattern=url_pattern
         self._api_keys = api_keys or {}
 
+    @property
+    def top_level_domain(self):
+        domain = self.domain
+        parts = self.domain.split('.')
+        # TODO: not quite correct, will fail e.g. for 'foo.co.uk'
+        return '.'.join(parts[-2:])
+
+    @property
+    def domain(self):
+        parts = urlparse(self.url_pattern)
+        return parts.netloc
+
     def fetch(self, tile, etag=None):
         '''Fetch the given tile from the Map Tile Service.
 
@@ -904,9 +1061,7 @@ class TileService:
         return recv_etag, res.content
 
     def _api_key(self):
-        parts = urlparse(self.url_pattern)
-        host = parts.netloc
-        return self._api_keys.get(host, '')
+        return self._api_keys.get(self.domain, '')
 
 
 class Cache:
@@ -920,6 +1075,14 @@ class Cache:
     @property
     def name(self):
         return self._service.name
+
+    @property
+    def top_level_domain(self):
+        return self._service.top_level_domain
+
+    @property
+    def domain(self):
+        return self._service.domain
 
     def fetch(self, tile, etag=None):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
