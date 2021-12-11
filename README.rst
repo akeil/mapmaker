@@ -47,6 +47,17 @@ end of command line flags:
 
     $ mapmaker -- -32.653197,-70.0112 100km
 
+Coordinates can also be specified in DMS format:
+
+.. code:: shell-session
+
+    $ mapmaker "63°4'10.2'' N, 151°0'26.64'' W" 4km
+
+Use a single quote for minutes (``'``)
+and two single quotes (``''``) for seconds.
+Note the quotes around the command line argument.
+
+
 You can also specify the **output file** (default is *map.png*):
 
 .. code:: shell-session
