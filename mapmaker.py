@@ -488,10 +488,21 @@ def _no_reporter(msg, *args):
 
 
 def _show_info(report, service, map, rc):
+    bbox = map.bbox
+    area_w = int(_distance(bbox.minlat, bbox.minlon, bbox.maxlat, bbox.minlon))
+    area_h = int(_distance(bbox.minlat, bbox.minlon, bbox.minlat, bbox.maxlon))
+    unit = 'm'
+    if area_w > 1000 or area_h > 1000:
+        area_w = int(area_w / 100) / 10
+        area_h = int(area_h / 100) / 10
+        unit = 'km'
+
     x0, y0, x1, y1 = rc.crop_box
     w = x1 - x0
     h = y1 - y0
     report('-------------------------------')
+    report('Area:       %s x %s %s', area_w, area_h, unit)
+    report('Zoom Level: %s', map.zoom)
     report('Dimensions: %s x %s px', w, h)
     report('Tiles:      %s', map.num_tiles)
     report('Map Style:  %s', service.name)
