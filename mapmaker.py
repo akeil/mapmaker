@@ -185,9 +185,26 @@ def main():
         default=default_style,
         help='Map style (default: %r)' % default_style,
     )
+
+    def aspect(raw):
+        '''Parse an aspect ratio given in the form of "19:9" into a float.'''
+        if not raw:
+            raise ValueError('Invalid argument (empty)')
+
+        parts = raw.split(':')
+        if len(parts) != 2:
+            raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
+
+        w, h = parts
+        w, h = float(w), float(h)
+        if w <= 0 or h <= 0:
+            raise ValueError
+
+        return w / h
+
     parser.add_argument(
         '-a', '--aspect',
-        type=_aspect,
+        type=aspect,
         default=1.0,
         help=('Aspect ratio (e.g. "16:9") for the generated map. Extends the'
             ' bounding box to match the given aspect ratio.'),
@@ -305,6 +322,14 @@ class _BBoxAction(argparse.Action):
         #
         # B: lat/lon and radius
         #    e.g. 47.437,10.953 2km
+        try:
+            bbox = self._parse_bbox(values)
+            setattr(namespace, self.dest, bbox)
+        except ValueError as err:
+            msg = 'failed to parse bounding box from %r: %s' % (' '.join(values), err)
+            raise argparse.ArgumentError(self, msg)
+
+    def _parse_bbox(self, values):
         lat0, lon0 = _parse_coordinates(values[0])
 
         # simple case, BBox from lat,lon pairs
@@ -348,17 +373,19 @@ class _BBoxAction(argparse.Action):
                 maxlon=max(lon_n, lon_e, lon_s, lon_w),
             )
 
+        # TODO: clamp to MINLAT / MAXLAT
+
         # Validate
-        if bbox.minlat < -90.0 or bbox.minlat > 90.0:
+        if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
             raise ValueError
-        if bbox.maxlat < -90.0 or bbox.maxlat > 90.0:
+        if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
             raise ValueError
         if bbox.minlon < -180.0 or bbox.minlon > 180.0:
             raise ValueError
         if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
             raise ValueError
 
-        setattr(namespace, self.dest, bbox)
+        return bbox
 
 
 def _parse_coordinates(raw):
@@ -378,7 +405,7 @@ def _parse_coordinates(raw):
             s = float(s)
 
         if remainder.strip():
-            raise ValueError
+            raise ValueError('extra content for DMS coordinates: %r' % remainder)
 
         # combine + return
         m += s / 60.0  # seconds to minutes
@@ -391,7 +418,7 @@ def _parse_coordinates(raw):
 
     parts = raw.lower().split(',')
     if len(parts) != 2:
-        raise ValueError(raw)
+        raise ValueError('Expected two values separated by ","')
 
     a, b = parts
 
@@ -422,28 +449,11 @@ def _parse_coordinates(raw):
     lat, lon = lat * sign_lat, lon * sign_lon
     # check bounds
     if lat < -90.0 or lat > 90.0:
-        raise ValueError
+        raise ValueError('latitude must be in range -90.0..90.0')
     if lon < -180.0 or lon > 180.0:
-        raise ValueError
+        raise ValueError('longitude must be in range -180.0..180.0')
 
     return lat, lon
-
-
-def _aspect(raw):
-    '''Parse an aspect ratio given in the form of "19:9" into a float.'''
-    if not raw:
-        raise ValueError('Invalid argument (empty)')
-
-    parts = raw.split(':')
-    if len(parts) != 2:
-        raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
-
-    w, h = parts
-    w, h = float(w), float(h)
-    if w <= 0 or h <= 0:
-        raise ValueError
-
-    return w / h
 
 
 def _apply_aspect(bbox, aspect):
