@@ -225,7 +225,7 @@ def main():
     args = parser.parse_args()
 
     reporter = _no_reporter if args.silent else _print_reporter
-    bbox = _apply_aspect(args.bbox, args.aspect)
+    bbox = with_aspect(args.bbox, args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
 
@@ -461,7 +461,7 @@ def aspect(raw):
     return w / h
 
 
-def _apply_aspect(bbox, aspect):
+def with_aspect(bbox, aspect):
     '''Extend the given bounding box so that it adheres to the given aspect
     ratio (given as a floating point number).
     Returns a new bounding box with the desired aspect ratio that contains
