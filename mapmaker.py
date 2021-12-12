@@ -66,7 +66,7 @@ toner-bg     = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x
 toner-lite   = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png
 watercolor   = https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg
 terrain      = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png
-terrain-bg   = https://stamen-tiles.{s}.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png
+terrain-bg   = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png
 
 # Carto, https://carto.com/help/building-maps/basemap-list/
 voyager            = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}.png
@@ -524,11 +524,12 @@ def _show_info(report, service, map, rc):
     w = x1 - x0
     h = y1 - y0
     report('-------------------------------')
-    report('Area:       %s x %s %s', area_w, area_h, unit)
-    report('Zoom Level: %s', map.zoom)
-    report('Dimensions: %s x %s px', w, h)
-    report('Tiles:      %s', map.num_tiles)
-    report('Map Style:  %s', service.name)
+    report('Area:        %s x %s %s', area_w, area_h, unit)
+    report('Zoom Level:  %s', map.zoom)
+    report('Dimensions:  %s x %s px', w, h)
+    report('Tiles:       %s', map.num_tiles)
+    report('Map Style:   %s', service.name)
+    report('URL Pattern: %s', service.url_pattern)
     report('-------------------------------')
 
 
@@ -1143,6 +1144,10 @@ class Cache:
     @property
     def name(self):
         return self._service.name
+
+    @property
+    def url_pattern(self):
+        return self._service.url_pattern
 
     @property
     def top_level_domain(self):
