@@ -152,6 +152,7 @@ Domain                  Type    Homepage
 ======================= ======= ======================================
 tile.thunderforest.com  API Key https://www.thunderforest.com/
 maps.geoapify.com       API Key https://www.geoapify.com/
+api.mapbox.com          Token   https://mapbox.com/
 ======================= ======= ======================================
 
 Most services offer a free plan for limited/non-commercial use. Check out the
@@ -166,6 +167,7 @@ Once you have registered, place your API Keys in a config file like this:
     [keys]
     tile.thunderforest.com  = YOUR_API_KEY
     maps.geoapify.com       = YOUR_API_KEY
+    api.mapbox.com          = YOUR_API_KEY
 
 Where ``tile.thunderforest.com`` is the domain from which the image tiles are
 requested.

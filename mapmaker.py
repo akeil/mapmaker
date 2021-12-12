@@ -94,10 +94,18 @@ darkgrey    = https://maps.geoapify.com/v1/tile/dark-matter-dark-grey/{z}/{x}/{y
 purple      = https://maps.geoapify.com/v1/tile/dark-matter-dark-purple/{z}/{x}/{y}.png?apiKey={api}
 klokantech  = https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey={api}
 
+# Mapbox
+satellite           = https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token={api}
+satellite-streets   = https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{z}/{x}/{y}?access_token={api}
+streets             = https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token={api}
+light               = https://api.mapbox.com/styles/v1/mapbox/light-v10/tiles/{z}/{x}/{y}?access_token={api}
+dark                = https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token={api}
+hike                = https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/tiles/{z}/{x}/{y}?access_token={api}
 
 [keys]
 tile.thunderforest.com  = <YOUR_API_KEY>
 maps.geoapify.com       = <YOUR_API_KEY>
+api.mapbox.com          = <YOUR_API_KEY>
 
 [copyright]
 openstreetmap.org = \u00A9 OpenStreetMap contributors
