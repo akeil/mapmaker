@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.2.1dev1'
+__version__ = '1.3.0dev4'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -756,10 +756,11 @@ def tile_coordinates(lat, lon, zoom):
 class DrawLayer:
     '''Keeps data for map overlays.'''
 
-    def __init__(self, waypoints, points, line_color, line_width, fill_color, size):
+    def __init__(self, waypoints, points, shape, line_color, line_width, fill_color, size):
         # for tracks
         self.waypoints = waypoints
         self.points = points
+        self.shape = shape
         self.line_color = line_color
         self.line_width = line_width
         self.fill_color = fill_color
@@ -769,6 +770,7 @@ class DrawLayer:
         ''''Internal draw method, used by the rendering context.'''
         self._draw_waypoints(rc, draw)
         self._draw_points(rc, draw)
+        self._draw_shape(rc, draw)
 
     def _draw_waypoints(self, rc, draw):
         if not self.waypoints:
@@ -779,6 +781,15 @@ class DrawLayer:
             fill=self.line_color,
             width=self.line_width,
             joint='curve')
+
+    def _draw_shape(self, rc, draw):
+        if not self.shape:
+            return
+
+        xy = [rc.to_pixels(lat, lon) for lat, lon in self.shape]
+        draw.polygon(xy,
+            fill=self.fill_color,
+            outline=self.line_color)
 
     def _draw_points(self, rc, draw):
         if not self.points:
@@ -847,11 +858,22 @@ class DrawLayer:
 
     @classmethod
     def for_track(cls, waypoints, color=(0, 0, 0, 255), width=1):
-        return cls(waypoints, None, color, width, None, None)
+        return cls(waypoints, None, None, color, width, None, None)
 
     @classmethod
     def for_points(cls, points, color=(0, 0, 0, 255), fill=(255, 255, 255, 255), border=0, size=4):
-        return cls(None, points, color, border, fill, size)
+        return cls(None, points, None, color, border, fill, size)
+
+    @classmethod
+    def for_shape(cls, points, color=(0, 0, 0, 255), fill=None, border=1):
+        '''Draw a closed shape (polygon) with optional fill.
+
+        ``points`` is a list of coordinate pairs with at least three
+        coordinates.'''
+        if len(points) < 3:
+            raise ValueError('points must be a list with at least three entries')
+
+        return cls(None, None, points, color, border, fill, None)
 
 
 class TextLayer:
