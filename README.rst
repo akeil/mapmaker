@@ -47,6 +47,17 @@ end of command line flags:
 
     $ mapmaker -- -32.653197,-70.0112 100km
 
+Coordinates can also be specified in DMS format:
+
+.. code:: shell-session
+
+    $ mapmaker "63°4'10.2'' N, 151°0'26.64'' W" 4km
+
+Use a single quote for minutes (``'``)
+and two single quotes (``''``) for seconds.
+Note the quotes around the command line argument.
+
+
 You can also specify the **output file** (default is *map.png*):
 
 .. code:: shell-session
@@ -84,7 +95,7 @@ To control the resulting image format, use ``--aspect``:
 
     $ mapmaker --aspect 16:9 45.83,6.88 100km
 
-The aspect ration is given in the format ``W:H`` (e.g. 4:3 or 19:9).
+The aspect ratio is given in the format ``W:H`` (e.g. 4:3 or 19:9).
 The resulting map image will contain the given bounding box (or point w/ radius)
 and max be extended to North/South or East/West to match the aspect ratio.
 Note that the *resolution* of the image depends on the ``--zoom`` factor.
@@ -141,6 +152,7 @@ Domain                  Type    Homepage
 ======================= ======= ======================================
 tile.thunderforest.com  API Key https://www.thunderforest.com/
 maps.geoapify.com       API Key https://www.geoapify.com/
+api.mapbox.com          Token   https://mapbox.com/
 ======================= ======= ======================================
 
 Most services offer a free plan for limited/non-commercial use. Check out the
@@ -155,6 +167,7 @@ Once you have registered, place your API Keys in a config file like this:
     [keys]
     tile.thunderforest.com  = YOUR_API_KEY
     maps.geoapify.com       = YOUR_API_KEY
+    api.mapbox.com          = YOUR_API_KEY
 
 Where ``tile.thunderforest.com`` is the domain from which the image tiles are
 requested.

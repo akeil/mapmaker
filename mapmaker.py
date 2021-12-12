@@ -5,18 +5,17 @@ from collections import namedtuple
 import configparser
 import io
 import math
-from math import asin
+from math import asin, asinh
 from math import atan2
 from math import ceil
 from math import cos
 from math import degrees
-from math import floor
-from math import log
 from math import pi as PI
 from math import radians
 from math import sin
 from math import sqrt
 from math import tan
+import os
 from pathlib import Path
 import queue
 import sys
@@ -28,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.2.0'
+__version__ = '1.3.0'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -40,9 +39,18 @@ BRG_SOUTH = 180
 BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
+# supported lat bounds for slippy map
+MAX_LAT = 85.0511
+MIN_LAT = -85.0511
+
+# Most (all?) services will return tiles this size
+DEFAULT_TILESIZE = (256, 256)
 HILLSHADE = 'hillshading'
 
-_DEFAULT_CONFIG = '''[services]
+_DEFAULT_CONFIG = '''[mapmaker]
+parallel_downloads = 8
+
+[services]
 # see: https://wiki.openstreetmap.org/wiki/Tile_servers
 osm         = https://tile.openstreetmap.org/{z}/{x}/{y}.png
 topo        = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
@@ -50,13 +58,30 @@ human       = http://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png
 hillshading = http://tiles.wmflabs.org/hillshading/{z}/{x}/{y}.png
 bw          = https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png
 nolabels    = https://tiles.wmflabs.org/osm-no-labels/{z}/{x}/{y}.png
-toner       = http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png
-watercolor  = http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg
-positron    = https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png
-darkmatter  = https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png
+
+# Stamen, http://maps.stamen.com/
+toner        = https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png
+toner-hybrid = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-hybrid/{z}/{x}/{y}.png
+toner-bg     = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png
+toner-lite   = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png
+watercolor   = https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg
+terrain      = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png
+terrain-bg   = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png
+
+# Carto, https://carto.com/help/building-maps/basemap-list/
+voyager            = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}.png
+voyager-nolabel    = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png
+positron           = https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png
+positron-nolabel   = https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png
+darkmatter         = https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png
+darkmatter-nolabel = https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}.png
+
+# Thunderforest
 landscape   = http://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey={api}
 outdoors    = http://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey={api}
 atlas       = https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey={api}
+
+# Geoapify
 grey        = https://maps.geoapify.com/v1/tile/osm-bright-grey/{z}/{x}/{y}.png?apiKey={api}
 smooth      = https://maps.geoapify.com/v1/tile/osm-bright-smooth/{z}/{x}/{y}.png?apiKey={api}
 toner-grey  = https://maps.geoapify.com/v1/tile/toner-grey/{z}/{x}/{y}.png?apiKey={api}
@@ -67,13 +92,37 @@ darkgrey    = https://maps.geoapify.com/v1/tile/dark-matter-dark-grey/{z}/{x}/{y
 purple      = https://maps.geoapify.com/v1/tile/dark-matter-dark-purple/{z}/{x}/{y}.png?apiKey={api}
 klokantech  = https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey={api}
 
+# Mapbox
+satellite           = https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token={api}
+satellite-streets   = https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{z}/{x}/{y}?access_token={api}
+streets             = https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token={api}
+light               = https://api.mapbox.com/styles/v1/mapbox/light-v10/tiles/{z}/{x}/{y}?access_token={api}
+dark                = https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token={api}
+hike                = https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/tiles/{z}/{x}/{y}?access_token={api}
 
 [keys]
 tile.thunderforest.com  = <YOUR_API_KEY>
 maps.geoapify.com       = <YOUR_API_KEY>
+api.mapbox.com          = <YOUR_API_KEY>
+
+[copyright]
+openstreetmap.org = \u00A9 OpenStreetMap contributors
+openstreetmap.fr = \u00A9 OpenStreetMap contributors
+opentopomap.org = \u00A9 OpenStreetMap contributors
+wmflabs.org = \u00A9 OpenStreetMap contributors
+cartocdn.com = Maps \u00A9 Carto, Data \u00A9 OpenStreetMap contributors
+geoapify.com = Powered by Geoapify | \u00A9 OpenStreetMap contributors
+thunderforest.com = Maps \u00A9 Thunderforest, Data \u00A9 OpenStreetMap contributors
+stamen.com = Maps \u00A9 Stamen Design, Data \u00A9 OpenStreetMap contributors
+
+[cache]
+# 256 MB
+limit = 256000000
 '''
 
 BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
+
+Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
 
 
 # CLI -------------------------------------------------------------------------
@@ -83,9 +132,8 @@ def main():
     '''Parse arguments and run the program.'''
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
-
-    patterns, api_keys = read_config(conf_file)
-    styles = sorted(x for x in patterns.keys())
+    conf = read_config(conf_file)
+    styles = sorted(x for x in conf.urls.keys())
 
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
@@ -102,8 +150,9 @@ def main():
         action=_BBoxAction,
         nargs=2,
         help=(
-            'Bounding box coordinates. Either two lat,lon pairs ("47.437,10.953 47.374,11.133")'
-            ' or a center point and a radius ("47.437,10.953 4km").'
+            'Bounding box coordinates. Either two lat,lon pairs'
+            ' ("47.437,10.953 47.374,11.133") or a center point'
+            ' and a radius ("47.437,10.953 4km").'
         )
     )
     default_dst = 'map.png'
@@ -137,10 +186,12 @@ def main():
     )
     parser.add_argument(
         '-a', '--aspect',
-        type=_aspect,
+        type=aspect,
         default=1.0,
-        help=('Aspect ratio (e.g. "16:9") for the generated map. Extends the'
-            ' bounding box to match the given aspect ratio.'),
+        help=(
+            'Aspect ratio (e.g. "16:9") for the generated map. Extends the'
+            ' bounding box to match the given aspect ratio.'
+        ),
     )
     parser.add_argument(
         '--shading',
@@ -148,9 +199,22 @@ def main():
         help='Add hillshading',
     )
     parser.add_argument(
+        '--copyright',
+        action='store_true',
+        help='Add copyright notice',
+    )
+    parser.add_argument(
         '--gallery',
         action='store_true',
-        help='Create a map image for each available style. WARNING: generates a lot of images.',
+        help=(
+            'Create a map image for each available style.'
+            ' WARNING: generates a lot of images.'
+        ),
+    )
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show map info, do not download tiles',
     )
     parser.add_argument(
         '--silent',
@@ -161,7 +225,7 @@ def main():
     args = parser.parse_args()
 
     reporter = _no_reporter if args.silent else _print_reporter
-    bbox = _apply_aspect(args.bbox, args.aspect)
+    bbox = with_aspect(args.bbox, args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
 
@@ -172,12 +236,20 @@ def main():
             for style in styles:
                 dst = base.joinpath(style + '.png')
                 try:
-                    run(bbox, args.zoom, dst, style, reporter, patterns, api_keys, hillshading=args.shading)
+                    _run(bbox, args.zoom, dst, style, reporter, conf,
+                        hillshading=args.shading,
+                        copyright=args.copyright,
+                        dry_run=args.dry_run,
+                    )
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            run(bbox, args.zoom, args.dst, args.style, reporter, patterns, api_keys, hillshading=args.shading)
+            _run(bbox, args.zoom, args.dst, args.style, reporter, conf,
+                hillshading=args.shading,
+                copyright=args.copyright,
+                dry_run=args.dry_run,
+            )
     except Exception as err:
         reporter('ERROR: %s', err)
         return 1
@@ -185,28 +257,50 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False):
+def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
+    copyright=False, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
-    service = Cache.user_dir(TileService(style, patterns[style], api_keys))
-    img = RenderContext(service, map, reporter=report).build()
+    service = TileService(style, conf.urls[style], conf.keys)
+    service = Cache.user_dir(service, limit=conf.cache_limit)
+
+    overlays = []
+    if copyright:
+        text = conf.copyrights.get(service.top_level_domain)
+        if text:
+            overlays.append(TextLayer(text,
+                align=TextLayer.BOTTOM_RIGHT,
+                color=(0, 0, 0, 255),
+                outline=(255, 255, 255, 255),
+                background=(200, 200, 200, 200),
+                padding=1,
+            ))
+
+    rc = RenderContext(service, map,
+        reporter=report,
+        overlays=overlays,
+        parallel_downloads=8)
+
+    _show_info(report, service, map, rc)
+    if dry_run:
+        return
+
+    img = rc.build()
 
     if hillshading:
-        shading = Cache.user_dir(TileService(HILLSHADE, patterns[HILLSHADE], api_keys))
-        shade = RenderContext(shading, map, reporter=report).build()
+        shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
+        shading = Cache.user_dir(shading, limit=conf.cache_limit)
+        shade = RenderContext(shading, map, reporter=report, parallel_downloads=conf.parallel_downloads).build()
         img.paste(shade.convert('RGB'), mask=shade)
 
     with open(dst, 'wb') as f:
         img.save(f, format='png')
 
-    report('Map saved to %r', dst)
+    report('Map saved to %s', dst)
 
 
 class _BBoxAction(argparse.Action):
-
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        super(_BBoxAction, self).__init__(option_strings, dest, nargs=nargs, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         # expect one of;
@@ -216,23 +310,28 @@ class _BBoxAction(argparse.Action):
         #
         # B: lat/lon and radius
         #    e.g. 47.437,10.953 2km
-        a = values[0].split(',')
-        lat0 = float(a[0])
-        lon0 = float(a[1])
+        try:
+            bbox = self._parse_bbox(values)
+            setattr(namespace, self.dest, bbox)
+        except ValueError as err:
+            msg = 'failed to parse bounding box from %r: %s' % (' '.join(values), err)
+            raise argparse.ArgumentError(self, msg)
 
-        b = values[1].split(',')
+    def _parse_bbox(self, values):
+        lat0, lon0 = _parse_coordinates(values[0])
 
         # simple case, BBox from lat,lon pairs
-        if len(b) == 2:
+        if ',' in values[1]:
+            lat1, lon1 = _parse_coordinates(values[1])
             bbox = BBox(
                 minlat=lat0,
                 minlon=lon0,
-                maxlat=float(b[0]),
-                maxlon=float(b[1]),
+                maxlat=lat1,
+                maxlon=lon1,
             )
         # bbox from point and radius
         else:
-            s = b[0].lower()
+            s = values[1].lower()
             unit = None
             value = None
             allowed_units = ('km', 'm')
@@ -262,21 +361,91 @@ class _BBoxAction(argparse.Action):
                 maxlon=max(lon_n, lon_e, lon_s, lon_w),
             )
 
+        # TODO: clamp to MINLAT / MAXLAT
+
         # Validate
-        if bbox.minlat < -90.0 or bbox.minlat > 90.0:
+        if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
             raise ValueError
-        if bbox.maxlat < -90.0 or bbox.maxlat > 90.0:
+        if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
             raise ValueError
         if bbox.minlon < -180.0 or bbox.minlon > 180.0:
             raise ValueError
         if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
             raise ValueError
 
-        setattr(namespace, self.dest, bbox)
+        return bbox
 
 
-def _aspect(raw):
-    '''Parse an aspect ration given in the form of "19:9" into a float.'''
+def _parse_coordinates(raw):
+
+    def _parse_dms(dms):
+        d, remainder = dms.split('°')
+        d = float(d)
+
+        m = 0
+        if remainder and "'" in remainder:
+            m, remainder = remainder.split("'", 1)
+            m = float(m)
+
+        s = 0
+        if remainder and "''" in remainder:
+            s, remainder = remainder.split("''")
+            s = float(s)
+
+        if remainder.strip():
+            raise ValueError('extra content for DMS coordinates: %r' % remainder)
+
+        # combine + return
+        m += s / 60.0  # seconds to minutes
+        d += m / 60.0  # minutes to degrees
+
+        return d
+
+    if not raw:
+        raise ValueError
+
+    parts = raw.lower().split(',')
+    if len(parts) != 2:
+        raise ValueError('Expected two values separated by ","')
+
+    a, b = parts
+
+    # Optional N/S and E/W suffix to sign
+    # 123 N => 123
+    # 123 S => -123
+    sign_lat = 1
+    sign_lon = 1
+    if a.endswith('n'):
+        a = a[:-1]
+    elif a.endswith('s'):
+        a = a[:-1]
+        sign_lat = -1
+
+    if b.endswith('e'):
+        b = b[:-1]
+    elif b.endswith('w'):
+        b = b[:-1]
+        sign_lon = -1
+
+    # try to parse floats (decimal)
+    try:
+        lat, lon = float(a), float(b)
+    except ValueError:
+        # assume DMS
+        lat, lon = _parse_dms(a), _parse_dms(b)
+
+    lat, lon = lat * sign_lat, lon * sign_lon
+    # check bounds
+    if lat < -90.0 or lat > 90.0:
+        raise ValueError('latitude must be in range -90.0..90.0')
+    if lon < -180.0 or lon > 180.0:
+        raise ValueError('longitude must be in range -180.0..180.0')
+
+    return lat, lon
+
+
+def aspect(raw):
+    '''Parse an aspect ratio given in the form of "19:9" into a float.'''
     if not raw:
         raise ValueError('Invalid argument (empty)')
 
@@ -285,13 +454,17 @@ def _aspect(raw):
         raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
 
     w, h = parts
-    return float(w) / float(h)
+    w, h = float(w), float(h)
+    if w <= 0 or h <= 0:
+        raise ValueError
+
+    return w / h
 
 
-def _apply_aspect(bbox, aspect):
+def with_aspect(bbox, aspect):
     '''Extend the given bounding box so that it adheres to the given aspect
     ratio (given as a floating point number).
-    Returns a new bounding box with the desired aspect ration that contains
+    Returns a new bounding box with the desired aspect ratio that contains
     the initial box in its center'''
     #  4:3  =>  1.32  width > height, aspect is > 1.0
     #  2:3  =>  0.66  width < height, aspect is < 1.0
@@ -337,17 +510,34 @@ def _no_reporter(msg, *args):
     pass
 
 
+def _show_info(report, service, map, rc):
+    bbox = map.bbox
+    area_w = int(_distance(bbox.minlat, bbox.minlon, bbox.maxlat, bbox.minlon))
+    area_h = int(_distance(bbox.minlat, bbox.minlon, bbox.minlat, bbox.maxlon))
+    unit = 'm'
+    if area_w > 1000 or area_h > 1000:
+        area_w = int(area_w / 100) / 10
+        area_h = int(area_h / 100) / 10
+        unit = 'km'
+
+    x0, y0, x1, y1 = rc.crop_box
+    w = x1 - x0
+    h = y1 - y0
+    report('-------------------------------')
+    report('Area:        %s x %s %s', area_w, area_h, unit)
+    report('Zoom Level:  %s', map.zoom)
+    report('Dimensions:  %s x %s px', w, h)
+    report('Tiles:       %s', map.num_tiles)
+    report('Map Style:   %s', service.name)
+    report('URL Pattern: %s', service.url_pattern)
+    report('-------------------------------')
+
+
 def read_config(path):
     '''Read configuration from the given file in .ini format.
     Returns names and url patterns for services and API keys, combined from
     built-in configuration and the specified file.'''
     cfg = configparser.ConfigParser()
-    # we cannot package default.ini if we distribute as a single .py file.
-    # from pkg_resources import resource_stream
-    ## built-in, defaults
-    #cfg.read_file(io.TextIOWrapper(
-    #    resource_stream('mapmaker', 'default.ini'))
-    #)
 
     # built-in from code
     cfg.read_string(_DEFAULT_CONFIG)
@@ -355,10 +545,13 @@ def read_config(path):
     # user settings
     cfg.read([path, ])
 
-    patterns = {k: v for k, v in cfg.items('services')}
-    keys = {k: v for k, v in cfg.items('keys')}
-
-    return patterns, keys
+    return Config(
+        urls={k: v for k, v in cfg.items('services')},
+        keys={k: v for k, v in cfg.items('keys')},
+        copyrights={k: v for k, v in cfg.items('copyright')},
+        cache_limit=cfg.getint('cache', 'limit', fallback=None),
+        parallel_downloads=cfg.getint('mapmaker', 'parallel_downloads', fallback=1),
+    )
 
 
 # Tile Map --------------------------------------------------------------------
@@ -380,6 +573,12 @@ class TileMap:
         self.tiles = None
         self._generate_tiles()
 
+    @property
+    def num_tiles(self):
+        x = self.bx - self.ax + 1
+        y = self.by - self.ay + 1
+        return x * y
+
     def _generate_tiles(self):
         self.tiles = {}
         for x in range(self.ax, self.bx + 1):
@@ -393,7 +592,6 @@ class TileMap:
         Pixel fractions need to be multiplied with the tile size
         to get the actual pixel coordinates.'''
         nw = (self.ax, self.ay)
-        #se = (self.bx, self.by)
         lat_off = self.tiles[nw].bbox.minlat
         lon_off = self.tiles[nw].bbox.minlon
         offset_x, offset_y = self._project(lat_off, lon_off)
@@ -433,7 +631,7 @@ class TileMap:
 
 
 class Tile:
-    '''Represents a single slippy map tile  for a given zoom level.'''
+    '''Represents a single slippy map tile for a given zoom level.'''
 
     def __init__(self, x, y, zoom):
         self.x = x
@@ -537,43 +735,44 @@ def _destination_point(lat, lon, bearing, distance):
 def tile_coordinates(lat, lon, zoom):
     '''Calculate the X and Y coordinates for the map tile that contains the
     given point at the given zoom level.'''
+    if lat <= MIN_LAT or lat >= MAX_LAT:
+        raise ValueError('latitude must be %s..%s' % (MIN_LAT, MAX_LAT))
+
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = math.pow(2.0, zoom)
-    x_rel, y_rel = _to_relative_xy(lat, lon, zoom)
 
-    x = int(x_rel * n)
-    y = int(y_rel * n)
-    return x, y
+    x = (lon + 180.0) / 360.0 * n
 
+    if lat == -90:
+        y = 0
+    else:
+        lat_rad = radians(lat)
+        a = asinh(tan(lat_rad))
+        y = (1.0 - a / PI) / 2.0 * n
 
-def _to_relative_xy(lat, lon, zoom):
-    '''Calculate the x,y indices for a tile'''
-    x = (lon + 180.0) / 360.0
-
-    lat_rad = radians(lat)
-    lat_sec = 1 / cos(lat_rad)
-    a = log(tan(lat_rad) + lat_sec)
-    y = (1.0 - a / PI) / 2.0
-
-    return x, y
+    return int(x), int(y)
 
 
 class DrawLayer:
     '''Keeps data for map overlays.'''
 
-    def __init__(self, waypoints, points, line_color, line_width, fill_color, size):
-        # for tracks
+    def __init__(self, waypoints, points, box, shape, line_color=None,
+        line_width=None, fill_color=None, size=None):
         self.waypoints = waypoints
         self.points = points
+        self.box = box
+        self.shape = shape
         self.line_color = line_color
         self.line_width = line_width
         self.fill_color = fill_color
         self.size = size
 
     def _draw(self, rc, draw):
-        ''''Internal draw method, used by the rendering contet.'''
+        ''''Internal draw method, used by the rendering context.'''
         self._draw_waypoints(rc, draw)
         self._draw_points(rc, draw)
+        self._draw_box(rc, draw)
+        self._draw_shape(rc, draw)
 
     def _draw_waypoints(self, rc, draw):
         if not self.waypoints:
@@ -583,8 +782,29 @@ class DrawLayer:
         draw.line(xy,
             fill=self.line_color,
             width=self.line_width,
-            joint='curve'
-        )
+            joint='curve')
+
+    def _draw_box(self, rc, draw):
+        if not self.box:
+            return
+
+        xy = [
+            rc.to_pixels(self.box.minlat, self.box.minlon),
+            rc.to_pixels(self.box.maxlat, self.box.maxlon),
+        ]
+        draw.rectangle(xy,
+            fill=self.fill_color,
+            outline=self.line_color,
+            width=self.line_width)
+
+    def _draw_shape(self, rc, draw):
+        if not self.shape:
+            return
+
+        xy = [rc.to_pixels(lat, lon) for lat, lon in self.shape]
+        draw.polygon(xy,
+            fill=self.fill_color,
+            outline=self.line_color)
 
     def _draw_points(self, rc, draw):
         if not self.points:
@@ -616,8 +836,7 @@ class DrawLayer:
                     anchor='ma',  # middle ascender
                     fill=(0, 0, 0, 255),
                     stroke_width=1,
-                    stroke_fill=(255, 255, 255, 255),
-                )
+                    stroke_fill=(255, 255, 255, 255))
 
     def _dot(self, draw, x, y):
         d = self.size / 2
@@ -625,8 +844,7 @@ class DrawLayer:
         draw.ellipse(xy,
             fill=self.fill_color,
             outline=self.line_color,
-            width=self.line_width
-        )
+            width=self.line_width)
 
     def _square(self, draw, x, y):
         d = self.size / 2
@@ -634,8 +852,7 @@ class DrawLayer:
         draw.rectangle(xy,
             fill=self.fill_color,
             outline=self.line_color,
-            width=self.line_width
-        )
+            width=self.line_width)
 
     def _triangle(self, draw, x, y):
         '''Draw a triangle with equally sized sides and the center point on the XY location.'''
@@ -652,17 +869,155 @@ class DrawLayer:
 
         draw.polygon([top, right, left],
             fill=self.fill_color,
-            outline=self.line_color,
-            # width=self.line_width  # not supported with ploygon
-        )
+            outline=self.line_color)
 
     @classmethod
     def for_track(cls, waypoints, color=(0, 0, 0, 255), width=1):
-        return cls(waypoints, None, color, width, None, None)
+        return cls(waypoints, None, None, None,
+            line_color=color,
+            line_width=width
+        )
 
     @classmethod
     def for_points(cls, points, color=(0, 0, 0, 255), fill=(255, 255, 255, 255), border=0, size=4):
-        return cls(None, points, color, border, fill, size)
+        return cls(None, points, None, None,
+            line_color=color,
+            line_width=border,
+            fill_color=fill,
+            size=size,
+        )
+
+    @classmethod
+    def for_box(cls, box, color=(0, 0, 0, 255), fill=None, border=1):
+        '''Draw a rectangle for a bounding box.'''
+        return cls(None, None, box, None,
+            line_color=color,
+            line_width=border,
+            fill_color=fill,
+        )
+
+    @classmethod
+    def for_shape(cls, points, color=(0, 0, 0, 255), fill=None):
+        '''Draw a closed shape (polygon) with optional fill.
+
+        ``points`` is a list of coordinate pairs with at least three
+        coordinates.'''
+        if len(points) < 3:
+            raise ValueError('points must be a list with at least three entries')
+
+        return cls(None, None, None, points,
+            line_color=color,
+            fill_color=fill,
+        )
+
+
+class TextLayer:
+    '''A map layer which places text on the map.
+    The text is relative to the maps *pixel values*.'''
+
+    CENTER = 0
+    TOP_LEFT = 1
+    TOP_CENTER = 2
+    TOP_RIGHT = 3
+    CENTER_RIGHT = 4
+    BOTTOM_RIGHT = 5
+    BOTTOM_CENTER = 6
+    BOTTOM_LEFT = 7
+    CENTER_LEFT = 8
+
+    _ANCHOR = {
+        CENTER: 'mm',
+        TOP_LEFT: 'la',
+        TOP_CENTER: 'ma',
+        TOP_RIGHT: 'ra',
+        CENTER_RIGHT: 'rm',
+        BOTTOM_LEFT: 'ld',
+        BOTTOM_CENTER: 'md',
+        BOTTOM_RIGHT: 'rd',
+        CENTER_LEFT: 'lm',
+    }
+
+    def __init__(self, text, align=CENTER, padding=2, color=None, outline=None, background=None):
+        self.text = text
+        self.align = align or TextLayer.CENTER
+        self.padding = padding or 0
+        self.color = color or (0, 0, 0, 255)
+        self.outline = outline
+        self.background = background
+
+    def _draw(self, rc, draw):
+        ''''Internal draw method, used by the rendering context.'''
+        if not self.text:
+            # erly exit
+            return
+
+        try:
+            font = ImageFont.truetype(font='DejaVuSans.ttf', size=10)
+        except OSError:
+            font = ImageFont.load_default()
+
+        text_w, text_h = font.getsize(self.text)
+        text_w += 2 * self.padding
+        text_h += 2 * self.padding
+        left, top, right, bottom = rc.crop_box
+        total_w = right - left
+        total_h = bottom - top
+
+        x, y = None, None
+        rect = [None, None, None, None]
+
+        if self.align in (TextLayer.TOP_LEFT, TextLayer.CENTER_LEFT, TextLayer.BOTTOM_LEFT):
+            x = 0
+            x_pad = x + self.padding
+            rect[0] = 0
+            rect[2] = text_w
+        elif self.align in (TextLayer.TOP_RIGHT, TextLayer.CENTER_RIGHT, TextLayer.BOTTOM_RIGHT):
+            x = total_w
+            x_pad = x - self.padding
+            rect[0] = total_w - text_w
+            rect[2] = total_w
+        else:  # CENTER
+            x = total_w // 2
+            x_pad = x
+            rect[0] = x - text_w // 2
+            rect[2] = x + text_w // 2
+
+        if self.align in (TextLayer.TOP_LEFT, TextLayer.TOP_CENTER, TextLayer.TOP_RIGHT):
+            y = 0
+            y_pad = y + self.padding
+            rect[1] = 0
+            rect[3] = text_h
+        elif self.align in (TextLayer.BOTTOM_LEFT, TextLayer.BOTTOM_CENTER, TextLayer.BOTTOM_RIGHT):
+            y = total_h
+            y_pad = y - self.padding
+            rect[1] = total_h - text_h
+            rect[3] = total_h
+        else:  # CENTER
+            y = total_h // 2
+            y_pad = y
+            rect[1] = y - text_h // 2
+            rect[3] = y + text_h // 2
+
+        # apply offset from crop box
+        x += left
+        y += top
+        x_pad += left
+        y_pad += top
+        rect[0] += left
+
+        rect[1] += top
+        rect[2] += left
+        rect[3] += top
+
+        if self.background:
+            draw.rectangle(rect, fill=self.background)
+
+        draw.text([x_pad, y_pad], self.text,
+            font=font,
+            anchor=TextLayer._ANCHOR[self.align],
+            fill=self.color,
+            stroke_width=1,
+            stroke_fill=self.outline)
 
 
 # Rendering -------------------------------------------------------------------
@@ -671,41 +1026,48 @@ class DrawLayer:
 class RenderContext:
     '''Renders a map, downloading required tiles on the fly.'''
 
-    def __init__(self, service, map, overlays=None, reporter=None):
+    def __init__(self, service, map, overlays=None, parallel_downloads=None, reporter=None):
         self._service = service
         self._map = map
         self._overlays = overlays or []
+        self._parallel_downloads = parallel_downloads or 1
         self._report = reporter or _no_reporter
         self._queue = queue.Queue()
         self._lock = threading.Lock()
-        self._tile_size = None
+        # will be set to the actual size once the first tile is downloaded
+        self._tile_size = DEFAULT_TILESIZE
         self._img = None
         self._total_tiles = 0
         self._downloaded_tiles = 0
 
     def _tile_complete(self):
         self._downloaded_tiles += 1
-        percentage = self._downloaded_tiles / self._total_tiles * 100.0
-        self._report('% 3.0f%%, %d / %d tiles for %r',
+        percentage = int(self._downloaded_tiles / self._total_tiles * 100.0)
+        self._report('%3d%%  %4d / %4d',
             percentage,
             self._downloaded_tiles,
-            self._total_tiles,
-            self._service.name
-        )
+            self._total_tiles)
+
+    @property
+    def crop_box(self):
+        '''Get the crop box that will be applied to the stitched map.'''
+        bbox = self._map.bbox
+        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
+        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
+
+        return (left, top, right, bottom)
 
     def build(self):
         '''Download tiles on the fly and render them into an image.'''
-        num_workers = 8
         # fill the task queue
         for tile in self._map.tiles.values():
             self._queue.put(tile)
 
         self._total_tiles = self._queue.qsize()
-        self._report('Download %s tiles for map style %r', self._total_tiles, self._service.name)
-        self._report('Parallel downloads: %s', num_workers)
+        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
 
         # start parallel downloads
-        for w in range(num_workers):
+        for w in range(self._parallel_downloads):
             threading.Thread(daemon=True, target=self._work).run()
 
         self._queue.join()
@@ -728,7 +1090,8 @@ class RenderContext:
         frac_x, frac_y = self._map.to_pixel_fractions(lat, lon)
         w, h = self._tile_size
 
-        px = lambda v: int(ceil(v))
+        def px(v):
+            return int(ceil(v))
 
         return px(frac_x * w), px(frac_y * h)
 
@@ -739,11 +1102,7 @@ class RenderContext:
 
     def _crop(self):
         '''Crop the map image to the bounding box.'''
-        bbox = self._map.bbox
-        left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
-        right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
-
-        self._img = self._img.crop((left, top, right, bottom))
+        self._img = self._img.crop(self.crop_box)
 
     def _work(self):
         '''Download map tiles and paste them onto the result image.'''
@@ -785,8 +1144,19 @@ class TileService:
 
     def __init__(self, name, url_pattern, api_keys):
         self.name = name
-        self.url_pattern=url_pattern
+        self.url_pattern = url_pattern
         self._api_keys = api_keys or {}
+
+    @property
+    def top_level_domain(self):
+        parts = self.domain.split('.')
+        # TODO: not quite correct, will fail e.g. for 'foo.co.uk'
+        return '.'.join(parts[-2:])
+
+    @property
+    def domain(self):
+        parts = urlparse(self.url_pattern)
+        return parts.netloc
 
     def fetch(self, tile, etag=None):
         '''Fetch the given tile from the Map Tile Service.
@@ -817,20 +1187,32 @@ class TileService:
         return recv_etag, res.content
 
     def _api_key(self):
-        parts = urlparse(self.url_pattern)
-        host = parts.netloc
-        return self._api_keys.get(host, '')
+        return self._api_keys.get(self.domain, '')
 
 
 class Cache:
 
-    def __init__(self, service, basedir):
+    def __init__(self, service, basedir, limit=None):
         self._service = service
         self._base = Path(basedir)
+        self._limit = limit
+        self._lock = threading.Lock()
 
     @property
     def name(self):
         return self._service.name
+
+    @property
+    def url_pattern(self):
+        return self._service.url_pattern
+
+    @property
+    def top_level_domain(self):
+        return self._service.top_level_domain
+
+    @property
+    def domain(self):
+        return self._service.domain
 
     def fetch(self, tile, etag=None):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
@@ -855,14 +1237,6 @@ class Cache:
         self._put(tile, recv_etag, data)
         return recv_etag, data
 
-
-        try:
-            return etag, self._get(tile, etag)
-        except LookupError:
-            etag, data = self._service.fetch(tile)
-            self._put(tile, etag, data)
-            return etag, data
-
     def _get(self, tile, etag):
         if not etag:
             raise LookupError
@@ -886,11 +1260,11 @@ class Cache:
                             safe_etag = entry.name.split('.')[1]
                             etag_bytes = base64.b64decode(safe_etag)
                             return etag_bytes.decode('ascii')
-                        except Exception as err:
+                        except Exception:
                             # Errors if we encounter unexpected filenames
                             pass
 
-        except FileNotFoundError as err:
+        except FileNotFoundError:
             pass
 
     def _put(self, tile, etag, data):
@@ -909,7 +1283,10 @@ class Cache:
         with p.open('wb') as f:
             f.write(data)
 
+        self._vacuum()
+
     def _clean(self, tile, current):
+        '''Remove outdated cache entries for a given tile.'''
         existing = self._find(tile)
         if existing and existing != current:
             p = self._path(tile, existing)
@@ -926,10 +1303,41 @@ class Cache:
             filename,
         )
 
+    def _vacuum(self):
+        '''Trim the cache up to or below the limit.
+        Deletes older tiles before newer ones.'''
+        if not self._limit:
+            return
+
+        with self._lock:
+            used = 0
+            entries = []
+            for base, dirname, filenames in os.walk(self._base):
+                for filename in filenames:
+                    path = Path(base).joinpath(filename)
+                    stat = path.stat()
+                    used += stat.st_size
+                    entries.append((stat.st_ctime, stat.st_size, path))
+
+            excess = used - self._limit
+            if excess <= 0:
+                return
+
+            # delete some additional entries to avoid frequent deletes
+            excess *= 1.1
+
+            entries.sort()  # oldest first
+            for _, size, path in entries:
+                path.unlink()
+                excess -= size
+                if excess <= 0:
+                    break
+
     @classmethod
-    def user_dir(cls, service):
+    def user_dir(cls, service, limit=None):
         cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-        return cls(service, cache_dir)
+        return cls(service, cache_dir, limit=limit)
+
 
 if __name__ == '__main__':
     sys.exit(main())
