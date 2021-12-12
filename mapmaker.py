@@ -217,7 +217,7 @@ def main():
             for style in styles:
                 dst = base.joinpath(style + '.png')
                 try:
-                    run(bbox, args.zoom, dst, style, reporter, conf,
+                    _run(bbox, args.zoom, dst, style, reporter, conf,
                         hillshading=args.shading,
                         copyright=args.copyright,
                     )
@@ -225,7 +225,7 @@ def main():
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            run(bbox, args.zoom, args.dst, args.style, reporter, conf,
+            _run(bbox, args.zoom, args.dst, args.style, reporter, conf,
                 hillshading=args.shading,
                 copyright=args.copyright,
             )
@@ -236,7 +236,7 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False):
+def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
