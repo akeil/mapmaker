@@ -970,7 +970,7 @@ class RenderContext:
     def _tile_complete(self):
         self._downloaded_tiles += 1
         percentage = int(self._downloaded_tiles / self._total_tiles * 100.0)
-        self._report('%3.0f%%  %4d / %4d',
+        self._report('%3d%%  %4d / %4d',
             percentage,
             self._downloaded_tiles,
             self._total_tiles,
@@ -992,8 +992,7 @@ class RenderContext:
             self._queue.put(tile)
 
         self._total_tiles = self._queue.qsize()
-        self._report('Download %s tiles for map style %r', self._total_tiles, self._service.name)
-        self._report('Parallel downloads: %s', self._parallel_downloads)
+        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
 
         # start parallel downloads
         for w in range(self._parallel_downloads):
