@@ -122,7 +122,7 @@ limit = 256000000
 
 BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
 
-_Config = namedtuple('_Config', 'urls keys copyrights cache_limit parallel_downloads')
+Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
 
 
 # CLI -------------------------------------------------------------------------
@@ -544,7 +544,7 @@ def read_config(path):
     # user settings
     cfg.read([path, ])
 
-    return _Config(
+    return Config(
         urls={k: v for k, v in cfg.items('services')},
         keys={k: v for k, v in cfg.items('keys')},
         copyrights={k: v for k, v in cfg.items('copyright')},
