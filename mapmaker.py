@@ -29,7 +29,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.2.0'
+__version__ = '1.2.1dev1'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -200,6 +200,11 @@ def main():
         help='Create a map image for each available style. WARNING: generates a lot of images.',
     )
     parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show map info, do not download tiles',
+    )
+    parser.add_argument(
         '--silent',
         action='store_true',
         help='Do not output messages to the console',
@@ -222,6 +227,7 @@ def main():
                     _run(bbox, args.zoom, dst, style, reporter, conf,
                         hillshading=args.shading,
                         copyright=args.copyright,
+                        dry_run=args.dry_run,
                     )
                 except Exception as err:
                     # on error, continue with next service
@@ -230,6 +236,7 @@ def main():
             _run(bbox, args.zoom, args.dst, args.style, reporter, conf,
                 hillshading=args.shading,
                 copyright=args.copyright,
+                dry_run=args.dry_run,
             )
     except Exception as err:
         reporter('ERROR: %s', err)
@@ -238,7 +245,7 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False):
+def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
@@ -260,6 +267,8 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=Fals
     rc = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8)
 
     _show_info(report, service, map, rc)
+    if dry_run:
+        return
 
     img = rc.build()
 
@@ -910,6 +919,7 @@ class TextLayer:
         x_pad += left
         y_pad += top
         rect[0] += left
+
         rect[1] += top
         rect[2] += left
         rect[3] += top
