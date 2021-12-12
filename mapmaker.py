@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.3.0dev5'
+__version__ = '1.3.0'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
