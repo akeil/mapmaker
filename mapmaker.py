@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.3.0dev4'
+__version__ = '1.3.0dev5'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -756,10 +756,11 @@ def tile_coordinates(lat, lon, zoom):
 class DrawLayer:
     '''Keeps data for map overlays.'''
 
-    def __init__(self, waypoints, points, shape, line_color, line_width, fill_color, size):
-        # for tracks
+    def __init__(self, waypoints, points, box, shape, line_color=None,
+        line_width=None, fill_color=None, size=None):
         self.waypoints = waypoints
         self.points = points
+        self.box = box
         self.shape = shape
         self.line_color = line_color
         self.line_width = line_width
@@ -770,6 +771,7 @@ class DrawLayer:
         ''''Internal draw method, used by the rendering context.'''
         self._draw_waypoints(rc, draw)
         self._draw_points(rc, draw)
+        self._draw_box(rc, draw)
         self._draw_shape(rc, draw)
 
     def _draw_waypoints(self, rc, draw):
@@ -781,6 +783,19 @@ class DrawLayer:
             fill=self.line_color,
             width=self.line_width,
             joint='curve')
+
+    def _draw_box(self, rc, draw):
+        if not self.box:
+            return
+
+        xy = [
+            rc.to_pixels(self.box.minlat, self.box.minlon),
+            rc.to_pixels(self.box.maxlat, self.box.maxlon),
+        ]
+        draw.rectangle(xy,
+            fill=self.fill_color,
+            outline=self.line_color,
+            width=self.line_width)
 
     def _draw_shape(self, rc, draw):
         if not self.shape:
@@ -858,14 +873,31 @@ class DrawLayer:
 
     @classmethod
     def for_track(cls, waypoints, color=(0, 0, 0, 255), width=1):
-        return cls(waypoints, None, None, color, width, None, None)
+        return cls(waypoints, None, None, None,
+            line_color=color,
+            line_width=width
+        )
 
     @classmethod
     def for_points(cls, points, color=(0, 0, 0, 255), fill=(255, 255, 255, 255), border=0, size=4):
-        return cls(None, points, None, color, border, fill, size)
+        return cls(None, points, None, None,
+            line_color=color,
+            line_width=border,
+            fill_color=fill,
+            size=size,
+        )
 
     @classmethod
-    def for_shape(cls, points, color=(0, 0, 0, 255), fill=None, border=1):
+    def for_box(cls, box, color=(0, 0, 0, 255), fill=None, border=1):
+        '''Draw a rectangle for a bounding box.'''
+        return cls(None, None, box, None,
+            line_color=color,
+            line_width=border,
+            fill_color=fill,
+        )
+
+    @classmethod
+    def for_shape(cls, points, color=(0, 0, 0, 255), fill=None):
         '''Draw a closed shape (polygon) with optional fill.
 
         ``points`` is a list of coordinate pairs with at least three
@@ -873,7 +905,10 @@ class DrawLayer:
         if len(points) < 3:
             raise ValueError('points must be a list with at least three entries')
 
-        return cls(None, None, points, color, border, fill, None)
+        return cls(None, None, None, points,
+            line_color=color,
+            fill_color=fill,
+        )
 
 
 class TextLayer:
