@@ -47,7 +47,10 @@ MIN_LAT = -85.0511
 
 HILLSHADE = 'hillshading'
 
-_DEFAULT_CONFIG = '''[services]
+_DEFAULT_CONFIG = '''[mapmaker]
+parallel_downloads = 8
+
+[services]
 # see: https://wiki.openstreetmap.org/wiki/Tile_servers
 osm         = https://tile.openstreetmap.org/{z}/{x}/{y}.png
 topo        = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
@@ -111,6 +114,8 @@ limit = 256000000
 
 BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
 
+_Config = namedtuple('_Config', 'urls keys copyrights cache_limit parallel_downloads')
+
 
 # CLI -------------------------------------------------------------------------
 
@@ -119,9 +124,8 @@ def main():
     '''Parse arguments and run the program.'''
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
-
-    patterns, api_keys, copyrights, cache_limit = read_config(conf_file)
-    styles = sorted(x for x in patterns.keys())
+    conf = read_config(conf_file)
+    styles = sorted(x for x in conf.urls.keys())
 
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
@@ -213,22 +217,16 @@ def main():
             for style in styles:
                 dst = base.joinpath(style + '.png')
                 try:
-                    run(bbox, args.zoom, dst, style, reporter, patterns,
-                        api_keys,
+                    run(bbox, args.zoom, dst, style, reporter, conf,
                         hillshading=args.shading,
-                        cache_limit=cache_limit,
-                        copyrights=copyrights,
                         copyright=args.copyright,
                     )
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            run(bbox, args.zoom, args.dst, args.style, reporter, patterns,
-                api_keys,
+            run(bbox, args.zoom, args.dst, args.style, reporter, conf,
                 hillshading=args.shading,
-                cache_limit=cache_limit,
-                copyrights=copyrights,
                 copyright=args.copyright,
             )
     except Exception as err:
@@ -238,16 +236,16 @@ def main():
     return 0
 
 
-def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, cache_limit=None, copyrights=None, copyright=False):
+def run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
-    service = TileService(style, patterns[style], api_keys)
-    service = Cache.user_dir(service, limit=cache_limit)
+    service = TileService(style, conf.urls[style], conf.keys)
+    service = Cache.user_dir(service, limit=conf.cache_limit)
 
     overlays = []
-    if copyright and copyrights:
-        text = copyrights.get(service.top_level_domain)
+    if copyright:
+        text = conf.copyrights.get(service.top_level_domain)
         if text:
             overlays.append(TextLayer(text,
                 align=TextLayer.BOTTOM_RIGHT,
@@ -260,9 +258,9 @@ def run(bbox, zoom, dst, style, report, patterns, api_keys, hillshading=False, c
     img = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8).build()
 
     if hillshading:
-        shading = TileService(HILLSHADE, patterns[HILLSHADE], api_keys)
-        shading = Cache.user_dir(shading, limit=cache_limit)
-        shade = RenderContext(shading, map, reporter=report, parallel_downloads=8).build()
+        shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
+        shading = Cache.user_dir(shading, limit=conf.cache_limit)
+        shade = RenderContext(shading, map, reporter=report, parallel_downloads=conf.parallel_downloads).build()
         img.paste(shade.convert('RGB'), mask=shade)
 
     with open(dst, 'wb') as f:
@@ -479,12 +477,6 @@ def read_config(path):
     Returns names and url patterns for services and API keys, combined from
     built-in configuration and the specified file.'''
     cfg = configparser.ConfigParser()
-    # we cannot package default.ini if we distribute as a single .py file.
-    # from pkg_resources import resource_stream
-    ## built-in, defaults
-    #cfg.read_file(io.TextIOWrapper(
-    #    resource_stream('mapmaker', 'default.ini'))
-    #)
 
     # built-in from code
     cfg.read_string(_DEFAULT_CONFIG)
@@ -492,12 +484,13 @@ def read_config(path):
     # user settings
     cfg.read([path, ])
 
-    patterns = {k: v for k, v in cfg.items('services')}
-    keys = {k: v for k, v in cfg.items('keys')}
-    copyrights = {k: v for k, v in cfg.items('copyright')}
-    cache_limit = cfg.getint('cache', 'limit', fallback=None)
-
-    return patterns, keys, copyrights, cache_limit
+    return _Config(
+        urls={k: v for k, v in cfg.items('services')},
+        keys={k: v for k, v in cfg.items('keys')},
+        copyrights={k: v for k, v in cfg.items('copyright')},
+        cache_limit=cfg.getint('cache', 'limit', fallback=None),
+        parallel_downloads=cfg.getint('mapmaker', 'parallel_downloads', fallback=1),
+    )
 
 
 # Tile Map --------------------------------------------------------------------
