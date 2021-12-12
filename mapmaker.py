@@ -29,7 +29,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 
 
-__version__ = '1.2.0'
+__version__ = '1.2.1dev1'
 __author__ = 'akeil'
 
 APP_NAME = 'mapmaker'
@@ -45,6 +45,8 @@ EARTH_RADIUS = 6371.0 * 1000.0
 MAX_LAT = 85.0511
 MIN_LAT = -85.0511
 
+# Most (all?) services will return tiles this size
+DEFAULT_TILESIZE = (256, 256)
 HILLSHADE = 'hillshading'
 
 _DEFAULT_CONFIG = '''[mapmaker]
@@ -198,6 +200,11 @@ def main():
         help='Create a map image for each available style. WARNING: generates a lot of images.',
     )
     parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show map info, do not download tiles',
+    )
+    parser.add_argument(
         '--silent',
         action='store_true',
         help='Do not output messages to the console',
@@ -220,6 +227,7 @@ def main():
                     _run(bbox, args.zoom, dst, style, reporter, conf,
                         hillshading=args.shading,
                         copyright=args.copyright,
+                        dry_run=args.dry_run,
                     )
                 except Exception as err:
                     # on error, continue with next service
@@ -228,6 +236,7 @@ def main():
             _run(bbox, args.zoom, args.dst, args.style, reporter, conf,
                 hillshading=args.shading,
                 copyright=args.copyright,
+                dry_run=args.dry_run,
             )
     except Exception as err:
         reporter('ERROR: %s', err)
@@ -236,7 +245,7 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False):
+def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
@@ -255,7 +264,13 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=Fals
                 padding=1,
             ))
 
-    img = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8).build()
+    rc = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8)
+
+    _show_info(report, service, map, rc)
+    if dry_run:
+        return
+
+    img = rc.build()
 
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
@@ -472,6 +487,28 @@ def _no_reporter(msg, *args):
     pass
 
 
+def _show_info(report, service, map, rc):
+    bbox = map.bbox
+    area_w = int(_distance(bbox.minlat, bbox.minlon, bbox.maxlat, bbox.minlon))
+    area_h = int(_distance(bbox.minlat, bbox.minlon, bbox.minlat, bbox.maxlon))
+    unit = 'm'
+    if area_w > 1000 or area_h > 1000:
+        area_w = int(area_w / 100) / 10
+        area_h = int(area_h / 100) / 10
+        unit = 'km'
+
+    x0, y0, x1, y1 = rc.crop_box
+    w = x1 - x0
+    h = y1 - y0
+    report('-------------------------------')
+    report('Area:       %s x %s %s', area_w, area_h, unit)
+    report('Zoom Level: %s', map.zoom)
+    report('Dimensions: %s x %s px', w, h)
+    report('Tiles:      %s', map.num_tiles)
+    report('Map Style:  %s', service.name)
+    report('-------------------------------')
+
+
 def read_config(path):
     '''Read configuration from the given file in .ini format.
     Returns names and url patterns for services and API keys, combined from
@@ -511,6 +548,12 @@ class TileMap:
         self.bbox = bbox
         self.tiles = None
         self._generate_tiles()
+
+    @property
+    def num_tiles(self):
+        x = self.bx - self.ax + 1
+        y = self.by - self.ay + 1
+        return x * y
 
     def _generate_tiles(self):
         self.tiles = {}
@@ -887,6 +930,7 @@ class TextLayer:
         x_pad += left
         y_pad += top
         rect[0] += left
+
         rect[1] += top
         rect[2] += left
         rect[3] += top
@@ -917,24 +961,24 @@ class RenderContext:
         self._report = reporter or _no_reporter
         self._queue = queue.Queue()
         self._lock = threading.Lock()
-        self._tile_size = None
+        # will be set to the actual size once the first tile is downloaded
+        self._tile_size = DEFAULT_TILESIZE
         self._img = None
         self._total_tiles = 0
         self._downloaded_tiles = 0
 
     def _tile_complete(self):
         self._downloaded_tiles += 1
-        percentage = self._downloaded_tiles / self._total_tiles * 100.0
-        self._report('% 3.0f%%, %d / %d tiles for %r',
+        percentage = int(self._downloaded_tiles / self._total_tiles * 100.0)
+        self._report('%3d%%  %4d / %4d',
             percentage,
             self._downloaded_tiles,
             self._total_tiles,
-            self._service.name
         )
 
     @property
     def crop_box(self):
-        '''Get the crop box that will be applied to the stiched map.'''
+        '''Get the crop box that will be applied to the stitched map.'''
         bbox = self._map.bbox
         left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
         right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
@@ -948,8 +992,7 @@ class RenderContext:
             self._queue.put(tile)
 
         self._total_tiles = self._queue.qsize()
-        self._report('Download %s tiles for map style %r', self._total_tiles, self._service.name)
-        self._report('Parallel downloads: %s', self._parallel_downloads)
+        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
 
         # start parallel downloads
         for w in range(self._parallel_downloads):
