@@ -67,7 +67,7 @@ class TestParseAspect(TestCase):
             '2:0',
         )
         for case in cases:
-            self.assertRaises(ValueError, mapmaker._aspect, case)
+            self.assertRaises(ValueError, mapmaker.aspect, case)
 
     def test_valid(self):
         cases = {
@@ -76,7 +76,7 @@ class TestParseAspect(TestCase):
             '2:3': 0.66666,
         }
         for raw, expected in cases.items():
-            actual = mapmaker._aspect(raw)
+            actual = mapmaker.aspect(raw)
             self.assertAlmostEqual(actual, expected, places=4)
 
 
@@ -108,7 +108,7 @@ class TestParseBBox(TestCase):
         action = mapmaker._BBoxAction(None, 'bbox')
         for values in cases:
             ns = argparse.Namespace()
-            self.assertRaises(ValueError, action, None, ns, values)
+            self.assertRaises(Exception, action, None, ns, values)
 
 
 if __name__ == "__main__":

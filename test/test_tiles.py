@@ -1,4 +1,3 @@
-import unittest
 from unittest import TestCase
 
 from mapmaker import tile_coordinates
@@ -15,23 +14,23 @@ class TestTiles(TestCase):
         cases = {
             # zoom = 0, single tile
             0: {
-                nw: (0,0),
-                ne: (0,0),
-                sw: (0,0),
-                se: (0,0),
+                nw: (0, 0),
+                ne: (0, 0),
+                sw: (0, 0),
+                se: (0, 0),
             },
             # zoom 1 = 4 tiles
             1: {
-                nw: (0,0),
-                ne: (1,0),
-                sw: (0,1),
-                se: (1,1),
+                nw: (0, 0),
+                ne: (1, 0),
+                sw: (0, 1),
+                se: (1, 1),
             },
         }
         for zoom, pairs in cases.items():
             for loc, expected in pairs.items():
                 lat, lon = loc
-                x,y = tile_coordinates(lat, lon, zoom)
+                x, y = tile_coordinates(lat, lon, zoom)
                 self.assertEqual(x, expected[0])
                 self.assertEqual(y, expected[1])
 
@@ -68,7 +67,6 @@ class TestTiles(TestCase):
                 for zoom in range(20):
                     max_tiles = 2**zoom - 1
                     x, y = tile_coordinates(lat, lon, zoom)
-                    #print('lat/lon', lat, lon, 'Zoom/Tiles', zoom, max_tiles, 'XY', x, y)
                     self.assertTrue(x >= 0)
                     self.assertTrue(x <= max_tiles)
                     self.assertTrue(y >= 0)

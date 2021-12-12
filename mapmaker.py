@@ -10,8 +10,6 @@ from math import atan2
 from math import ceil
 from math import cos
 from math import degrees
-from math import floor
-from math import log
 from math import pi as PI
 from math import radians
 from math import sin
@@ -152,8 +150,9 @@ def main():
         action=_BBoxAction,
         nargs=2,
         help=(
-            'Bounding box coordinates. Either two lat,lon pairs ("47.437,10.953 47.374,11.133")'
-            ' or a center point and a radius ("47.437,10.953 4km").'
+            'Bounding box coordinates. Either two lat,lon pairs'
+            ' ("47.437,10.953 47.374,11.133") or a center point'
+            ' and a radius ("47.437,10.953 4km").'
         )
     )
     default_dst = 'map.png'
@@ -185,29 +184,14 @@ def main():
         default=default_style,
         help='Map style (default: %r)' % default_style,
     )
-
-    def aspect(raw):
-        '''Parse an aspect ratio given in the form of "19:9" into a float.'''
-        if not raw:
-            raise ValueError('Invalid argument (empty)')
-
-        parts = raw.split(':')
-        if len(parts) != 2:
-            raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
-
-        w, h = parts
-        w, h = float(w), float(h)
-        if w <= 0 or h <= 0:
-            raise ValueError
-
-        return w / h
-
     parser.add_argument(
         '-a', '--aspect',
         type=aspect,
         default=1.0,
-        help=('Aspect ratio (e.g. "16:9") for the generated map. Extends the'
-            ' bounding box to match the given aspect ratio.'),
+        help=(
+            'Aspect ratio (e.g. "16:9") for the generated map. Extends the'
+            ' bounding box to match the given aspect ratio.'
+        ),
     )
     parser.add_argument(
         '--shading',
@@ -222,7 +206,10 @@ def main():
     parser.add_argument(
         '--gallery',
         action='store_true',
-        help='Create a map image for each available style. WARNING: generates a lot of images.',
+        help=(
+            'Create a map image for each available style.'
+            ' WARNING: generates a lot of images.'
+        ),
     )
     parser.add_argument(
         '--dry-run',
@@ -270,7 +257,8 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=False, dry_run=False):
+def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
+    copyright=False, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
@@ -289,7 +277,10 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=Fals
                 padding=1,
             ))
 
-    rc = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8)
+    rc = RenderContext(service, map,
+        reporter=report,
+        overlays=overlays,
+        parallel_downloads=8)
 
     _show_info(report, service, map, rc)
     if dry_run:
@@ -310,9 +301,6 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=Fals
 
 
 class _BBoxAction(argparse.Action):
-
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        super(_BBoxAction, self).__init__(option_strings, dest, nargs=nargs, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         # expect one of;
@@ -456,6 +444,23 @@ def _parse_coordinates(raw):
     return lat, lon
 
 
+def aspect(raw):
+    '''Parse an aspect ratio given in the form of "19:9" into a float.'''
+    if not raw:
+        raise ValueError('Invalid argument (empty)')
+
+    parts = raw.split(':')
+    if len(parts) != 2:
+        raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
+
+    w, h = parts
+    w, h = float(w), float(h)
+    if w <= 0 or h <= 0:
+        raise ValueError
+
+    return w / h
+
+
 def _apply_aspect(bbox, aspect):
     '''Extend the given bounding box so that it adheres to the given aspect
     ratio (given as a floating point number).
@@ -586,7 +591,6 @@ class TileMap:
         Pixel fractions need to be multiplied with the tile size
         to get the actual pixel coordinates.'''
         nw = (self.ax, self.ay)
-        #se = (self.bx, self.by)
         lat_off = self.tiles[nw].bbox.minlat
         lon_off = self.tiles[nw].bbox.minlon
         offset_x, offset_y = self._project(lat_off, lon_off)
@@ -773,8 +777,7 @@ class DrawLayer:
         draw.line(xy,
             fill=self.line_color,
             width=self.line_width,
-            joint='curve'
-        )
+            joint='curve')
 
     def _draw_points(self, rc, draw):
         if not self.points:
@@ -806,8 +809,7 @@ class DrawLayer:
                     anchor='ma',  # middle ascender
                     fill=(0, 0, 0, 255),
                     stroke_width=1,
-                    stroke_fill=(255, 255, 255, 255),
-                )
+                    stroke_fill=(255, 255, 255, 255))
 
     def _dot(self, draw, x, y):
         d = self.size / 2
@@ -815,8 +817,7 @@ class DrawLayer:
         draw.ellipse(xy,
             fill=self.fill_color,
             outline=self.line_color,
-            width=self.line_width
-        )
+            width=self.line_width)
 
     def _square(self, draw, x, y):
         d = self.size / 2
@@ -824,8 +825,7 @@ class DrawLayer:
         draw.rectangle(xy,
             fill=self.fill_color,
             outline=self.line_color,
-            width=self.line_width
-        )
+            width=self.line_width)
 
     def _triangle(self, draw, x, y):
         '''Draw a triangle with equally sized sides and the center point on the XY location.'''
@@ -842,9 +842,7 @@ class DrawLayer:
 
         draw.polygon([top, right, left],
             fill=self.fill_color,
-            outline=self.line_color,
-            # width=self.line_width  # not supported with ploygon
-        )
+            outline=self.line_color)
 
     @classmethod
     def for_track(cls, waypoints, color=(0, 0, 0, 255), width=1):
@@ -961,8 +959,7 @@ class TextLayer:
             anchor=TextLayer._ANCHOR[self.align],
             fill=self.color,
             stroke_width=1,
-            stroke_fill=self.outline,
-        )
+            stroke_fill=self.outline)
 
 
 # Rendering -------------------------------------------------------------------
@@ -991,8 +988,7 @@ class RenderContext:
         self._report('%3d%%  %4d / %4d',
             percentage,
             self._downloaded_tiles,
-            self._total_tiles,
-        )
+            self._total_tiles)
 
     @property
     def crop_box(self):
@@ -1036,7 +1032,8 @@ class RenderContext:
         frac_x, frac_y = self._map.to_pixel_fractions(lat, lon)
         w, h = self._tile_size
 
-        px = lambda v: int(ceil(v))
+        def px(v):
+            return int(ceil(v))
 
         return px(frac_x * w), px(frac_y * h)
 
@@ -1089,12 +1086,11 @@ class TileService:
 
     def __init__(self, name, url_pattern, api_keys):
         self.name = name
-        self.url_pattern=url_pattern
+        self.url_pattern = url_pattern
         self._api_keys = api_keys or {}
 
     @property
     def top_level_domain(self):
-        domain = self.domain
         parts = self.domain.split('.')
         # TODO: not quite correct, will fail e.g. for 'foo.co.uk'
         return '.'.join(parts[-2:])
@@ -1179,14 +1175,6 @@ class Cache:
         self._put(tile, recv_etag, data)
         return recv_etag, data
 
-
-        try:
-            return etag, self._get(tile, etag)
-        except LookupError:
-            etag, data = self._service.fetch(tile)
-            self._put(tile, etag, data)
-            return etag, data
-
     def _get(self, tile, etag):
         if not etag:
             raise LookupError
@@ -1210,11 +1198,11 @@ class Cache:
                             safe_etag = entry.name.split('.')[1]
                             etag_bytes = base64.b64decode(safe_etag)
                             return etag_bytes.decode('ascii')
-                        except Exception as err:
+                        except Exception:
                             # Errors if we encounter unexpected filenames
                             pass
 
-        except FileNotFoundError as err:
+        except FileNotFoundError:
             pass
 
     def _put(self, tile, etag, data):
@@ -1287,6 +1275,7 @@ class Cache:
     def user_dir(cls, service, limit=None):
         cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
         return cls(service, cache_dir, limit=limit)
+
 
 if __name__ == '__main__':
     sys.exit(main())
