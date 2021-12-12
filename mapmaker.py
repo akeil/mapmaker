@@ -45,6 +45,8 @@ EARTH_RADIUS = 6371.0 * 1000.0
 MAX_LAT = 85.0511
 MIN_LAT = -85.0511
 
+# Most (all?) services will return tiles this size
+DEFAULT_TILESIZE = (256, 256)
 HILLSHADE = 'hillshading'
 
 _DEFAULT_CONFIG = '''[mapmaker]
@@ -255,7 +257,11 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False, copyright=Fals
                 padding=1,
             ))
 
-    img = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8).build()
+    rc = RenderContext(service, map, reporter=report, overlays=overlays, parallel_downloads=8)
+
+    _show_info(report, service, map, rc)
+
+    img = rc.build()
 
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
@@ -472,6 +478,17 @@ def _no_reporter(msg, *args):
     pass
 
 
+def _show_info(report, service, map, rc):
+    x0, y0, x1, y1 = rc.crop_box
+    w = x1 - x0
+    h = y1 - y0
+    report('-------------------------------')
+    report('Dimensions: %s x %s px', w, h)
+    report('Tiles:      %s', map.num_tiles)
+    report('Map Style:  %s', service.name)
+    report('-------------------------------')
+
+
 def read_config(path):
     '''Read configuration from the given file in .ini format.
     Returns names and url patterns for services and API keys, combined from
@@ -511,6 +528,12 @@ class TileMap:
         self.bbox = bbox
         self.tiles = None
         self._generate_tiles()
+
+    @property
+    def num_tiles(self):
+        x = self.bx - self.ax + 1
+        y = self.by - self.ay + 1
+        return x * y
 
     def _generate_tiles(self):
         self.tiles = {}
@@ -917,24 +940,24 @@ class RenderContext:
         self._report = reporter or _no_reporter
         self._queue = queue.Queue()
         self._lock = threading.Lock()
-        self._tile_size = None
+        # will be set to the actual size once the first tile is downloaded
+        self._tile_size = DEFAULT_TILESIZE
         self._img = None
         self._total_tiles = 0
         self._downloaded_tiles = 0
 
     def _tile_complete(self):
         self._downloaded_tiles += 1
-        percentage = self._downloaded_tiles / self._total_tiles * 100.0
-        self._report('% 3.0f%%, %d / %d tiles for %r',
+        percentage = int(self._downloaded_tiles / self._total_tiles * 100.0)
+        self._report('%3.0f%%  %4d / %4d',
             percentage,
             self._downloaded_tiles,
             self._total_tiles,
-            self._service.name
         )
 
     @property
     def crop_box(self):
-        '''Get the crop box that will be applied to the stiched map.'''
+        '''Get the crop box that will be applied to the stitched map.'''
         bbox = self._map.bbox
         left, bottom = self.to_pixels(bbox.minlat, bbox.minlon)
         right, top = self.to_pixels(bbox.maxlat, bbox.maxlon)
