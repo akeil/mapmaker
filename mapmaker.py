@@ -229,6 +229,8 @@ def main():
 
     reporter('Using configuration from %r', str(conf_file))
 
+    print(bbox)
+
     try:
         if args.gallery:
             base = Path(args.dst)
@@ -252,6 +254,7 @@ def main():
             )
     except Exception as err:
         reporter('ERROR: %s', err)
+        raise
         return 1
 
     return 0
@@ -265,7 +268,15 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     service = TileService(style, conf.urls[style], conf.keys)
     service = Cache.user_dir(service, limit=conf.cache_limit)
 
-    overlays = []
+    overlays = [
+        Box(BBox(maxlat=47.41,minlon=11.0,
+                        minlat=47.39,maxlon=11.1),
+            color=(255,0,0,255),
+            fill=(255,0,0,128),
+            width=1,
+            style=Box.BRACKET,
+        ),
+    ]
     if copyright:
         text = conf.copyrights.get(service.top_level_domain)
         if text:
@@ -324,10 +335,10 @@ class _BBoxAction(argparse.Action):
         if ',' in values[1]:
             lat1, lon1 = _parse_coordinates(values[1])
             bbox = BBox(
-                minlat=lat0,
-                minlon=lon0,
-                maxlat=lat1,
-                maxlon=lon1,
+                minlat=min(lat0, lat1),
+                minlon=min(lon0, lon1),
+                maxlat=max(lat0, lat1),
+                maxlon=max(lon0, lon1),
             )
         # bbox from point and radius
         else:
@@ -908,6 +919,110 @@ class DrawLayer:
         return cls(None, None, None, points,
             line_color=color,
             fill_color=fill,
+        )
+
+
+# Box
+#-style | bracket, full
+# - fill-color
+# - fill opacity
+# - border-color
+# - border-width
+class Box(DrawLayer):
+
+    REGULAR = 'regular'
+    BRACKET = 'bracket'
+
+    def __init__(self, bbox, color=(0, 0, 0, 255), fill=None, width=1, style=None):
+        self.bbox = bbox
+        self.style = style or Box.REGULAR
+        self.color = color
+        self.fill = fill
+        self.width = width
+
+    def _draw(self, rc, draw):
+        if self.style == Box.BRACKET:
+            self._draw_fill(rc, draw)
+            self._draw_bracket(rc, draw)
+        else:
+            self._draw_regular(rc, draw)
+
+    def _draw_regular(self, rc, draw):
+        xy = [
+            rc.to_pixels(self.bbox.minlat, self.bbox.minlon),
+            rc.to_pixels(self.bbox.maxlat, self.bbox.maxlon),
+        ]
+
+        draw.rectangle(xy,
+            outline=self.color,
+            fill=self.fill,
+            width=self.width
+        )
+
+    def _draw_bracket(self, rc, draw):
+        if not self.color or not self.width:
+            return
+
+        left, top = rc.to_pixels(self.bbox.maxlat, self.bbox.minlon)
+        right, bottom = rc.to_pixels(self.bbox.minlat, self.bbox.maxlon)
+
+        # make the "arms" of the bracket so that the *shortest* side of the
+        # rectangle is 1/2 bracket and 1/2 free:
+        w = right - left
+        h = bottom - top
+        shortest = min(w, h)
+        length = shortest // 4
+
+        #  +---      ---+
+        #  |            |   ya
+        #
+        #  |            |   yb
+        #  +---      ---+
+        #     xa     xb
+        xa = left + length
+        xb = right - length
+        ya = top + length
+        yb = bottom - length
+
+        print(self.bbox)
+        print(left, top, '/', right, bottom)
+        print('w,h', w, h)
+        print('length', length)
+
+        # top left bracket
+        draw.line([left, ya, left, top, xa, top],
+            fill=self.color,
+            width=self.width
+        )
+        # top right bracket
+        draw.line([xb, top, right, top, right, ya],
+            fill=self.color,
+            width=self.width
+        )
+        # bottom right bracket
+        draw.line([right, yb, right, bottom, xb, bottom],
+            fill=self.color,
+            width=self.width
+        )
+        # bottom left bracket
+        draw.line([xa, bottom, left, bottom, left, yb],
+            fill=self.color,
+            width=self.width
+        )
+
+    def _draw_fill(self, rc, draw):
+        if not self.fill:
+            return
+
+        xy = [
+            rc.to_pixels(self.bbox.minlat, self.bbox.minlon),
+            rc.to_pixels(self.bbox.maxlat, self.bbox.maxlon),
+        ]
+
+        draw.rectangle(xy,
+            outline=None,
+            fill=self.fill,
+            width=0,
         )
 
 
