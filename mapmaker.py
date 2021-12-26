@@ -932,6 +932,26 @@ class DrawLayer:
         )
 
 
+class Track(DrawLayer):
+    '''Draw a path along the given list of coordinates (``waypoints``).
+
+    ``color`` and ``width`` control the border.
+    '''
+
+    def __init__(self, waypoints, color=(0, 0, 0, 255), width=1):
+        self.waypoints = waypoints
+        self.color = color
+        self.width = width
+
+    def _draw(self, rc, draw):
+        xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
+        draw.line(xy,
+            fill=self.color,
+            width=self.width,
+            joint='curve'
+        )
+
+
 class Box(DrawLayer):
     '''Draw a rectangular box on the map as defined by the given bounding box.
 
