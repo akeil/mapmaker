@@ -922,13 +922,15 @@ class DrawLayer:
         )
 
 
-# Box
-#-style | bracket, full
-# - fill-color
-# - fill opacity
-# - border-color
-# - border-width
 class Box(DrawLayer):
+    '''Draw a rectangular box on the map as defined by the given bounding box.
+
+    ``color`` and ``width`` control the border, ``fill`` determines the fill
+    color (box will not be filled if *None*).
+
+    Style can be ``Box.REGULAR`` for a normal rectangle
+    or ``Box.BRACKET`` for painting only the "edges" of the box.
+    '''
 
     REGULAR = 'regular'
     BRACKET = 'bracket'
@@ -984,31 +986,14 @@ class Box(DrawLayer):
         ya = top + length
         yb = bottom - length
 
-        print(self.bbox)
-        print(left, top, '/', right, bottom)
-        print('w,h', w, h)
-        print('length', length)
-
-        # top left bracket
-        draw.line([left, ya, left, top, xa, top],
-            fill=self.color,
-            width=self.width
-        )
-        # top right bracket
-        draw.line([xb, top, right, top, right, ya],
-            fill=self.color,
-            width=self.width
-        )
-        # bottom right bracket
-        draw.line([right, yb, right, bottom, xb, bottom],
-            fill=self.color,
-            width=self.width
-        )
-        # bottom left bracket
-        draw.line([xa, bottom, left, bottom, left, yb],
-            fill=self.color,
-            width=self.width
-        )
+        brackets = [
+            [left, ya, left, top, xa, top],  # top left bracket
+            [xb, top, right, top, right, ya],  # top right bracket
+            [right, yb, right, bottom, xb, bottom],  # bottom right bracket
+            [xa, bottom, left, bottom, left, yb],  # bottom left bracket
+        ]
+        for xy in brackets:
+            draw.line(xy, fill=self.color, width=self.width)
 
     def _draw_fill(self, rc, draw):
         if not self.fill:
