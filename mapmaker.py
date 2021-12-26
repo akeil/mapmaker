@@ -269,11 +269,11 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     service = Cache.user_dir(service, limit=conf.cache_limit)
 
     overlays = [
-        Box(BBox(maxlat=47.41,minlon=11.0,
+        Box(BBox(maxlat=47.41,minlon=11.05,
                         minlat=47.39,maxlon=11.1),
-            color=(255,0,0,255),
-            fill=(255,0,0,128),
-            width=1,
+            color=(0,0,0,255),
+            fill=(255,0,0,96),
+            width=2,
             style=Box.BRACKET,
         ),
     ]
@@ -1211,9 +1211,13 @@ class RenderContext:
         return px(frac_x * w), px(frac_y * h)
 
     def _draw_overlays(self):
-        draw = ImageDraw.Draw(self._img, mode='RGBA')
+        # For transparent overlays, we cannot paint directly on the image.
+        # Instead, paint on a separate overlay image and compose the results.
         for layer in self._overlays:
+            overlay = Image.new('RGBA', self._img.size, color=(0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay, mode='RGBA')
             layer._draw(self, draw)
+            self._img.alpha_composite(overlay)
 
     def _crop(self):
         '''Crop the map image to the bounding box.'''
