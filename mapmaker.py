@@ -276,6 +276,12 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
             width=2,
             style=Box.BRACKET,
         ),
+        Circle(47.45, 10.85, 4_000,
+            color=(0, 0, 0, 255),
+            fill=(0, 0, 255, 64),
+            width=1,
+            marker=True,
+        ),
     ]
     if copyright:
         text = conf.copyrights.get(service.top_level_domain)
@@ -360,17 +366,7 @@ class _BBoxAction(argparse.Action):
             if unit == 'km':
                 value *= 1000.0
 
-            lat_n, lon_n = _destination_point(lat0, lon0, BRG_NORTH, value)
-            lat_e, lon_e = _destination_point(lat0, lon0, BRG_EAST, value)
-            lat_s, lon_s = _destination_point(lat0, lon0, BRG_SOUTH, value)
-            lat_w, lon_w = _destination_point(lat0, lon0, BRG_WEST, value)
-
-            bbox = BBox(
-                minlat=min(lat_n, lat_e, lat_s, lat_w),
-                minlon=min(lon_n, lon_e, lon_s, lon_w),
-                maxlat=max(lat_n, lat_e, lat_s, lat_w),
-                maxlon=max(lon_n, lon_e, lon_s, lon_w),
-            )
+            bbox = _bbox_from_radius(lat0, lon0, value)
 
         # TODO: clamp to MINLAT / MAXLAT
 
@@ -511,6 +507,20 @@ def with_aspect(bbox, aspect):
             maxlat=bbox.maxlat,
             maxlon=new_maxlon
         )
+
+
+def _bbox_from_radius(lat, lon, radius):
+    lat_n, lon_n = _destination_point(lat, lon, BRG_NORTH, radius)
+    lat_e, lon_e = _destination_point(lat, lon, BRG_EAST, radius)
+    lat_s, lon_s = _destination_point(lat, lon, BRG_SOUTH, radius)
+    lat_w, lon_w = _destination_point(lat, lon, BRG_WEST, radius)
+
+    return BBox(
+        minlat=min(lat_n, lat_e, lat_s, lat_w),
+        minlon=min(lon_n, lon_e, lon_s, lon_w),
+        maxlat=max(lat_n, lat_e, lat_s, lat_w),
+        maxlon=max(lon_n, lon_e, lon_s, lon_w),
+    )
 
 
 def _print_reporter(msg, *args):
@@ -1009,6 +1019,51 @@ class Box(DrawLayer):
             fill=self.fill,
             width=0,
         )
+
+
+class Circle(DrawLayer):
+    '''Draw a circle around a given center in ``lat, lon``
+    with a ``radius`` is defined in meters.
+
+    ``color`` and ``width`` control the border, ``fill`` determines the fill
+    color (box will not be filled if *None*).
+
+    If ``marker`` is *True*, a small marker is drawn in the center.
+    '''
+
+    def __init__(self, lat, lon, radius, color=(0, 0, 0, 255), fill=None, width=1, marker=False):
+        self.lat = lat
+        self.lon = lon
+        self.radius = radius
+        self.color = color
+        self.fill = fill
+        self.width = width
+        self.marker = marker
+
+    def _draw(self, rc, draw):
+        bbox = _bbox_from_radius(self.lat, self.lon, self.radius)
+        xy = [
+            rc.to_pixels(bbox.maxlat, bbox.minlon),
+            rc.to_pixels(bbox.minlat, bbox.maxlon),
+        ]
+
+        draw.ellipse(xy,
+            outline=self.color,
+            fill=self.fill,
+            width=self.width,
+        )
+
+        if self.marker:
+            center_x, center_y = rc.to_pixels(self.lat, self.lon)
+            self._draw_dot(draw, center_x, center_y)
+
+    def _draw_dot(self, draw, x, y):
+        r = 2
+        xy = [x-r, y-r, x+r, y+r]
+        draw.ellipse(xy,
+            fill=self.color,
+            outline=self.color,
+            width=self.width)
 
 
 class TextLayer:
