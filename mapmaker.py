@@ -790,33 +790,8 @@ class DrawLayer:
 
     def _draw(self, rc, draw):
         ''''Internal draw method, used by the rendering context.'''
-        self._draw_waypoints(rc, draw)
         self._draw_points(rc, draw)
-        self._draw_box(rc, draw)
         self._draw_shape(rc, draw)
-
-    def _draw_waypoints(self, rc, draw):
-        if not self.waypoints:
-            return
-
-        xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
-        draw.line(xy,
-            fill=self.line_color,
-            width=self.line_width,
-            joint='curve')
-
-    def _draw_box(self, rc, draw):
-        if not self.box:
-            return
-
-        xy = [
-            rc.to_pixels(self.box.minlat, self.box.minlon),
-            rc.to_pixels(self.box.maxlat, self.box.maxlon),
-        ]
-        draw.rectangle(xy,
-            fill=self.fill_color,
-            outline=self.line_color,
-            width=self.line_width)
 
     def _draw_shape(self, rc, draw):
         if not self.shape:
@@ -894,10 +869,7 @@ class DrawLayer:
 
     @classmethod
     def for_track(cls, waypoints, color=(0, 0, 0, 255), width=1):
-        return cls(waypoints, None, None, None,
-            line_color=color,
-            line_width=width
-        )
+        return Track(waypoints, color=color, width=width)
 
     @classmethod
     def for_points(cls, points, color=(0, 0, 0, 255), fill=(255, 255, 255, 255), border=0, size=4):
@@ -909,13 +881,9 @@ class DrawLayer:
         )
 
     @classmethod
-    def for_box(cls, box, color=(0, 0, 0, 255), fill=None, border=1):
+    def for_box(cls, bbox, color=(0, 0, 0, 255), fill=None, border=1, style=None):
         '''Draw a rectangle for a bounding box.'''
-        return cls(None, None, box, None,
-            line_color=color,
-            line_width=border,
-            fill_color=fill,
-        )
+        return Box(bbox, color=color, fill=fill, width=border, style=style)
 
     @classmethod
     def for_shape(cls, points, color=(0, 0, 0, 255), fill=None):
