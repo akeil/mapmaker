@@ -268,21 +268,7 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     service = TileService(style, conf.urls[style], conf.keys)
     service = Cache.user_dir(service, limit=conf.cache_limit)
 
-    overlays = [
-        Box(BBox(maxlat=47.41,minlon=11.05,
-                        minlat=47.39,maxlon=11.1),
-            color=(0,0,0,255),
-            fill=(255,0,0,96),
-            width=2,
-            style=Box.BRACKET,
-        ),
-        Circle(47.45, 10.85, 4_000,
-            color=(0, 0, 0, 255),
-            fill=(0, 0, 255, 64),
-            width=1,
-            marker=True,
-        ),
-    ]
+    overlays = []
     if copyright:
         text = conf.copyrights.get(service.top_level_domain)
         if text:
