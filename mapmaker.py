@@ -204,6 +204,29 @@ def main():
         action='store_true',
         help='Add copyright notice',
     )
+    # TODO: placement, color and border
+    parser.add_argument(
+        '--title',
+        help='Add a title to the map',
+    )
+    # TODO: sizes, background color
+    parser.add_argument(
+        '--margin',
+        action='store_true',
+        help='Add a margin (white space) around the map',
+    )
+    # TODO: color, width
+    parser.add_argument(
+        '--frame',
+        action='store_true',
+        help='Draw a frame around the map area',
+    )
+    # TODO: placement, color, marker "N"
+    parser.add_argument(
+        '--compass',
+        action='store_true',
+        help='Draw a compass rose on the map',
+    )
     parser.add_argument(
         '--gallery',
         action='store_true',
@@ -239,7 +262,7 @@ def main():
             for style in styles:
                 dst = base.joinpath(style + '.png')
                 try:
-                    _run(bbox, args.zoom, dst, style, reporter, conf,
+                    _run(bbox, args.zoom, dst, style, reporter, conf, args,
                         hillshading=args.shading,
                         copyright=args.copyright,
                         dry_run=args.dry_run,
@@ -248,7 +271,7 @@ def main():
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            _run(bbox, args.zoom, args.dst, args.style, reporter, conf,
+            _run(bbox, args.zoom, args.dst, args.style, reporter, conf, args,
                 hillshading=args.shading,
                 copyright=args.copyright,
                 dry_run=args.dry_run,
@@ -261,7 +284,7 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
+def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     copyright=False, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
@@ -290,12 +313,15 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     if dry_run:
         return
 
-    # img = rc.build()
     decorated = Composer(rc)
-    decorated.add_margin()
-    decorated.add_frame(width=8, color=(0, 0, 0, 255))
-    decorated.add_title('Zugspitze', placement='N', color=(90, 90, 90, 255), border_width=1)
-    decorated.add_compass_rose(placement='NE', color=(0, 0, 0, 200), outline=(255, 255, 255, 255), marker=True)
+    if args.margin:
+        decorated.add_margin()
+    if args.frame:
+        decorated.add_frame()
+    if args.title:
+        decorated.add_title(args.title)
+    if args.compass:
+        decorated.add_compass_rose()
 
     img = decorated.build()
 
@@ -1487,7 +1513,7 @@ class Composer:
             marker=marker,
         ))
 
-    def add_margin(self, top=10, right=10, bottom=10, left=10):
+    def add_margin(self, top=16, right=16, bottom=16, left=16):
         self._margins = (top, right, bottom, left)
 
     def add_frame(self, width=8, color=(0, 0, 0, 255)):
