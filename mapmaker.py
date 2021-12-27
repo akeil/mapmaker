@@ -1,6 +1,7 @@
 #!/bin/python
 import argparse
 import base64
+from collections import defaultdict
 from collections import namedtuple
 import configparser
 import io
@@ -289,7 +290,8 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     if dry_run:
         return
 
-    img = rc.build()
+    # img = rc.build()
+    img = Composer(rc).build()
 
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
@@ -1225,6 +1227,7 @@ class RenderContext:
         return px(frac_x * w), px(frac_y * h)
 
     def _draw_overlays(self):
+        '''Draw overlay layers on the map image.'''
         # For transparent overlays, we cannot paint directly on the image.
         # Instead, paint on a separate overlay image and compose the results.
         for layer in self._overlays:
@@ -1246,15 +1249,15 @@ class RenderContext:
                     _, data = self._service.fetch(tile)
                     tile_img = Image.open(io.BytesIO(data))
                     with self._lock:
-                        self._paste(tile_img, tile.x, tile.y)
+                        self._paste_tile(tile_img, tile.x, tile.y)
                         self._tile_complete()
                 finally:
                     self._queue.task_done()
             except queue.Empty:
                 return
 
-    def _paste(self, tile_img, x, y):
-        '''Implementation for pasting'''
+    def _paste_tile(self, tile_img, x, y):
+        '''Paste a tile image on the main map image.'''
         w, h = tile_img.size
         self._tile_size = w, h  # assume that all tiles have the same size
         if self._img is None:
@@ -1268,6 +1271,141 @@ class RenderContext:
         left = (y - self._map.ay) * h
         box = (top, left)
         self._img.paste(tile_img, box)
+
+
+_NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
+_SOUTHERN = ('SW', 'SSW', 'S', 'SSW', 'SE')
+_WESTERN = ('NW', 'WNW', 'W', 'WSW', 'SW')
+_EASTERN = ('NE', 'ENE', 'E', 'ESE', 'SE')
+
+
+class Composer:
+    '''Compos a fully-fledged map with additional elements into animage.'''
+
+    def __init__(self, rc):
+        self._rc = rc
+        self._decorations = defaultdict(list)
+        self._frame = None
+        self.background = (255, 255, 255, 255)
+
+    def build(self):
+        map_img = self._rc.build()
+
+        map_w, map_h, = map_img.size
+        top, right, bottom, left = self._calc_margins()
+        w = left + map_w + right
+        h = top + map_h + bottom
+
+        if self._frame:
+            w += 2 * self._frame.width
+            h += 2 * self.frame.width
+
+        print('Base image size', w, h)
+
+        base = Image.new('RGBA', (w, h), color=self.background)
+
+        # add the map content
+        map_box = (top, left, top + map_w, left + map_h)
+        base.paste(map_img, map_box)
+
+        # add the components
+        # - map image
+        # - frame
+        # - TODO: on-map on-map decos
+        for deco in self._decorations['MARGIN']:
+            deco_size = deco.calc_size()
+            deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
+            draw = ImageDraw.Draw(deco_img, mode='RGBA')
+            deco.draw(rc, draw)
+            # TODO: position
+            base.alpha_composite(overlay)
+
+        return base
+
+    def _calc_margins(self):
+        # TODO: base values from *somwwhere*
+        top, right, bottom, left = 10, 10, 10, 10
+
+        for deco in self._decorations['MARGIN']:
+            w, h = deco.calc_size()
+            if deco.position in _NORTHERN:
+                top += h
+            elif deco.position in _SOUTHERN:
+                bottom += h
+
+            if deco.position in _WESTERN:
+                left += w
+            elif position in _EASTERN:
+                right += w
+
+        return top, right, bottom, left
+
+    def add_title(self, text, placement='MARGIN', position='N', anchor='TOP_CENTER'):
+        deco = Cartouche(text, position=position, anchor=anchor)
+        self._decorations[placement].append(deco)
+
+    def add_frame(self):
+        # coordinate markers
+        # coordinate labels
+        self._frame = Frame()
+
+    def add_scale(self):
+        deco = Scale()
+
+    def add_compass_rose(self):
+        deco = CompassRose()
+
+
+class Decoration:
+    '''Base class for decorations.'''
+
+    def __init__(self, position, anchor):
+        # TODO: validate pos + anchor
+        self.position = position
+        self.anchor = anchor
+
+    def calc_size(self, rc):
+        raise ValueError('Not implemented')
+
+    def draw(self, rc, draw):
+        raise ValueError('Not implemented')
+
+
+class Cartouche:
+
+    def __init__(self, title, position='N', anchor='TOP_CENTER'):
+        self.position = position
+        self.anchor = anchor
+        self.title = title
+
+    def draw(self):
+        pass
+
+
+class Scale:
+
+    def __init__(self):
+        self.position = 'SW'
+        self.anchor = 'bottom left'
+
+    def draw(self):
+        pass
+
+
+class CompassRose:
+
+    def __init__(self):
+        self.position = 'SE'
+        self.anchor = 'center center'
+
+
+class Frame:
+
+    def __init__(self):
+        self.width = 8
+
+    def draw(self):
+        pass
 
 
 # Tile Service ----------------------------------------------------------------
