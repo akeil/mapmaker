@@ -314,6 +314,16 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     decorated.add_title('Zugspitze', placement='E', color=(50, 50, 50, 255), border_width=1)
     decorated.add_title('Zugspitze', placement='ESE', color=(50, 50, 50, 255), border_width=1)
 
+    decorated.add_compass_rose(placement='NW')
+    decorated.add_compass_rose(placement='N')
+    decorated.add_compass_rose(placement='NE')
+    decorated.add_compass_rose(placement='E')
+    decorated.add_compass_rose(placement='SE')
+    decorated.add_compass_rose(placement='S')
+    decorated.add_compass_rose(placement='SW')
+    decorated.add_compass_rose(placement='W')
+    decorated.add_compass_rose(placement='C')
+
     img = decorated.build()
 
     if hillshading:
@@ -1355,17 +1365,21 @@ class Composer:
             self._frame.draw(self._rc, draw, frame_size)
             base.alpha_composite(frame_img, dest=(left, top))
 
-        for deco in self._decorations['MARGIN']:
-            deco_size = deco.calc_size()
-            deco_pos = self._calc_margin_pos(deco.placement, (w, h), frame_box, deco_size)
+        for area in ('MAP', 'MARGIN'):
+            for deco in self._decorations[area]:
+                deco_size = deco.calc_size()
+                deco_pos = None
+                if area == 'MAP':
+                    deco_pos = self._calc_map_pos(deco.placement, map_box, deco_size)
+                elif area == 'MARGIN':
+                    deco_pos = self._calc_margin_pos(deco.placement, (w, h), frame_box, deco_size)
 
-            deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
-            draw = ImageDraw.Draw(deco_img, mode='RGBA')
-            deco.draw(draw, deco_size)
+                deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
+                draw = ImageDraw.Draw(deco_img, mode='RGBA')
+                deco.draw(draw, deco_size)
 
-            base.alpha_composite(deco_img, dest=deco_pos)
+                base.alpha_composite(deco_img, dest=deco_pos)
 
-        # - TODO: on-map on-map decos
         return base
 
     def _calc_margins(self):
@@ -1394,7 +1408,7 @@ class Composer:
         frame_left, frame_top, frame_right, frame_bottom = frame_box
         top, right, bottom, left = self._margins
 
-        x, y = 0, 0
+        x, y = None, None
 
         # top area: y is top margin
         if placement in _NORTHERN:
@@ -1435,30 +1449,76 @@ class Composer:
 
         return x, y
 
-    def add_margin(self, top=10, right=10, bottom=10, left=10):
-        self._margins = (top, right, bottom, left)
+    def _calc_map_pos(self, placement, map_box, deco_size):
+        '''Calculate the top-left placement for a decoration within the map
+        content.
+        The position referes to the map image.
+        '''
+        map_left, map_top, map_right, map_bottom = map_box
+        map_w = map_right - map_left
+        map_h = map_bottom - map_top
+        deco_w, deco_h = deco_size
+
+        x, y = None, None
+
+        if placement in ('NW', 'N', 'NE'):
+            # align top of decoration wit htop of map
+            y = map_top
+        elif placement in ('W', 'C', 'E'):
+            # center vertically
+            y = map_top + map_h // 2 - deco_h // 2
+        elif placement in ('SW', 'S', 'SE'):
+            # align bottom of decoration to bottom of map
+            y = map_bottom - deco_h
+        else:
+            raise ValueError('invalid placement %r' % placement)
+
+        if placement in ('NW', 'W', 'SW'):
+            # align left edge of decortation with left edge of map
+            x = map_left
+        elif placement in ('N', 'C', 'S'):
+            # center vertically
+            x = map_left + map_w // 2 - deco_w // 2
+        elif placement in ('NE', 'E', 'SE'):
+            # align right edges
+            x = map_right - deco_w
+        else:
+            raise ValueError('invalid placement %r' % placement)
+
+        return x, y
+
+    def add_decoration(self, area, decoration):
+        if area not in ('MAP', 'MARGIN'):
+            raise ValueError('invalid area %r' % area)
+
+        # TODO validate decoration.placement w/ placements for area
+        self._decorations[area].append(decoration)
 
     def add_title(self, text, area='MARGIN', placement='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
-        deco = Cartouche(text,
+        self.add_decoration(area, Cartouche(text,
             placement=placement,
             color=color,
             border_width=border_width,
             border_color=border_color,
             background=background,
-        )
-        self._decorations[area].append(deco)
+        ))
+
+    def add_scale(self):
+        deco = Scale()
+
+    def add_compass_rose(self, area='MAP', placement='SE', color=(0, 0, 0, 255)):
+        self.add_decoration(area, CompassRose(
+            placement=placement,
+            color=color,
+        ))
+
+    def add_margin(self, top=10, right=10, bottom=10, left=10):
+        self._margins = (top, right, bottom, left)
 
     def add_frame(self, width=8):
         # coordinate markers
         # coordinate labels
         self._frame = Frame(width=width)
-
-    def add_scale(self):
-        deco = Scale()
-
-    def add_compass_rose(self):
-        deco = CompassRose()
-
 
 class Decoration:
     '''Base class for decorations.'''
@@ -1615,11 +1675,72 @@ class Scale:
         pass
 
 
-class CompassRose:
+class CompassRose(Decoration):
 
-    def __init__(self):
-        self.placement = 'SE'
-        self.anchor = 'center center'
+    def __init__(self, placement='SE', color=(0, 0, 0, 255)):
+        super().__init__(placement)
+        self.color = color
+
+    def calc_size(self):
+        return 70, 100
+
+    def draw(self, draw, size):
+        # basic arrow
+        #        a
+        #       /\
+        #     /   \
+        #   /      \    <-- head
+        # b ---  --- c
+        #    d| |e
+        #     | |       <- tail
+        #     |_|
+        #   f  i  g
+        w, h = size
+        # TODO subtract space for "N" marker
+        head_h = h // 2
+        tail_h = h - head_h
+        tail_w = w // 3
+
+        ax = w // 2
+        ay = 0
+
+        bx = 0
+        by = head_h
+        by += (head_h // 4)  # pull down the outer points of the arrow
+        cx = w
+        cy = by
+
+        dx = tail_w
+        dy = head_h
+        ex = w - tail_w
+        ey = head_h
+
+        fx = tail_w
+        fx -= tail_w // 4  # make the base of the tail a bit wider
+        fy = h
+        gx = w - tail_w
+        gx += tail_w // 4
+        gy = fy
+
+        ix = w // 2
+        iy = h
+        iy -= tail_h // 3  # pull base line inwards
+
+        draw.polygon([
+            ax, ay,
+            cx, cy,
+            ex, ey,
+            gx, gy,
+            ix, iy,
+            fx, fy,
+            dx, dy,
+            bx, by,
+            ],
+            outline=self.color,
+            fill=self.color,
+        )
+        # placment debug
+        draw.rectangle([0, 0, w-1, h-1], outline=(255, 0, 0, 255), width=1)
 
 
 class Frame:
