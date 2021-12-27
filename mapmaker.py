@@ -291,7 +291,10 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
         return
 
     # img = rc.build()
-    img = Composer(rc).build()
+    decorated = Composer(rc)
+    decorated.add_margin()
+    decorated.add_frame()
+    img = decorated.build()
 
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
@@ -1284,8 +1287,9 @@ class Composer:
 
     def __init__(self, rc):
         self._rc = rc
-        self._decorations = defaultdict(list)
+        self._margins = (0, 0, 0, 0)
         self._frame = None
+        self._decorations = defaultdict(list)
         self.background = (255, 255, 255, 255)
 
     def build(self):
@@ -1296,20 +1300,35 @@ class Composer:
         w = left + map_w + right
         h = top + map_h + bottom
 
+        map_top = top
+        map_left = left
         if self._frame:
+            map_top += self._frame.width
+            map_left += self._frame.width
             w += 2 * self._frame.width
-            h += 2 * self.frame.width
+            h += 2 * self._frame.width
 
         print('Base image size', w, h)
 
         base = Image.new('RGBA', (w, h), color=self.background)
 
         # add the map content
-        map_box = (top, left, top + map_w, left + map_h)
+        map_box = (map_top, map_left, map_top + map_w, map_left + map_h)
         base.paste(map_img, map_box)
 
+        # add frame around the map
+        if self._frame:
+            frame_w = map_w + 2 * self._frame.width
+            frame_h = map_h + 2 *self._frame.width
+            frame_size = (frame_w, frame_h)
+            frame_box = (top, left, frame_w, frame_h)
+
+            frame_img = Image.new('RGBA', frame_size, color=(0, 0, 0, 0))
+            draw = ImageDraw.Draw(frame_img, mode='RGBA')
+            self._frame.draw(self._rc, draw, frame_size)
+            base.alpha_composite(frame_img, dest=(top, left))
+
         # add the components
-        # - map image
         # - frame
         # - TODO: on-map on-map decos
         for deco in self._decorations['MARGIN']:
@@ -1323,8 +1342,7 @@ class Composer:
         return base
 
     def _calc_margins(self):
-        # TODO: base values from *somwwhere*
-        top, right, bottom, left = 10, 10, 10, 10
+        top, right, bottom, left = self._margins
 
         for deco in self._decorations['MARGIN']:
             w, h = deco.calc_size()
@@ -1340,14 +1358,17 @@ class Composer:
 
         return top, right, bottom, left
 
+    def add_margin(self, top=10, right=10, bottom=10, left=10):
+        self._margins = (top, right, bottom, left)
+
     def add_title(self, text, placement='MARGIN', position='N', anchor='TOP_CENTER'):
         deco = Cartouche(text, position=position, anchor=anchor)
         self._decorations[placement].append(deco)
 
-    def add_frame(self):
+    def add_frame(self, width=8):
         # coordinate markers
         # coordinate labels
-        self._frame = Frame()
+        self._frame = Frame(width=width)
 
     def add_scale(self):
         deco = Scale()
@@ -1401,11 +1422,17 @@ class CompassRose:
 
 class Frame:
 
-    def __init__(self):
-        self.width = 8
+    def __init__(self, width=8):
+        self.width = width
+        self.color = (0, 0, 0, 56)
+        # TODO: style, color(s)
 
-    def draw(self):
-        pass
+    def draw(self, rc, draw, size):
+        # simple one-color border
+        # bottom right pixel for rectangle is *just outside* xy
+        w, h = size
+        xy = (0, 0, w - 1, h - 1)
+        draw.rectangle(xy, outline=self.color, width=self.width)
 
 
 # Tile Service ----------------------------------------------------------------
