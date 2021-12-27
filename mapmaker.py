@@ -293,9 +293,9 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     # img = rc.build()
     decorated = Composer(rc)
     decorated.add_margin()
-    decorated.add_frame(width=8)
-    decorated.add_title('Zugspitze', placement='N', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_compass_rose(placement='NE', color=(90, 90, 90, 160), outline=(255, 255, 255, 255), marker=True)
+    decorated.add_frame(width=8, color=(0, 0, 0, 255))
+    decorated.add_title('Zugspitze', placement='N', color=(90, 90, 90, 255), border_width=1)
+    decorated.add_compass_rose(placement='NE', color=(0, 0, 0, 200), outline=(255, 255, 255, 255), marker=True)
 
     img = decorated.build()
 
@@ -1490,10 +1490,10 @@ class Composer:
     def add_margin(self, top=10, right=10, bottom=10, left=10):
         self._margins = (top, right, bottom, left)
 
-    def add_frame(self, width=8):
+    def add_frame(self, width=8, color=(0, 0, 0, 255)):
         # coordinate markers
         # coordinate labels
-        self._frame = Frame(width=width)
+        self._frame = Frame(width=width, color=color)
 
 class Decoration:
     '''Base class for decorations.'''
@@ -1767,9 +1767,9 @@ class CompassRose(Decoration):
 
 class Frame:
 
-    def __init__(self, width=8):
+    def __init__(self, width=8, color=(0, 0, 0, 255)):
         self.width = width
-        self.color = (0, 0, 0, 56)
+        self.color = color
         # TODO: style, color(s)
 
     def draw(self, rc, draw, size):
