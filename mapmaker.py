@@ -293,36 +293,9 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     # img = rc.build()
     decorated = Composer(rc)
     decorated.add_margin()
-    decorated.add_frame()
-    decorated.add_title('Zugspitze', placement='NW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='NNW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_frame(width=8)
     decorated.add_title('Zugspitze', placement='N', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='NNE', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='NE', color=(50, 50, 50, 255), border_width=1)
-
-    decorated.add_title('Zugspitze', placement='SW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='SSW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='S', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='SSE', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='SE', color=(50, 50, 50, 255), border_width=1)
-
-    decorated.add_title('Zugspitze', placement='WNW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='W', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='WSW', color=(50, 50, 50, 255), border_width=1)
-
-    decorated.add_title('Zugspitze', placement='ENE', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='E', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', placement='ESE', color=(50, 50, 50, 255), border_width=1)
-
-    decorated.add_compass_rose(placement='NW')
-    decorated.add_compass_rose(placement='N')
-    decorated.add_compass_rose(placement='NE')
-    decorated.add_compass_rose(placement='E')
-    decorated.add_compass_rose(placement='SE')
-    decorated.add_compass_rose(placement='S')
-    decorated.add_compass_rose(placement='SW')
-    decorated.add_compass_rose(placement='W')
-    decorated.add_compass_rose(placement='C')
+    decorated.add_compass_rose(placement='NE', color=(90, 90, 90, 160), outline=(255, 255, 255, 255), marker=True)
 
     img = decorated.build()
 
@@ -1327,7 +1300,7 @@ class Composer:
         map_img = self._rc.build()
 
         map_w, map_h, = map_img.size
-        top, right, bottom, left = self._calc_margins()
+        top, right, bottom, left = self._calc_margins((map_w, map_h))
         w = left + map_w + right
         h = top + map_h + bottom
 
@@ -1367,7 +1340,7 @@ class Composer:
 
         for area in ('MAP', 'MARGIN'):
             for deco in self._decorations[area]:
-                deco_size = deco.calc_size()
+                deco_size = deco.calc_size((map_w, map_h))
                 deco_pos = None
                 if area == 'MAP':
                     deco_pos = self._calc_map_pos(deco.placement, map_box, deco_size)
@@ -1382,12 +1355,12 @@ class Composer:
 
         return base
 
-    def _calc_margins(self):
+    def _calc_margins(self, map_size):
 
         top, right, bottom, left = 0, 0, 0, 0
 
         for deco in self._decorations['MARGIN']:
-            w, h = deco.calc_size()
+            w, h = deco.calc_size(map_size)
             if deco.placement in _NORTHERN:
                 top = max(h, top)
             elif deco.placement in _SOUTHERN:
@@ -1506,10 +1479,12 @@ class Composer:
     def add_scale(self):
         deco = Scale()
 
-    def add_compass_rose(self, area='MAP', placement='SE', color=(0, 0, 0, 255)):
+    def add_compass_rose(self, area='MAP', placement='SE', color=(0, 0, 0, 255), outline=None, marker=False):
         self.add_decoration(area, CompassRose(
             placement=placement,
             color=color,
+            outline=outline,
+            marker=marker,
         ))
 
     def add_margin(self, top=10, right=10, bottom=10, left=10):
@@ -1526,8 +1501,9 @@ class Decoration:
     def __init__(self, placement):
         # TODO: validate pos
         self.placement = placement
+        self.margin = (4, 4, 4, 4)
 
-    def calc_size(self):
+    def calc_size(self, map_size):
         raise ValueError('Not implemented')
 
     def draw(self, draw, size):
@@ -1594,9 +1570,8 @@ class Cartouche(Decoration):
         self.font = 'DejaVuSans.ttf'
         self.font_size = 16
         self.padding = (4, 8, 4, 8)
-        self.margin = (4, 4, 4, 4)
 
-    def calc_size(self):
+    def calc_size(self, map_size):
         if not self.title or not self.title.strip():
             return 0, 0
 
@@ -1677,12 +1652,25 @@ class Scale:
 
 class CompassRose(Decoration):
 
-    def __init__(self, placement='SE', color=(0, 0, 0, 255)):
+    def __init__(self, placement='SE', color=(0, 0, 0, 255), outline=None, marker=False):
         super().__init__(placement)
         self.color = color
+        self.outline = outline
+        self.marker = marker
 
-    def calc_size(self):
-        return 70, 100
+        self.font = 'DejaVuSans.ttf'  # for Marker ("N")
+        self.margin = (12, 12, 12, 12)
+
+    def calc_size(self, map_size):
+        map_w, map_h = map_size
+        w = int(map_w * 0.05)
+        h = int(map_h * 0.1)
+
+        m_top, m_right, m_bottom, m_left = self.margin
+        w += m_left + m_right
+        h += m_top + m_bottom
+
+        return w, h
 
     def draw(self, draw, size):
         # basic arrow
@@ -1696,10 +1684,25 @@ class CompassRose(Decoration):
         #     |_|
         #   f  i  g
         w, h = size
-        # TODO subtract space for "N" marker
-        head_h = h // 2
+        m_top, m_right, m_bottom, m_left = self.margin
+        w -= m_left + m_right
+        h -= m_top + m_bottom
+
+        # subtract vertical space for "N" marker
+        font = None
+        marker_pad = 0
+        marker_h = 0
+        if self.marker:
+            font_size = size[1] // 5
+            font = self._font(font_size)
+            marker_w, marker_h = font.getsize('N')
+            marker_pad = marker_h // 16  # padding between marker and arrowhead
+            h -= marker_h
+            h -= marker_pad
+
+        head_h = h // 2.2
         tail_h = h - head_h
-        tail_w = w // 3
+        tail_w = w // 4
 
         ax = w // 2
         ay = 0
@@ -1710,37 +1713,56 @@ class CompassRose(Decoration):
         cx = w
         cy = by
 
-        dx = tail_w
+        dx = w // 2 - tail_w // 2
         dy = head_h
-        ex = w - tail_w
+        ex = w // 2 + tail_w // 2
         ey = head_h
 
         fx = tail_w
-        fx -= tail_w // 4  # make the base of the tail a bit wider
+        fx -= tail_w // 6  # make the base of the tail a bit wider
         fy = h
         gx = w - tail_w
-        gx += tail_w // 4
+        gx += tail_w // 6  # make the base of the tail a bit wider
         gy = fy
 
         ix = w // 2
         iy = h
         iy -= tail_h // 3  # pull base line inwards
 
-        draw.polygon([
-            ax, ay,
-            cx, cy,
-            ex, ey,
-            gx, gy,
-            ix, iy,
-            fx, fy,
-            dx, dy,
-            bx, by,
-            ],
-            outline=self.color,
+        points = [
+            (ax, ay),
+            (cx, cy),
+            (ex, ey),
+            (gx, gy),
+            (ix, iy),
+            (fx, fy),
+            (dx, dy),
+            (bx, by),
+        ]
+        x_offset = m_left
+        y_offset = m_top + marker_h + marker_pad
+        draw.polygon([(x + x_offset, y + y_offset) for x, y in points],
             fill=self.color,
+            outline=self.outline,
         )
-        # placment debug
-        draw.rectangle([0, 0, w-1, h-1], outline=(255, 0, 0, 255), width=1)
+
+        if self.marker:
+            w, h = size
+            x = w // 2
+            y = m_top
+            draw.text((x, y), 'N',
+                font=font,
+                anchor='mt',
+                fill=self.color,
+                stroke_width=1,
+                stroke_fill=self.outline,
+            )
+
+    def _font(self, font_size):
+        try:
+            return ImageFont.truetype(font=self.font, size=font_size)
+        except OSError:
+            return ImageFont.load_default()
 
 
 class Frame:
