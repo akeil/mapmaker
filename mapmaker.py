@@ -1395,7 +1395,7 @@ class Composer:
             y = frame_top
         elif placement in ('W', 'E'):
             # W, E. center vertically
-            y = total_h // 2
+            y = total_h // 2 - deco_h // 2
         elif placement in ('WSW', 'ESE'):
             # align bottom edge of decoration with bottom of map/frame
             y = frame_bottom - deco_h
@@ -1413,7 +1413,7 @@ class Composer:
             x = frame_left
         elif placement in ('N', 'S'):
             # center horizontally
-            x = total_w // 2
+            x = total_w // 2 - deco_w // 2
         elif placement in ('NNE', 'SSE'):
             # align right edge of decoration with right edge of frame
             x = frame_right - deco_w
