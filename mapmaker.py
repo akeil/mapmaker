@@ -294,25 +294,25 @@ def _run(bbox, zoom, dst, style, report, conf, hillshading=False,
     decorated = Composer(rc)
     decorated.add_margin()
     decorated.add_frame()
-    decorated.add_title('Zugspitze', position='NW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='NNW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='N', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='NNE', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='NE', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='NW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='NNW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='N', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='NNE', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='NE', color=(50, 50, 50, 255), border_width=1)
 
-    decorated.add_title('Zugspitze', position='SW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='SSW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='S', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='SSE', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='SE', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='SW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='SSW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='S', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='SSE', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='SE', color=(50, 50, 50, 255), border_width=1)
 
-    decorated.add_title('Zugspitze', position='WNW', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='W', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='WSW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='WNW', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='W', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='WSW', color=(50, 50, 50, 255), border_width=1)
 
-    decorated.add_title('Zugspitze', position='ENE', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='E', color=(50, 50, 50, 255), border_width=1)
-    decorated.add_title('Zugspitze', position='ESE', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='ENE', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='E', color=(50, 50, 50, 255), border_width=1)
+    decorated.add_title('Zugspitze', placement='ESE', color=(50, 50, 50, 255), border_width=1)
 
     img = decorated.build()
 
@@ -1296,6 +1296,7 @@ class RenderContext:
         self._img.paste(tile_img, box)
 
 
+# Placments
 _NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
 _SOUTHERN = ('SW', 'SSW', 'S', 'SSE', 'SE')
 _WESTERN = ('NW', 'WNW', 'W', 'WSW', 'SW')
@@ -1356,7 +1357,7 @@ class Composer:
 
         for deco in self._decorations['MARGIN']:
             deco_size = deco.calc_size()
-            deco_pos = self._calc_margin_pos(deco.position, (w, h), frame_box, deco_size)
+            deco_pos = self._calc_margin_pos(deco.placement, (w, h), frame_box, deco_size)
 
             deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
             draw = ImageDraw.Draw(deco_img, mode='RGBA')
@@ -1373,21 +1374,21 @@ class Composer:
 
         for deco in self._decorations['MARGIN']:
             w, h = deco.calc_size()
-            if deco.position in _NORTHERN:
+            if deco.placement in _NORTHERN:
                 top = max(h, top)
-            elif deco.position in _SOUTHERN:
+            elif deco.placement in _SOUTHERN:
                 bottom = max(h, bottom)
 
-            if deco.position in _WESTERN:
+            if deco.placement in _WESTERN:
                 left = max(w, left)
-            elif deco.position in _EASTERN:
+            elif deco.placement in _EASTERN:
                 right = max(w, right)
 
         m = self._margins
         return top + m[0], right + m[1], bottom + m[2], left + m[3]
 
-    def _calc_margin_pos(self, position, img_size, frame_box, deco_size):
-        '''Determine the top-left position for a decoration.'''
+    def _calc_margin_pos(self, placement, img_size, frame_box, deco_size):
+        '''Determine the top-left placement for a decoration.'''
         total_w, total_h = img_size
         deco_w, deco_h = deco_size
         frame_left, frame_top, frame_right, frame_bottom = frame_box
@@ -1396,56 +1397,56 @@ class Composer:
         x, y = 0, 0
 
         # top area: y is top margin
-        if position in _NORTHERN:
+        if placement in _NORTHERN:
             # align bottom edge of decoration with top of map/frame
             y = frame_top - deco_h
-        elif position in _SOUTHERN:
+        elif placement in _SOUTHERN:
             # align top edge of decoration with bottom edge of map/frame
             y = frame_bottom
-        elif position in ('WNW', 'ENE'):
+        elif placement in ('WNW', 'ENE'):
             # align top edge of decoration with top of map/frame
             y = frame_top
-        elif position in ('W', 'E'):
+        elif placement in ('W', 'E'):
             # W, E. center vertically
             y = total_h // 2
-        elif position in ('WSW', 'ESE'):
+        elif placement in ('WSW', 'ESE'):
             # align bottom edge of decoration with bottom of map/frame
             y = frame_bottom - deco_h
         else:
-            raise ValueError('invalid position %r' % position)
+            raise ValueError('invalid placement %r' % placement)
 
-        if position in _WESTERN:
+        if placement in _WESTERN:
             # align right edge of decoration with left edge of frame
             x = frame_left - deco_w
-        elif position in _EASTERN:
+        elif placement in _EASTERN:
             # align left edge of decoration with right edge of frame
             x = frame_right
-        elif position in ('NNW', 'SSW'):
+        elif placement in ('NNW', 'SSW'):
             # align left edge of decoration with left edge of frame
             x = frame_left
-        elif position in ('N', 'S'):
+        elif placement in ('N', 'S'):
             # center horizontally
             x = total_w // 2
-        elif position in ('NNE', 'SSE'):
+        elif placement in ('NNE', 'SSE'):
             # align right edge of decoration with right edge of frame
             x = frame_right - deco_w
         else:
-            raise ValueError('invalid position %r' % position)
+            raise ValueError('invalid placement %r' % placement)
 
         return x, y
 
     def add_margin(self, top=10, right=10, bottom=10, left=10):
         self._margins = (top, right, bottom, left)
 
-    def add_title(self, text, placement='MARGIN', position='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
+    def add_title(self, text, area='MARGIN', placement='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
         deco = Cartouche(text,
-            position=position,
+            placement=placement,
             color=color,
             border_width=border_width,
             border_color=border_color,
             background=background,
         )
-        self._decorations[placement].append(deco)
+        self._decorations[area].append(deco)
 
     def add_frame(self, width=8):
         # coordinate markers
@@ -1462,9 +1463,9 @@ class Composer:
 class Decoration:
     '''Base class for decorations.'''
 
-    def __init__(self, position):
+    def __init__(self, placement):
         # TODO: validate pos
-        self.position = position
+        self.placement = placement
 
     def calc_size(self):
         raise ValueError('Not implemented')
@@ -1523,8 +1524,8 @@ class Cartouche(Decoration):
         'WNW': 'ra',
     }
 
-    def __init__(self, title, position='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
-        super().__init__(position)
+    def __init__(self, title, placement='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
+        super().__init__(placement)
         self.title = title
         self.color = color
         self.background = background
@@ -1562,7 +1563,7 @@ class Cartouche(Decoration):
 
         # adjust margins for proper alignment with frame
         # TODO: this belongs into calc_margin_pos
-        mask = self._MARGIN_MASK[self.position]
+        mask = self._MARGIN_MASK[self.placement]
         masked_margins = [v * m for v, m in zip(self.margin, mask)]
         m_top, m_right, m_bottom, m_left = masked_margins
         p_top, p_right, p_bottom, p_left = self.padding
@@ -1574,7 +1575,7 @@ class Cartouche(Decoration):
             width=self.border_width
         )
         # text
-        anchor = self._TEXT_ANCHOR[self.position]
+        anchor = self._TEXT_ANCHOR[self.placement]
         x = {
             'l': 0 + p_left + m_left,
             'm': w // 2,
@@ -1607,7 +1608,7 @@ class Cartouche(Decoration):
 class Scale:
 
     def __init__(self):
-        self.position = 'SW'
+        self.placement = 'SW'
         self.anchor = 'bottom left'
 
     def draw(self):
@@ -1617,7 +1618,7 @@ class Scale:
 class CompassRose:
 
     def __init__(self):
-        self.position = 'SE'
+        self.placement = 'SE'
         self.anchor = 'center center'
 
 
