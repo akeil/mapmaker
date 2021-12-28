@@ -504,6 +504,17 @@ def _parse_color(raw):
     return rgba
 
 
+def _parse_placement(raw):
+    '''Parse a placement (e.g. "N", "SE" or "WSW") from a string.'''
+    if not raw:
+        raise ValueError('invalid value for placement %r' % raw)
+
+    v = raw.strip().upper()
+    if v in PLACEMENTS:
+        return v
+
+    raise ValueError('invalid value for placement %r' % raw)
+
 
 def aspect(raw):
     '''Parse an aspect ratio given in the form of "19:9" into a float.'''
@@ -1340,6 +1351,12 @@ class RenderContext:
 
 
 # Placments
+PLACEMENTS = (
+    'NW', 'NNW', 'N', 'NNE', 'NE',
+    'WNW', 'W', 'WSW',
+    'ENE', 'E', 'ESE',
+    'SW', 'SSW', 'S', 'SSE', 'SE'
+)
 _NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
 _SOUTHERN = ('SW', 'SSW', 'S', 'SSE', 'SE')
 _WESTERN = ('NW', 'WNW', 'W', 'WSW', 'SW')

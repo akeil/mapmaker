@@ -6,7 +6,7 @@ from mapmaker import aspect
 from mapmaker import _BBoxAction
 from mapmaker import _parse_color
 from mapmaker import _parse_coordinates
-
+from mapmaker import _parse_placement
 
 class TestParseCoordinates(TestCase):
 
@@ -96,6 +96,33 @@ class TestParseColor(TestCase):
         )
         for raw, expected in cases:
             self.assertEqual(_parse_color(raw), expected)
+
+
+class TestParsePlacement(TestCase):
+
+    def test_should_fail(self):
+        cases = (
+            None,
+            '',
+            '  ',
+            '\n',
+            'xyz',
+            '-N-',
+            'xNEx',
+            'N*',
+            'x',
+        )
+        for raw in cases:
+            self.assertRaises(ValueError, _parse_placement, raw)
+
+    def test_valid(self):
+        cases = (
+            ('SSW', 'SSW'),
+            ('n', 'N'),
+            (' ne ', 'NE'),
+        )
+        for raw, expected in cases:
+            self.assertEqual(_parse_placement(raw), expected)
 
 
 class TestParseAspect(TestCase):
