@@ -6,7 +6,9 @@ from mapmaker import aspect
 from mapmaker import _BBoxAction
 from mapmaker import _parse_color
 from mapmaker import _parse_coordinates
+from mapmaker import _parse_margin
 from mapmaker import _parse_placement
+
 
 class TestParseCoordinates(TestCase):
 
@@ -67,11 +69,13 @@ class TestParseColor(TestCase):
             '0xff,0xff,0xff',
             '1,2',
             '10',
+            '10,20,30,40,50',
             '255 255 255',
             '255;255;255',
             '300,50,50',
             '256,50,50',
             '-1,50,50',
+            '1.5,22,33',
             '#00',
             '#00ff',
             '#foobar',
@@ -96,6 +100,40 @@ class TestParseColor(TestCase):
         )
         for raw, expected in cases:
             self.assertEqual(_parse_color(raw), expected)
+
+
+class TestParsePlacement(TestCase):
+
+    def test_should_fail(self):
+        cases = (
+            None,
+            '',
+            '  ',
+            '\n',
+            'xyz',
+            'N*',
+            'x',
+            '10px,10px',
+            '10px,10px,10px',
+            '10px,10px,10px,10px,10px',
+            '10px,10px,10px,-5px',
+            '-1px',
+            '5.5px',
+            '10 px',
+            '10cm',
+        )
+        for raw in cases:
+            self.assertRaises(ValueError, _parse_margin, raw)
+
+    def test_valid(self):
+        cases = (
+            ('2px', (2, 2, 2, 2)),
+            ('0px,0px,0px,0px', (0, 0, 0, 0)),
+            ('1px,2px,3px,4px', (1, 2, 3, 4)),
+            ('2PX', (2, 2, 2, 2)),
+        )
+        for raw, expected in cases:
+            self.assertEqual(_parse_margin(raw), expected)
 
 
 class TestParsePlacement(TestCase):
