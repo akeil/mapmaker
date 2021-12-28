@@ -69,6 +69,14 @@ class TestParseColor(TestCase):
             '10',
             '255 255 255',
             '255;255;255',
+            '300,50,50',
+            '256,50,50',
+            '-1,50,50',
+            '#00',
+            '#00ff',
+            '#foobar',
+            '#0010203040',
+            '#'
         )
         for raw in cases:
             self.assertRaises(ValueError, _parse_color, raw)
@@ -81,6 +89,10 @@ class TestParseColor(TestCase):
             ('10,20,30,255', (10, 20, 30, 255)),
             ('10,20,30,128', (10, 20, 30, 128)),
             ('10,20,30,0', (10, 20, 30, 0)),
+            ('010,020,030', (10, 20, 30, 255)),
+            ('#5090aa', (80, 144, 170, 255)),
+            ('#5090aaff', (80, 144, 170, 255)),
+            ('#5090aabb', (80, 144, 170, 187)),
         )
         for raw, expected in cases:
             self.assertEqual(_parse_color(raw), expected)

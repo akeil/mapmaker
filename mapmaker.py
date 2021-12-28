@@ -469,21 +469,40 @@ def _parse_coordinates(raw):
 def _parse_color(raw):
     '''Parse an RGBA tuple from a astring in format:
 
-    - R,G,B / 255,255,255
+    - R,G,B     / 255,255,255
     - R,G,B,A   / 255,255,255,255
+    - RRGGBB    / #aa20ff
+    - #RRGGBBAA / #0120ab90
     '''
     if not raw or not raw.strip():
         raise ValueError('invalid color %r' % raw)
 
+    rgba = None
     parts = [p.strip() for p in raw.split(',')]
     if len(parts) == 3:
         r, g, b = parts
-        return int(r), int(g), int(b), 255
+        rgba = int(r), int(g), int(b), 255
     elif len(parts) == 4:
         r, g, b, a = parts
-        return int(r), int(g), int(b), int(a)
+        rgba = int(r), int(g), int(b), int(a)
 
-    raise ValueError('invalid color %r' % raw)
+    # Hex value
+    if raw.startswith('#') and len(raw) < 10:
+        r, g, b = int(raw[1:3], 16), int(raw[3:5], 16), int(raw[5:7], 16)
+        if raw[7:9]:
+            a = int(raw[7:9], 16)
+        else:
+            a = 255
+        rgba = r, g, b, a
+
+    if not rgba:
+        raise ValueError('invalid color %r' % raw)
+
+    for v in rgba:
+        if v < 0 or v > 255:
+            raise ValueError('invalid color value %s in %r' % (v, raw))
+    return rgba
+
 
 
 def aspect(raw):
