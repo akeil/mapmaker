@@ -466,6 +466,26 @@ def _parse_coordinates(raw):
     return lat, lon
 
 
+def _parse_color(raw):
+    '''Parse an RGBA tuple from a astring in format:
+
+    - R,G,B / 255,255,255
+    - R,G,B,A   / 255,255,255,255
+    '''
+    if not raw or not raw.strip():
+        raise ValueError('invalid color %r' % raw)
+
+    parts = [p.strip() for p in raw.split(',')]
+    if len(parts) == 3:
+        r, g, b = parts
+        return int(r), int(g), int(b), 255
+    elif len(parts) == 4:
+        r, g, b, a = parts
+        return int(r), int(g), int(b), int(a)
+
+    raise ValueError('invalid color %r' % raw)
+
+
 def aspect(raw):
     '''Parse an aspect ratio given in the form of "19:9" into a float.'''
     if not raw:

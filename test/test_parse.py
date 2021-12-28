@@ -2,7 +2,10 @@ import argparse
 import unittest
 from unittest import TestCase
 
-import mapmaker
+from mapmaker import aspect
+from mapmaker import _BBoxAction
+from mapmaker import _parse_color
+from mapmaker import _parse_coordinates
 
 
 class TestParseCoordinates(TestCase):
@@ -19,7 +22,7 @@ class TestParseCoordinates(TestCase):
             '360°, -500°',  # bounds
         )
         for case in cases:
-            self.assertRaises(ValueError, mapmaker._parse_coordinates, case)
+            self.assertRaises(ValueError, _parse_coordinates, case)
 
     def test_dms(self):
         cases = {
@@ -46,10 +49,41 @@ class TestParseCoordinates(TestCase):
 
     def _do_test(self, cases):
         for raw, expected in cases.items():
-            actual_lat, actual_lon = mapmaker._parse_coordinates(raw)
+            actual_lat, actual_lon = _parse_coordinates(raw)
             expected_lat, expected_lon = expected
             self.assertAlmostEqual(actual_lat, expected_lat, places=5)
             self.assertAlmostEqual(actual_lon, expected_lon, places=5)
+
+
+class TestParseColor(TestCase):
+
+    def test_should_fail(self):
+        cases = (
+            None,
+            '',
+            '   ',
+            '\n',
+            '0,0,a0',
+            '0xff,0xff,0xff',
+            '1,2',
+            '10',
+            '255 255 255',
+            '255;255;255',
+        )
+        for raw in cases:
+            self.assertRaises(ValueError, _parse_color, raw)
+
+    def test_valid(self):
+        cases = (
+            ('0,0,0', (0, 0, 0, 255)),
+            ('255,255,255', (255, 255, 255, 255)),
+            ('10,20,30', (10, 20, 30, 255)),
+            ('10,20,30,255', (10, 20, 30, 255)),
+            ('10,20,30,128', (10, 20, 30, 128)),
+            ('10,20,30,0', (10, 20, 30, 0)),
+        )
+        for raw, expected in cases:
+            self.assertEqual(_parse_color(raw), expected)
 
 
 class TestParseAspect(TestCase):
@@ -67,7 +101,7 @@ class TestParseAspect(TestCase):
             '2:0',
         )
         for case in cases:
-            self.assertRaises(ValueError, mapmaker.aspect, case)
+            self.assertRaises(ValueError, aspect, case)
 
     def test_valid(self):
         cases = {
@@ -76,7 +110,7 @@ class TestParseAspect(TestCase):
             '2:3': 0.66666,
         }
         for raw, expected in cases.items():
-            actual = mapmaker.aspect(raw)
+            actual = aspect(raw)
             self.assertAlmostEqual(actual, expected, places=4)
 
 
@@ -90,7 +124,7 @@ class TestParseBBox(TestCase):
             ["43°21'18'', 42°26'21''", '4km'],
         )
 
-        action = mapmaker._BBoxAction(None, 'bbox')
+        action = _BBoxAction(None, 'bbox')
         for values in cases:
             ns = argparse.Namespace()
             action(None, ns, values)
@@ -105,7 +139,7 @@ class TestParseBBox(TestCase):
             ['123', '4km'],
             ['abc', '4km'],
         )
-        action = mapmaker._BBoxAction(None, 'bbox')
+        action = _BBoxAction(None, 'bbox')
         for values in cases:
             ns = argparse.Namespace()
             self.assertRaises(Exception, action, None, ns, values)
