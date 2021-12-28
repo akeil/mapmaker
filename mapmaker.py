@@ -209,6 +209,11 @@ def main():
         '--title',
         help='Add a title to the map',
     )
+    # TODO: placement, color and border
+    parser.add_argument(
+        '--comment',
+        help='Add a comment to the map',
+    )
     # TODO: sizes, background color
     parser.add_argument(
         '--margin',
@@ -264,7 +269,6 @@ def main():
                 try:
                     _run(bbox, args.zoom, dst, style, reporter, conf, args,
                         hillshading=args.shading,
-                        copyright=args.copyright,
                         dry_run=args.dry_run,
                     )
                 except Exception as err:
@@ -273,7 +277,6 @@ def main():
         else:
             _run(bbox, args.zoom, args.dst, args.style, reporter, conf, args,
                 hillshading=args.shading,
-                copyright=args.copyright,
                 dry_run=args.dry_run,
             )
     except Exception as err:
@@ -285,28 +288,15 @@ def main():
 
 
 def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
-    copyright=False, dry_run=False):
+    dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = TileMap.from_bbox(bbox, zoom)
 
     service = TileService(style, conf.urls[style], conf.keys)
     service = Cache.user_dir(service, limit=conf.cache_limit)
 
-    overlays = []
-    if copyright:
-        text = conf.copyrights.get(service.top_level_domain)
-        if text:
-            overlays.append(TextLayer(text,
-                align=TextLayer.BOTTOM_RIGHT,
-                color=(0, 0, 0, 255),
-                outline=(255, 255, 255, 255),
-                background=(200, 200, 200, 200),
-                padding=1,
-            ))
-
     rc = RenderContext(service, map,
         reporter=report,
-        overlays=overlays,
         parallel_downloads=8)
 
     _show_info(report, service, map, rc)
@@ -320,6 +310,11 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         decorated.add_frame()
     if args.title:
         decorated.add_title(args.title)
+    if args.comment:
+        decorated.add_comment(args.comment, font_size=8)
+    if args.copyright:
+        copyright = conf.copyrights.get(service.top_level_domain)
+        decorated.add_comment(copyright, placement='ENE', font_size=8)
     if args.compass:
         decorated.add_compass_rose()
 
@@ -1493,13 +1488,21 @@ class Composer:
         # TODO validate decoration.placement w/ placements for area
         self._decorations[area].append(decoration)
 
-    def add_title(self, text, area='MARGIN', placement='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
+    def add_title(self, text, area='MARGIN', placement='N', color=(0, 0, 0, 255), font_size=16, background=None, border_width=0, border_color=None):
         self.add_decoration(area, Cartouche(text,
             placement=placement,
             color=color,
             border_width=border_width,
             border_color=border_color,
             background=background,
+            font_size=font_size,
+        ))
+
+    def add_comment(self, text, area='MARGIN', placement='SSE', color=(0, 0, 0, 255), font_size=12):
+        self.add_decoration(area, Cartouche(text,
+            placement=placement,
+            color=color,
+            font_size=font_size,
         ))
 
     def add_scale(self):
@@ -1520,6 +1523,7 @@ class Composer:
         # coordinate markers
         # coordinate labels
         self._frame = Frame(width=width, color=color)
+
 
 class Decoration:
     '''Base class for decorations.'''
@@ -1557,6 +1561,26 @@ class Cartouche(Decoration):
         'WNW': (0, 1, 1, 1),
     }
 
+    # on the western and southern sides, rotate by 90^
+    _ROTATION = {
+        'NW': 0,
+        'NNW': 0,
+        'N': 0,
+        'NNE': 0,
+        'NE': 0,
+        'ENE': 90,
+        'E': 90,
+        'ESE': 90,
+        'SE': 0,
+        'SSE': 0,
+        'S': 0,
+        'SSW': 0,
+        'SW': 0,
+        'WSW': 90,
+        'W': 90,
+        'WNW': 90,
+    }
+
     # [horizontal][vertical]
     # horizontal:
     # - [l]eft
@@ -1586,7 +1610,15 @@ class Cartouche(Decoration):
         'WNW': 'ra',
     }
 
-    def __init__(self, title, placement='N', color=(0, 0, 0, 255), background=None, border_width=0, border_color=None):
+    def __init__(self, title,
+        placement='N',
+        color=(0, 0, 0, 255),
+        background=None,
+        border_width=0,
+        border_color=None,
+        font_size=12,
+    ):
+        '''Initialize a Text area.'''
         super().__init__(placement)
         self.title = title
         self.color = color
@@ -1594,15 +1626,16 @@ class Cartouche(Decoration):
         self.border_width = border_width
         self.border_color = border_color
         self.font = 'DejaVuSans.ttf'
-        self.font_size = 16
+        self.font_size = font_size
         self.padding = (4, 8, 4, 8)
 
     def calc_size(self, map_size):
         if not self.title or not self.title.strip():
             return 0, 0
 
-        font = self._font()
+        font = _load_font(self.font, self.font_size)
 
+        # TODO: use ImageDraw.textbox() instead?
         w, h = font.getsize(self.title)
         m_top, m_right, m_bottom, m_left = self.margin
         p_top, p_right, p_bottom, p_left = self.padding
@@ -1620,7 +1653,7 @@ class Cartouche(Decoration):
             return
 
         w, h = size
-        font = self._font()
+        font = _load_font(self.font, self.font_size)
 
         # adjust margins for proper alignment with frame
         # TODO: this belongs into calc_margin_pos
@@ -1658,12 +1691,6 @@ class Cartouche(Decoration):
             #stroke_width=1,
             #stroke_fill=(255, 0, 0, 255),
         )
-
-    def _font(self):
-        try:
-            return ImageFont.truetype(font=self.font, size=self.font_size)
-        except OSError:
-            return ImageFont.load_default()
 
 
 class Scale:
@@ -1720,7 +1747,7 @@ class CompassRose(Decoration):
         marker_h = 0
         if self.marker:
             font_size = size[1] // 5
-            font = self._font(font_size)
+            font = _load_font(self.font, self.font_size)
             marker_w, marker_h = font.getsize('N')
             marker_pad = marker_h // 16  # padding between marker and arrowhead
             h -= marker_h
@@ -1784,12 +1811,6 @@ class CompassRose(Decoration):
                 stroke_fill=self.outline,
             )
 
-    def _font(self, font_size):
-        try:
-            return ImageFont.truetype(font=self.font, size=font_size)
-        except OSError:
-            return ImageFont.load_default()
-
 
 class Frame:
 
@@ -1804,6 +1825,14 @@ class Frame:
         w, h = size
         xy = (0, 0, w - 1, h - 1)
         draw.rectangle(xy, outline=self.color, width=self.width)
+
+
+def _load_font(font_name, font_size):
+    '''Load the given true type font, return fallback on failure.'''
+    try:
+        return ImageFont.truetype(font=font_name, size=font_size)
+    except OSError:
+        return ImageFont.load_default()
 
 
 # Tile Service ----------------------------------------------------------------
