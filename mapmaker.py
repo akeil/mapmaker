@@ -8,7 +8,7 @@ import io
 import math
 from math import asin, asinh
 from math import atan2
-from math import ceil
+from math import floor, ceil
 from math import cos
 from math import degrees
 from math import pi as PI
@@ -307,7 +307,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     if args.margin:
         decorated.set_margin(16, 16, 16, 16)
     if args.frame:
-        decorated.set_frame(8)
+        decorated.set_frame(8, style='coordinates')
     if args.title:
         decorated.add_title(args.title)
     if args.comment:
@@ -418,10 +418,7 @@ def _parse_coordinates(raw):
             raise ValueError('extra content for DMS coordinates: %r' % remainder)
 
         # combine + return
-        m += s / 60.0  # seconds to minutes
-        d += m / 60.0  # minutes to degrees
-
-        return d
+        return decimal(d=d, m=m, s=s)
 
     if not raw:
         raise ValueError
@@ -852,6 +849,22 @@ def _destination_point(lat, lon, bearing, distance):
     lon_p = lon + atan2(y, x)
 
     return degrees(lat_p), degrees(lon_p)
+
+
+def dms(decimal):
+    '''Convert decimal coordinate into a DMS-tuple (degrees, munites, seconds).'''
+    d = floor(decimal)
+    m = floor((decimal - d) * 60)
+    s = (decimal - d - m / 60) * 3600.0
+
+    return int(d), int(m), s
+
+
+def decimal(d=0, m=0, s=0):
+    '''Convert a coordinate in DMS to decimal.'''
+    m += s / 60.0  # seconds to minutes
+    d += m / 60.0  # minutes to degrees
+    return d
 
 
 def tile_coordinates(lat, lon, zoom):
@@ -1301,6 +1314,11 @@ class RenderContext:
 
         return (left, top, right, bottom)
 
+    @property
+    def bbox(self):
+        '''The maps bounding box coordinates.'''
+        return self._map.bbox
+
     def build(self):
         '''Download tiles on the fly and render them into an image.'''
         # fill the task queue
@@ -1692,7 +1710,7 @@ class Composer:
 
         self._margins = (top, right, bottom, left)
 
-    def set_frame(self, width=0, color=(0, 0, 0, 255)):
+    def set_frame(self, width=0, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
         '''Draw a border around the mapped content
         (between MAP area and MARGIN).
 
@@ -1705,7 +1723,12 @@ class Composer:
         elif width == 0:
             self._frame = None
         else:
-            self._frame = Frame(width=width, color=color)
+            self._frame = Frame(
+                width=width,
+                color=color,
+                alt_color=alt_color,
+                style=style
+            )
 
 
 class Decoration:
@@ -2000,17 +2023,118 @@ class CompassRose(Decoration):
 
 class Frame:
 
-    def __init__(self, width=8, color=(0, 0, 0, 255)):
+    def __init__(self, width=8, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
         self.width = width
         self.color = color
-        # TODO: style, color(s)
+        self.alt_color = alt_color
+        self.style = style
 
     def draw(self, rc, draw, size):
-        # simple one-color border
+        if self.style == 'coordinates':
+            self._draw_coords(rc, draw, size)
+        else:
+            self._draw_solid(rc, draw, size)
+
+    def _draw_solid(self, rc, draw, size):
         # bottom right pixel for rectangle is *just outside* xy
         w, h = size
         xy = (0, 0, w - 1, h - 1)
         draw.rectangle(xy, outline=self.color, width=self.width)
+
+
+    def _draw_coords(self, rc, draw, size):
+        crop_left, crop_top, _, _ = rc.crop_box
+        top, right, bottom, left = self._tick_coordinates(rc.bbox)
+        for which, coords in enumerate((top, bottom)):
+            prev_x = self.width
+            for i, tick_pos in enumerate(coords):
+                # x, y are pixels on the MAP
+                # the draw context refers to the size incl. border around the map
+                x, y = rc.to_pixels(*tick_pos)
+                x -= crop_left
+                x += self.width
+
+                y -= crop_top
+                if which == 1: # bottom
+                    y += self.width
+
+                # "-1" accounts for 1px border
+                draw.rectangle([
+                    prev_x, y,
+                    x - 1, y + self.width - 1],
+                    fill=self.color if i % 2 else self.alt_color,
+                    outline=self.color,
+                    width=1
+                )
+                prev_x = x
+
+        for which, coords in enumerate((left, right)):
+            prev_y = self.width
+            for i, tick_pos in enumerate(coords):
+                x, y = rc.to_pixels(*tick_pos)
+
+                x -= crop_left
+                if which == 1:  # right
+                    x += self.width
+
+                y -= crop_top
+                y += self.width
+
+                draw.rectangle([
+                    x, y - 1,
+                    x + self.width - 1, prev_y,],
+                    fill=self.color if i % 2 else self.alt_color,
+                    outline=self.color,
+                    width=1
+                )
+                prev_y = y
+
+        # draw corners
+        w, h = size
+        draw.rectangle([0, 0, self.width - 1, self.width - 1], fill=self.color)
+        draw.rectangle([w - self.width, 0, w - 1, self.width - 1], fill=self.color)
+        draw.rectangle([0, h - self.width, self.width - 1, h - 1], fill=self.color)
+        draw.rectangle([w - self.width, h - self.width, w - 1, h - 1], fill=self.color)
+
+
+    def _tick_coordinates(self, bbox, n=8):
+        lon_ticks = self._ticks(bbox.minlon, bbox.maxlon, n=n)
+        lon_ticks.append(bbox.maxlon)
+
+        lat_ticks = self._ticks(bbox.minlat, bbox.maxlat, n=n)
+        lat_ticks.insert(0, bbox.minlat)
+
+        top = [(bbox.maxlat, lon) for lon in lon_ticks]
+        bottom = [(bbox.minlat, lon) for lon in lon_ticks]
+        left = [(lat, bbox.minlon) for lat in lat_ticks]
+        right = [(lat, bbox.maxlon) for lat in lat_ticks]
+
+        return top, right, bottom, left
+
+    def _ticks(self, start, end, n=8):
+        '''Create a list of ticks from start to end so that we have ``n`` ticks
+        in total (plus a fraction)
+        and the tick values are on full degrees, minutes or seconds if possible.
+        '''
+        span = end - start
+        d, m, s = dms(span)
+
+        steps = []
+        if d >= n:
+            per_tick = d // n
+            n_ticks = floor(span / decimal(d=per_tick))
+            steps = [decimal(d=i * per_tick) for i in range(1, n_ticks + 1)]
+        elif m >= n:
+            per_tick = m // n
+            n_ticks = floor(span / decimal(m=per_tick))
+            steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
+        else:
+            per_tick = s // n
+            n_ticks = floor(span / decimal(s=per_tick))
+            steps = [decimal(s=i * per_tick) for i in range(1, n_ticks + 1)]
+
+        ticks = [start + v for v in steps]
+        return ticks
 
 
 def _load_font(font_name, font_size):
