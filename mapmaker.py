@@ -305,9 +305,9 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
 
     decorated = Composer(rc)
     if args.margin:
-        decorated.add_margin()
+        decorated.set_margin(16, 16, 16, 16)
     if args.frame:
-        decorated.add_frame()
+        decorated.set_frame(8)
     if args.title:
         decorated.add_title(args.title)
     if args.comment:
@@ -1681,21 +1681,31 @@ class Composer:
             marker=marker,
         ))
 
-    def add_margin(self, top=16, right=16, bottom=16, left=16):
+    def set_margin(self, top=0, right=0, bottom=0, left=0):
         '''Set the size of the margin, that is the white space around the
         mapped content.
         Note that the margin will be extended automatically if a decoration is
-        placed on the MARING area.
+        placed on the MARGIN area.
         '''
+        if top < 0 or right < 0 or bottom < 0 or left < 0:
+            raise ValueError('margin must not be negative')
+
         self._margins = (top, right, bottom, left)
 
-    def add_frame(self, width=8, color=(0, 0, 0, 255)):
+    def set_frame(self, width=0, color=(0, 0, 0, 255)):
         '''Draw a border around the mapped content
         (between MAP area and MARGIN).
+
+        Set the width to ``0`` to remove the frame.
         '''
         # coordinate markers
         # coordinate labels
-        self._frame = Frame(width=width, color=color)
+        if width < 0:
+            raise ValueError('frame width must not be negative')
+        elif width == 0:
+            self._frame = None
+        else:
+            self._frame = Frame(width=width, color=color)
 
 
 class Decoration:
