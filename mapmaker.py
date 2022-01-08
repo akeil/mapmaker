@@ -537,7 +537,7 @@ def _parse_margin(raw):
         v = value(parts[0])
         margins = v, v, v, v
     elif len(parts) == 4:
-        margins = (value(p) for p in parts)
+        margins = tuple(value(p) for p in parts)
 
     if margins:
         for v in margins:
