@@ -107,6 +107,7 @@ class TestParseColor(_ParseTest):
     )
 
 
+# TODO: not needed?
 class TestParseMargin(_ParseTest):
     parse_func = _parse_margin
     fail = (

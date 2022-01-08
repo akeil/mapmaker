@@ -214,11 +214,18 @@ def main():
         '--comment',
         help='Add a comment to the map',
     )
-    # TODO: sizes, background color
     parser.add_argument(
         '--margin',
-        action='store_true',
-        help='Add a margin (white space) around the map',
+        action=_MarginAction,
+        default=(0, 0, 0, 0),
+        help='Add a margin (white space) around the map ("TOP RIGHT BOTTOM LEFT" or "ALL")',
+    )
+    parser.add_argument(
+        '--background',
+        type=_parse_color,
+        metavar='RGBA',
+        default=(255, 255, 255, 255),
+        help='Background color for map margin (default: white)'
     )
     # TODO: color, width
     parser.add_argument(
@@ -304,8 +311,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         return
 
     decorated = Composer(rc)
-    if args.margin:
-        decorated.set_margin(16, 16, 16, 16)
+    decorated.set_background(args.background)
+    decorated.set_margin(*args.margin)
     if args.frame:
         decorated.set_frame(8, style='coordinates')
     if args.title:
@@ -398,6 +405,33 @@ class _BBoxAction(argparse.Action):
         return bbox
 
 
+class _MarginAction(argparse.Action):
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs must None")
+
+        super().__init__(option_strings, dest, nargs='+', **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(values)
+        margins = None
+        if len(values) == 1:
+            v = int(values[0])
+            margins = v, v, v, v
+        elif len(values) == 2:
+            vertical, horizontal = values
+            margins = int(vertical), int(horizontal), int(vertical), int(horizontal)
+        elif len(values) == 4:
+            top, right, bottom, left = values
+            margins = int(top), int(right), int(bottom), int(left)
+        else:
+            msg = 'invalid number of arguments (%s) for margin, expected 1, 2, or 4 values' % len(values)
+            raise argparse.ArgumentError(self, msg)
+
+        setattr(namespace, self.dest, margins)
+
+
 def _parse_coordinates(raw):
 
     def _parse_dms(dms):
@@ -464,7 +498,7 @@ def _parse_coordinates(raw):
 
 
 def _parse_color(raw):
-    '''Parse an RGBA tuple from a astring in format:
+    '''Parse an RGBA tuple from a string in format:
 
     - R,G,B     / 255,255,255
     - R,G,B,A   / 255,255,255,255
@@ -513,6 +547,7 @@ def _parse_placement(raw):
     raise ValueError('invalid value for placement %r' % raw)
 
 
+# TODO: not needed?
 def _parse_margin(raw):
     '''Parse the pixel values for margin from the following formats:
 
@@ -1709,6 +1744,11 @@ class Composer:
             raise ValueError('margin must not be negative')
 
         self._margins = (top, right, bottom, left)
+
+    def set_background(self, color):
+        '''Set the background color for the map (margin area).
+        The color is an RGBA tuple.'''
+        self.background = color
 
     def set_frame(self, width=0, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
         '''Draw a border around the mapped content
