@@ -204,16 +204,15 @@ def main():
         action='store_true',
         help='Add copyright notice',
     )
-    # TODO: placement, color and border
     parser.add_argument(
         '--title',
-        action=_TitleAction,
+        action=_TextAction,
         metavar='ARGS',
         help='Add a title to the map (optional args: PLACEMENT, COLOR, BORDER followed by title string)',
     )
-    # TODO: placement, color and border
     parser.add_argument(
         '--comment',
+        action=_TextAction,
         help='Add a comment to the map',
     )
     parser.add_argument(
@@ -314,22 +313,29 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     if args.frame:
         width, color, alt_color, style = args.frame
         decorated.set_frame(
-            width=width or 1,
+            width=width or 5,
             color=color or (0, 0, 0, 255),
             alt_color=alt_color or (255, 255, 255, 255),
             style=style or 'solid'
         )
     if args.title:
-        placement, border, color, title = args.title
+        placement, border, color, text = args.title
         decorated.add_title(
-            title,
+            text,
             placement=placement or 'N',
             color=color or (0, 0, 0, 255),
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
         )
     if args.comment:
-        decorated.add_comment(args.comment, font_size=8)
+        placement, border, color, text = args.comment
+        decorated.add_comment(
+            text,
+            placement=placement or 'SSE',
+            color=color or (0, 0, 0, 255),
+            border_color=color or (0, 0, 0, 255),
+            border_width=border or 0,
+        )
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)
         decorated.add_comment(copyright, placement='ENE', font_size=8)
@@ -444,8 +450,8 @@ class _MarginAction(argparse.Action):
         setattr(namespace, self.dest, margins)
 
 
-class _TitleAction(argparse.Action):
-    '''Parse title arguments.
+class _TextAction(argparse.Action):
+    '''Parse title or comment arguments.
     Expect three "formal" arguments:
 
     - placement (e.g. NW or S)
@@ -497,12 +503,12 @@ class _TitleAction(argparse.Action):
             # as soon as the first "free form" is encountered
             break
 
-        title = ' '.join(values[consumed:])
-        if not title:
+        text = ' '.join(values[consumed:])
+        if not text:
             msg = 'missing title string in %r' % ' '.join(values)
             raise argparse.ArgumentError(self, msg)
 
-        params = (placement, border, color, title)
+        params = (placement, border, color, text)
         setattr(namespace, self.dest, params)
 
 
@@ -1862,11 +1868,15 @@ class Composer:
 
     def add_comment(self, text, area='MARGIN', placement='SSE',
         color=(0, 0, 0, 255),
-        font_size=12):
+        font_size=12,
+        border_width=0,
+        border_color=None):
         '''Add a comment to the map.'''
         self.add_decoration(area, Cartouche(text,
             placement=placement,
             color=color,
+            border_width=border_width,
+            border_color=border_color,
             font_size=font_size,
         ))
 

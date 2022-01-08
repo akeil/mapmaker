@@ -119,6 +119,13 @@ large enough to accommodate the title.
     $ mapmaker --title NNW 5 My Map 45.83,6.88 100km
     $ mapmaker --title NNW 5 255,0,0 My Map 45.83,6.88 100km
 
+Use ``--comment`` to add a comment in small print. Arguments are the same
+as for ``--title``:
+
+.. code:: shell-session
+
+    $ mapmaker --comment My Comment 45.83,6.88 100km
+    $ mapmaker --comment SE 200,200,200 My Comment 45.83,6.88 100km
 
 Use ``--margin`` and ``--background`` to apply a border around the map.
 Note that some decoration arguments will automatically add a margin area.
