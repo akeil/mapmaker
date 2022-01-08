@@ -103,6 +103,22 @@ Note that the *resolution* of the image depends on the ``--zoom`` factor.
 
 Decorations
 -----------
+Set a headline with ``--title``, specify optional ``PLACEMENT``, ``COLOR``
+and ``BORDER`` followed by the title string.
+The title will be added to the *Margin Area* and will force a margin that is
+large enough to accommodate the title.
+
+:PLACEMENT: one of the cardinal directions e.g. ``NW, NNW, N, NNE, NE, ...``.
+:BORDER:    a single integer value for the border width in in pixels.
+:COLOR:     a RGB(A) tuple as a comma separated string, e.g. "255,0,0".
+
+.. code:: shell-session
+
+    $ mapmaker --title My Map 45.83,6.88 100km
+    $ mapmaker --title NNW My Map 45.83,6.88 100km
+    $ mapmaker --title NNW 5 My Map 45.83,6.88 100km
+    $ mapmaker --title NNW 5 255,0,0 My Map 45.83,6.88 100km
+
 
 Use ``--margin`` and ``--background`` to apply a border around the map.
 Note that some decoration arguments will automatically add a margin area.

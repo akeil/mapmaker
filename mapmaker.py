@@ -207,7 +207,9 @@ def main():
     # TODO: placement, color and border
     parser.add_argument(
         '--title',
-        help='Add a title to the map',
+        action=_TitleAction,
+        metavar='ARGS',
+        help='Add a title to the map (optional args: PLACEMENT, COLOR, BORDER followed by title string)',
     )
     # TODO: placement, color and border
     parser.add_argument(
@@ -318,7 +320,14 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
             style=style or 'solid'
         )
     if args.title:
-        decorated.add_title(args.title)
+        placement, border, color, title = args.title
+        decorated.add_title(
+            title,
+            placement=placement or 'N',
+            color=color or (0, 0, 0, 255),
+            border_color=color or (0, 0, 0, 255),
+            border_width=border or 0,
+        )
     if args.comment:
         decorated.add_comment(args.comment, font_size=8)
     if args.copyright:
@@ -433,6 +442,68 @@ class _MarginAction(argparse.Action):
             raise argparse.ArgumentError(self, msg)
 
         setattr(namespace, self.dest, margins)
+
+
+class _TitleAction(argparse.Action):
+    '''Parse title arguments.
+    Expect three "formal" arguments:
+
+    - placement (e.g. NW or S)
+    - border (integer value)
+    - color (RGBA tuple, comma separated)
+
+    Followed by at least one "free form" argument which constitutes the actual
+    title string.
+    '''
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs must None")
+
+        super().__init__(option_strings, dest, nargs='+', **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+
+        placement, border, color = None, None, None
+
+        remainder = []
+        consumed = 0
+        for value in values:
+            if placement is None:
+                try:
+                    placement = _parse_placement(value)
+                    consumed += 1
+                    continue
+                except ValueError:
+                    pass
+
+            if border is None:
+                try:
+                    border = int(value)
+                    consumed += 1
+                    continue
+                except ValueError:
+                    pass
+
+            if color is None:
+                try:
+                    color = _parse_color(value)
+                    consumed += 1
+                    continue
+                except ValueError:
+                    pass
+
+            # stop parsing formal parameters
+            # as soon as the first "free form" is encountered
+            break
+
+        title = ' '.join(values[consumed:])
+        if not title:
+            msg = 'missing title string in %r' % ' '.join(values)
+            raise argparse.ArgumentError(self, msg)
+
+        params = (placement, border, color, title)
+        setattr(namespace, self.dest, params)
 
 
 class _FrameAction(argparse.Action):
