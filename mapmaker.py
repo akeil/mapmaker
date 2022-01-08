@@ -227,11 +227,11 @@ def main():
         default=(255, 255, 255, 255),
         help='Background color for map margin (default: white)'
     )
-    # TODO: color, width
     parser.add_argument(
         '--frame',
-        action='store_true',
-        help='Draw a frame around the map area',
+        action=_FrameAction,
+        metavar='ARGS',
+        help='Draw a frame around the map area (any of: WIDTH, COLOR, ALT_COLOR and STYLE)',
     )
     # TODO: placement, color, marker "N"
     parser.add_argument(
@@ -264,8 +264,6 @@ def main():
     bbox = with_aspect(args.bbox, args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
-
-    print(bbox)
 
     try:
         if args.gallery:
@@ -307,14 +305,18 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         parallel_downloads=8)
 
     _show_info(report, service, map, rc)
-    if dry_run:
-        return
 
     decorated = Composer(rc)
     decorated.set_background(args.background)
     decorated.set_margin(*args.margin)
     if args.frame:
-        decorated.set_frame(8, style='coordinates')
+        width, color, alt_color, style = args.frame
+        decorated.set_frame(
+            width=width or 1,
+            color=color or (0, 0, 0, 255),
+            alt_color=alt_color or (255, 255, 255, 255),
+            style=style or 'solid'
+        )
     if args.title:
         decorated.add_title(args.title)
     if args.comment:
@@ -325,6 +327,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     if args.compass:
         decorated.add_compass_rose()
 
+    if dry_run:
+        return
     img = decorated.build()
 
     if hillshading:
@@ -414,7 +418,6 @@ class _MarginAction(argparse.Action):
         super().__init__(option_strings, dest, nargs='+', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print(values)
         margins = None
         if len(values) == 1:
             v = int(values[0])
@@ -430,6 +433,83 @@ class _MarginAction(argparse.Action):
             raise argparse.ArgumentError(self, msg)
 
         setattr(namespace, self.dest, margins)
+
+
+class _FrameAction(argparse.Action):
+    '''Handle parameters for Frame:
+
+    - border width as single integer
+    - color as RGB(A) tuple from comma separated string
+    - alternate color as RGB(A) tuple
+    - style as enumeration
+
+    Arguments can be privided in any order.
+    The second argument that specifies a color is the "alt color".
+
+    Can also be invoked with no arguments to set a frame with default values.
+    '''
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs must None")
+
+        super().__init__(option_strings, dest, nargs='*', **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) > 4:
+            msg = 'invalid number of arguments (%s) for frame, expected up to four: BORDER, COLOR, ALT_COLOR and STYLE' % len(values)
+            raise argparse.ArgumentError(self, msg)
+
+        width, color, alt_color, style = None, None, None, None
+
+        # accept values for BORDER, COLOR and STYLE in any order
+        # accept each param only once
+        # make sure all values are consumed
+        unrecognized = []
+        for value in values:
+            if width is None:
+                try:
+                    width = int(value)
+                    continue
+                except ValueError:
+                    pass
+
+            if color is None:
+                try:
+                    color = _parse_color(value)
+                    continue
+                except ValueError:
+                    pass
+
+            if alt_color is None:
+                try:
+                    alt_color = _parse_color(value)
+                    continue
+                except ValueError:
+                    pass
+
+            if style is None:
+                if value in Frame.STYLES:
+                    style = value
+                    continue
+
+            # did not understand "value"
+            unrecognized.append(value)
+
+        if unrecognized:
+            msg = 'unrecognized frame parameters: %r' % ', '.join(unrecognized)
+            raise argparse.ArgumentError(self, msg)
+
+        # apply defaults
+        if self.default:
+            d_width, d_color, d_alt_color, d_style = self.default
+            width = d_width if width is None else width
+            color = d_color if color is None else color
+            alt_color = d_alt_color if alt_color is None else alt_color
+            style = d_style if style is None else style
+
+        params = (width, color, alt_color, style)
+        setattr(namespace, self.dest, params)
 
 
 def _parse_coordinates(raw):
@@ -1750,7 +1830,7 @@ class Composer:
         The color is an RGBA tuple.'''
         self.background = color
 
-    def set_frame(self, width=0, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
+    def set_frame(self, width=5, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
         '''Draw a border around the mapped content
         (between MAP area and MARGIN).
 
@@ -2062,6 +2142,8 @@ class CompassRose(Decoration):
 
 
 class Frame:
+
+    STYLES = ('coordinates', 'solid')
 
     def __init__(self, width=8, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
         self.width = width

@@ -101,6 +101,29 @@ and max be extended to North/South or East/West to match the aspect ratio.
 Note that the *resolution* of the image depends on the ``--zoom`` factor.
 
 
+Decorations
+-----------
+
+Use ``--margin`` and ``--background`` to apply a border around the map.
+Note that some decoration arguments will automatically add a margin area.
+
+``margin`` is given in pixels as a single value (all sides),
+a pair of two values (top/bottom and left/right)
+or as four separate values for top, right, bottom, left (clockwise).
+
+.. code:: shell-session
+
+    $ mapmaker --margin 50 45.83,6.88 100km
+    $ mapmaker --margin 20 40 45.83,6.88 100km
+    $ mapmaker --margin 10 15 20 15 45.83,6.88 100km
+
+``background`` is given as a comma separated RGB(A) value.
+
+.. code:: shell-session
+    $ mapmaker --background 200,200,200 45.83,6.88 100km
+    $ mapmaker --background 200,200,200,128 45.83,6.88 100km
+
+
 Create a Gallery
 ----------------
 Use the ``--gallery`` flag to render a set of maps, one for each available style.

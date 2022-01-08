@@ -1,4 +1,4 @@
-personal_ws-1.1 en 9
+personal_ws-1.1 en 10
 DMS
 OpenStreetMap
 denali
@@ -7,4 +7,5 @@ ini
 lon
 osm
 py
+RGB
 topo
