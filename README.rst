@@ -117,11 +117,38 @@ or as four separate values for top, right, bottom, left (clockwise).
     $ mapmaker --margin 20 40 45.83,6.88 100km
     $ mapmaker --margin 10 15 20 15 45.83,6.88 100km
 
-``background`` is given as a comma separated RGB(A) value.
+``background`` is given as a comma separated RGB(A) value:
 
 .. code:: shell-session
+
     $ mapmaker --background 200,200,200 45.83,6.88 100km
     $ mapmaker --background 200,200,200,128 45.83,6.88 100km
+
+The ``--frame`` argument adds a border around the map content, that is between
+the map and the (optional) margin area.
+``frame`` has up to four optional parameters:
+
+:``WIDTH``:     The width in pixels, e.g. "8".
+:``COLOR``:     The main color as an RGB(A) value, e.g. "0,0,0" (black).
+:``ALT_COLOR``: The secondary color as an RGB(A) value, e.g. "255,255,255" (white).
+:``STYLE``:     The style, either "solid" or "coordinates".
+
+Arguments can be supplied in any order.
+``ALT_COLOR`` is only needed for styles that feature alternating colors,
+if two RGB(A) values are specified, the second is considered the ``ALT_COLOR``.
+
+All arguments are optional and if ``--frame`` is specified without arguments,
+a default frame will be drawn.
+
+Examples:
+
+.. code:: shell-session
+
+    $ mapmaker --frame 45.83,6.88 100km
+    $ mapmaker --frame 12 45.83,6.88 100km
+    $ mapmaker --frame 12 255,0,0 45.83,6.88 100km
+    $ mapmaker --frame 12 255,0,0 0,0,255 coordinates 45.83,6.88 100km
+    $ mapmaker --frame coordinates 45.83,6.88 100km
 
 
 Create a Gallery
