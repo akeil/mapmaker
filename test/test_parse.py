@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from mapmaker import aspect
 from mapmaker import _BBoxAction
+from mapmaker import _TextAction
 from mapmaker import _parse_color
 from mapmaker import _parse_coordinates
 from mapmaker import _parse_margin
@@ -186,6 +187,54 @@ class TestParseAspect(_ParseTest):
         ('4:2', 2.0),
         ('16:9', 1.77777),
         ('2:3', 0.66666),
+    )
+
+
+class _ActionTest(TestCase):
+
+    action = None
+    fail = []
+    valid = []
+
+    def test_should_fail(self):
+        if not self.action:
+            return
+
+        factory = self.__class__.action
+        action = factory(None, 'result')
+        for values in self.fail:
+            ns = argparse.Namespace()
+            self.assertRaises(Exception, action, values)
+
+    def test_valid(self):
+        if not self.action:
+            return
+
+        factory = self.__class__.action
+        action = factory(None, 'result')
+        for values, expected in self.valid:
+            ns = argparse.Namespace()
+            action(None, ns, values)
+            self.assertEqual(ns.result, expected)
+
+
+class TestTextAction(_ActionTest):
+    action = _TextAction
+    fail = (
+        [],
+        ['N', ],
+        ['', ],
+        ['NW', '5'],
+        ['120,120,120', '50,50,50,200'],
+        ['120,120,120', '50,50,50,200', 'SW', '12'],
+    )
+    valid = (
+        (['My', 'Title'], (None, None, None, None, 'My Title')),
+        (['NW', 'My', 'Title'], ('NW', None, None, None, 'My Title')),
+        (['8', 'My', 'Title'], (None, 8, None, None, 'My Title')),
+        (['120,120,120', 'My', 'Title'], (None, None, (120, 120, 120, 255), None, 'My Title')),
+        (['120,120,120', '50,50,50,200', 'My', 'Title'], (None, None, (120, 120, 120, 255), (50, 50, 50, 200), 'My Title')),
+        (['120,120,120', '50,50,50,200', 'SW', '12', 'My', 'Title'], ('SW', 12, (120, 120, 120, 255), (50, 50, 50, 200), 'My Title')),
     )
 
 
