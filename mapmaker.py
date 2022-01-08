@@ -319,20 +319,22 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
             style=style or 'solid'
         )
     if args.title:
-        placement, border, color, text = args.title
+        placement, border, color, bg_color, text = args.title
         decorated.add_title(
             text,
             placement=placement or 'N',
             color=color or (0, 0, 0, 255),
+            background=bg_color,
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
         )
     if args.comment:
-        placement, border, color, text = args.comment
+        placement, border, color, bg_color, text = args.comment
         decorated.add_comment(
             text,
             placement=placement or 'SSE',
             color=color or (0, 0, 0, 255),
+            background=bg_color,
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
         )
@@ -470,7 +472,7 @@ class _TextAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
 
-        placement, border, color = None, None, None
+        placement, border, color, bg_color = None, None, None, None
 
         remainder = []
         consumed = 0
@@ -499,6 +501,14 @@ class _TextAction(argparse.Action):
                 except ValueError:
                     pass
 
+            if bg_color is None:
+                try:
+                    bg_color = _parse_color(value)
+                    consumed += 1
+                    continue
+                except ValueError:
+                    pass
+
             # stop parsing formal parameters
             # as soon as the first "free form" is encountered
             break
@@ -508,7 +518,7 @@ class _TextAction(argparse.Action):
             msg = 'missing title string in %r' % ' '.join(values)
             raise argparse.ArgumentError(self, msg)
 
-        params = (placement, border, color, text)
+        params = (placement, border, color, bg_color, text)
         setattr(namespace, self.dest, params)
 
 
@@ -1860,14 +1870,15 @@ class Composer:
         self.add_decoration(area, Cartouche(text,
             placement=placement,
             color=color,
+            background=background,
             border_width=border_width,
             border_color=border_color,
-            background=background,
             font_size=font_size,
         ))
 
     def add_comment(self, text, area='MARGIN', placement='SSE',
         color=(0, 0, 0, 255),
+        background=None,
         font_size=12,
         border_width=0,
         border_color=None):
@@ -1875,6 +1886,7 @@ class Composer:
         self.add_decoration(area, Cartouche(text,
             placement=placement,
             color=color,
+            background=background,
             border_width=border_width,
             border_color=border_color,
             font_size=font_size,
@@ -2033,7 +2045,7 @@ class Cartouche(Decoration):
         self.title = title
         self.color = color
         self.background = background
-        self.border_width = border_width
+        self.border_width = border_width or 0
         self.border_color = border_color
         self.font = 'DejaVuSans.ttf'
         self.font_size = font_size
