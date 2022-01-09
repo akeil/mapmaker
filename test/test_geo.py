@@ -2,7 +2,6 @@ import unittest
 from unittest import TestCase
 
 from mapmaker.geo import BBox
-from mapmaker.geo import constrained_bbox
 from mapmaker.geo import dms, decimal
 
 
@@ -25,9 +24,9 @@ class TestBBox(TestCase):
     def test_constrained(self):
         box = BBox(minlat=10.0, maxlat=20.0, minlon=30.0, maxlon=40.0)
 
-        same = constrained_bbox(box)
+        same = box.constrained()
         self.assertEqual(box, same)
 
-        different = constrained_bbox(box, minlat=12.0, maxlat=18.0, minlon=32.0, maxlon=38.0)
+        different = box.constrained(minlat=12.0, maxlat=18.0, minlon=32.0, maxlon=38.0)
         self.assertNotEqual(box, different)
         self.assertEqual(different, BBox(minlat=12.0, maxlat=18.0, minlon=32.0, maxlon=38.0))
