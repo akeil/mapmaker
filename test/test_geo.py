@@ -2,7 +2,7 @@ import unittest
 from unittest import TestCase
 
 
-from mapmaker import dms, decimal
+from mapmaker.geo import dms, decimal
 
 
 class TestConvert(TestCase):
