@@ -37,47 +37,46 @@ class BBox:
         if self.maxlon > 180.0:
             raise ValueError('maxlon must not be > 180.0')
 
+    def with_aspect(self, aspect):
+        '''Extend the given bounding box so that it adheres to the given aspect
+        ratio (given as a floating point number).
+        Returns a new bounding box with the desired aspect ratio that contains
+        the initial box in its center'''
+        #  4:3  =>  1.32  width > height, aspect is > 1.0
+        #  2:3  =>  0.66  width < height, aspect is < 1.0
+        if aspect == 1.0:
+            return self
 
+        # TODO: properties
+        lat = self.minlat
+        lon = self.minlon
+        width = distance(self.minlat, lon, self.maxlat, lon)
+        height = distance(lat, self.minlon, lat, self.maxlon)
 
-def with_aspect(bbox, aspect):
-    '''Extend the given bounding box so that it adheres to the given aspect
-    ratio (given as a floating point number).
-    Returns a new bounding box with the desired aspect ratio that contains
-    the initial box in its center'''
-    #  4:3  =>  1.32  width > height, aspect is > 1.0
-    #  2:3  =>  0.66  width < height, aspect is < 1.0
-    if aspect == 1.0:
-        return bbox
-
-    lat = bbox.minlat
-    lon = bbox.minlon
-    width = distance(bbox.minlat, lon, bbox.maxlat, lon)
-    height = distance(lat, bbox.minlon, lat, bbox.maxlon)
-
-    if aspect < 1.0:
-        # extend "height" (latitude)
-        target_height = width / aspect
-        extend_height = (target_height - height) / 2
-        new_minlat, _ = destination_point(bbox.minlat, lon, BRG_SOUTH, extend_height)
-        new_maxlat, _ = destination_point(bbox.maxlat, lon, BRG_NORTH, extend_height)
-        return BBox(
-            minlat=new_minlat,
-            minlon=bbox.minlon,
-            maxlat=new_maxlat,
-            maxlon=bbox.maxlon
-        )
-    else:  # aspect > 1.0
-        # extend "width" (longitude)
-        target_width = height * aspect
-        extend_width = (target_width - width) / 2
-        _, new_minlon = destination_point(lat, bbox.minlon, BRG_WEST, extend_width)
-        _, new_maxlon = destination_point(lat, bbox.maxlon, BRG_EAST, extend_width)
-        return BBox(
-            minlat=bbox.minlat,
-            minlon=new_minlon,
-            maxlat=bbox.maxlat,
-            maxlon=new_maxlon
-        )
+        if aspect < 1.0:
+            # extend "height" (latitude)
+            target_height = width / aspect
+            extend_height = (target_height - height) / 2
+            new_minlat, _ = destination_point(self.minlat, lon, BRG_SOUTH, extend_height)
+            new_maxlat, _ = destination_point(self.maxlat, lon, BRG_NORTH, extend_height)
+            return BBox(
+                minlat=new_minlat,
+                minlon=self.minlon,
+                maxlat=new_maxlat,
+                maxlon=self.maxlon
+            )
+        else:  # aspect > 1.0
+            # extend "width" (longitude)
+            target_width = height * aspect
+            extend_width = (target_width - width) / 2
+            _, new_minlon = destination_point(lat, self.minlon, BRG_WEST, extend_width)
+            _, new_maxlon = destination_point(lat, self.maxlon, BRG_EAST, extend_width)
+            return BBox(
+                minlat=self.minlat,
+                minlon=new_minlon,
+                maxlat=self.maxlat,
+                maxlon=new_maxlon
+            )
 
 
 def bbox_from_radius(lat, lon, radius):

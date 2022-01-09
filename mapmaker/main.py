@@ -12,7 +12,6 @@ from . import __author__
 from . import __version__
 from .decorations import Composer
 from .geo import distance
-from .geo import with_aspect
 from .parse import aspect
 from .parse import parse_color
 from .parse import BBoxAction
@@ -167,7 +166,7 @@ def main():
     args = parser.parse_args()
 
     reporter = _no_reporter if args.silent else _print_reporter
-    bbox = with_aspect(args.bbox, args.aspect)
+    bbox = args.bbox.with_aspect(args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
 
