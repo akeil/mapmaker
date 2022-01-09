@@ -8,7 +8,7 @@ import sys
 
 from . import __author__
 from . import __version__
-from .draw import Composer
+from .decorations import Composer
 from .geo import distance
 from .geo import with_aspect
 from .parse import aspect
