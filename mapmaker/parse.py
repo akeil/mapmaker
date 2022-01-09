@@ -371,42 +371,6 @@ def _parse_placement(raw):
     raise ValueError('invalid value for placement %r' % raw)
 
 
-# TODO: not needed?
-def _parse_margin(raw):
-    '''Parse the pixel values for margin from the following formats:
-
-    - ``Npx`` where N is the margin for all four sides
-    - ``Npx,Npx,Npx,Npx`` where N is the value for top, right bottom left
-
-    Returns a 4 tuple with the margin values in clockwise order:
-    Top, right, bottom, left.
-    '''
-    if not raw:
-        raise ValueError('invalid margin %r' % raw)
-
-    def value(s):
-        s = s.strip()
-        if s[-2:].lower() != 'px':
-            ValueError('invalid margin %r' % s)
-        return int(s[:-2])
-
-    parts = raw.split(',')
-    margins = None
-    if len(parts) == 1:
-        v = value(parts[0])
-        margins = v, v, v, v
-    elif len(parts) == 4:
-        margins = tuple(value(p) for p in parts)
-
-    if margins:
-        for v in margins:
-            if v < 0:
-                raise ValueError('negative margin %s in %r' % (v, raw))
-        return margins
-
-    raise ValueError('invalid margin %r' % raw)
-
-
 def aspect(raw):
     '''Parse an aspect ratio given in the form of "19:9" into a float.'''
     if not raw:
