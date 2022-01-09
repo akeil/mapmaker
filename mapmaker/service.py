@@ -4,7 +4,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 import threading
 
-import appdirs
 import requests
 
 
@@ -59,7 +58,6 @@ class TileService:
 
 
 # TODO: move threading-related to RenderContext?
-# TODO: move appdirs.user_cache to caller/pass as param
 class Cache:
 
     def __init__(self, service, basedir, limit=None):
@@ -202,11 +200,3 @@ class Cache:
                 excess -= size
                 if excess <= 0:
                     break
-
-    @classmethod
-    def user_dir(cls, service, limit=None):
-        # TODO: use constants
-        APP_NAME = 'mapmaker'
-        from . import __author__
-        cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-        return cls(service, cache_dir, limit=limit)

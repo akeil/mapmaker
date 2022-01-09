@@ -204,7 +204,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     map = TileMap.from_bbox(bbox, zoom)
 
     service = TileService(style, conf.urls[style], conf.keys)
-    service = Cache.user_dir(service, limit=conf.cache_limit)
+    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
+    service = Cache(service, cache_dir, limit=conf.cache_limit)
 
     rc = RenderContext(service, map,
         reporter=report,
@@ -255,7 +256,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
 
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
-        shading = Cache.user_dir(shading, limit=conf.cache_limit)
+        shading = Cache(service, cache_dir, limit=conf.cache_limit)
         shade = RenderContext(shading, map, reporter=report, parallel_downloads=conf.parallel_downloads).build()
         img.paste(shade.convert('RGB'), mask=shade)
 
