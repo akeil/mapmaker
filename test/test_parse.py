@@ -2,16 +2,16 @@ import argparse
 import unittest
 from unittest import TestCase
 
-from mapmaker import aspect
-from mapmaker import BBox
-from mapmaker import _BBoxAction
-from mapmaker import _FrameAction
-from mapmaker import _MarginAction
-from mapmaker import _TextAction
-from mapmaker import _parse_color
-from mapmaker import _parse_coordinates
-from mapmaker import _parse_margin
-from mapmaker import _parse_placement
+from mapmaker.parse import aspect
+from mapmaker.geo import BBox
+from mapmaker.parse import BBoxAction
+from mapmaker.parse import FrameAction
+from mapmaker.parse import MarginAction
+from mapmaker.parse import TextAction
+from mapmaker.parse import parse_color
+from mapmaker.parse import _parse_coordinates
+from mapmaker.parse import _parse_margin
+from mapmaker.parse import _parse_placement
 
 
 class _ParseTest(TestCase):
@@ -74,7 +74,7 @@ class TestParseCoordinates(_ParseTest):
 
 class TestParseColor(_ParseTest):
 
-    parse_func = _parse_color
+    parse_func = parse_color
     fail = (
         None,
         '',
@@ -222,7 +222,7 @@ class _ActionTest(TestCase):
 
 
 class TestTextAction(_ActionTest):
-    action = _TextAction
+    action = TextAction
     fail = (
         [],
         ['', ],
@@ -243,7 +243,7 @@ class TestTextAction(_ActionTest):
 
 
 class TestFrameAction(_ActionTest):
-    action = _FrameAction
+    action = FrameAction
     fail = (
         ['', ],
         ['unrecognized', ],
@@ -263,7 +263,7 @@ class TestFrameAction(_ActionTest):
 
 
 class TestMarginAction(_ActionTest):
-    action = _MarginAction
+    action = MarginAction
     fail = (
         [],
         [''],
@@ -282,7 +282,7 @@ class TestMarginAction(_ActionTest):
 
 
 class TestParseBBox(_ActionTest):
-    action = _BBoxAction
+    action = BBoxAction
     fail = (
         ['', ''],
         ['47.1,6.5', ''],

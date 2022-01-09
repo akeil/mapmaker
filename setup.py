@@ -7,7 +7,7 @@ import sys
 
 from setuptools import setup
 
-with open('mapmaker.py') as f:
+with open('mapmaker/__init__.py') as f:
     for line in f:
         if line.startswith('__version__'):
             VERSION = line.split('\'')[1]
@@ -33,12 +33,10 @@ setup(
     description='Create map images from slippy map tiles.',
     long_description=long_description,
     long_description_content_type='text/x-rst',
-    # single python file
-    py_modules=['mapmaker'],
     install_requires=required,
     entry_points = {
         'console_scripts': [
-            'mapmaker = mapmaker:main',
+            'mapmaker = mapmaker.main:main',
         ]
     },
     license='MIT',
