@@ -56,6 +56,9 @@ class TileService:
     def _api_key(self):
         return self._api_keys.get(self.domain, '')
 
+    def __repr__(self):
+        return '<TileService name=%r>' % self.name
+
 
 class Cache:
 
@@ -199,3 +202,6 @@ class Cache:
                 excess -= size
                 if excess <= 0:
                     break
+
+    def __repr__(self):
+        return '<Cache %r>' % str(self._base)
