@@ -449,6 +449,10 @@ class _MarginAction(argparse.Action):
             msg = 'invalid number of arguments (%s) for margin, expected 1, 2, or 4 values' % len(values)
             raise argparse.ArgumentError(self, msg)
 
+        for v in margins:
+            if v < 0:
+                raise argparse.ArgumentError(self, 'invalid margin %r, must not be negative' % v)
+
         setattr(namespace, self.dest, margins)
 
 
@@ -488,6 +492,8 @@ class _TextAction(argparse.Action):
             if border is None:
                 try:
                     border = int(value)
+                    if border <0:
+                        raise argparse.ArgumentError(self, 'Invalid border width %r, must not be negtive' % value)
                     consumed += 1
                     continue
                 except ValueError:
@@ -530,7 +536,7 @@ class _FrameAction(argparse.Action):
     - alternate color as RGB(A) tuple
     - style as enumeration
 
-    Arguments can be privided in any order.
+    Arguments can be provided in any order.
     The second argument that specifies a color is the "alt color".
 
     Can also be invoked with no arguments to set a frame with default values.
@@ -557,6 +563,8 @@ class _FrameAction(argparse.Action):
             if width is None:
                 try:
                     width = int(value)
+                    if width <0:
+                        raise argparse.ArgumentError(self, 'Invalid width %r, must not be negtive' % value)
                     continue
                 except ValueError:
                     pass
