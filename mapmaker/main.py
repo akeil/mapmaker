@@ -19,7 +19,7 @@ from .parse import MarginAction
 from .parse import TextAction
 from .service import Cache
 from .service import TileService
-from .tilemap import RenderContext
+from .render import RenderContext
 from .tilemap import TileMap
 
 import appdirs
