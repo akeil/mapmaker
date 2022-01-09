@@ -1,4 +1,5 @@
 import base64
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 import threading
@@ -204,5 +205,8 @@ class Cache:
 
     @classmethod
     def user_dir(cls, service, limit=None):
+        # TODO: use constants
+        APP_NAME = 'mapmaker'
+        from . import __author__
         cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
         return cls(service, cache_dir, limit=limit)

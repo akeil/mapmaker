@@ -1,10 +1,11 @@
 import argparse
-#from argparse import Action
-#from argparse import ArgumentError
+from argparse import ArgumentError
 
 from .geo import BBox
 from .geo import bbox_from_radius
 from .geo import decimal
+from .tilemap import MIN_LAT, MAX_LAT
+from .draw import PLACEMENTS
 
 
 class BBoxAction(argparse.Action):
@@ -22,7 +23,7 @@ class BBoxAction(argparse.Action):
             setattr(namespace, self.dest, bbox)
         except ValueError as err:
             msg = 'failed to parse bounding box from %r: %s' % (' '.join(values), err)
-            raise argparse.ArgumentError(self, msg)
+            raise ArgumentError(self, msg)
 
     def _parse_bbox(self, values):
         lat0, lon0 = _parse_coordinates(values[0])
@@ -94,11 +95,11 @@ class MarginAction(argparse.Action):
             margins = int(top), int(right), int(bottom), int(left)
         else:
             msg = 'invalid number of arguments (%s) for margin, expected 1, 2, or 4 values' % len(values)
-            raise argparse.ArgumentError(self, msg)
+            raise ArgumentError(self, msg)
 
         for v in margins:
             if v < 0:
-                raise argparse.ArgumentError(self, 'invalid margin %r, must not be negative' % v)
+                raise ArgumentError(self, 'invalid margin %r, must not be negative' % v)
 
         setattr(namespace, self.dest, margins)
 
@@ -140,7 +141,7 @@ class TextAction(argparse.Action):
                 try:
                     border = int(value)
                     if border <0:
-                        raise argparse.ArgumentError(self, 'Invalid border width %r, must not be negtive' % value)
+                        raise ArgumentError(self, 'Invalid border width %r, must not be negtive' % value)
                     consumed += 1
                     continue
                 except ValueError:
@@ -169,7 +170,7 @@ class TextAction(argparse.Action):
         text = ' '.join(values[consumed:])
         if not text:
             msg = 'missing title string in %r' % ' '.join(values)
-            raise argparse.ArgumentError(self, msg)
+            raise ArgumentError(self, msg)
 
         params = (placement, border, color, bg_color, text)
         setattr(namespace, self.dest, params)
@@ -198,7 +199,7 @@ class FrameAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) > 4:
             msg = 'invalid number of arguments (%s) for frame, expected up to four: BORDER, COLOR, ALT_COLOR and STYLE' % len(values)
-            raise argparse.ArgumentError(self, msg)
+            raise ArgumentError(self, msg)
 
         width, color, alt_color, style = None, None, None, None
 
@@ -211,7 +212,7 @@ class FrameAction(argparse.Action):
                 try:
                     width = int(value)
                     if width <0:
-                        raise argparse.ArgumentError(self, 'Invalid width %r, must not be negtive' % value)
+                        raise ArgumentError(self, 'Invalid width %r, must not be negtive' % value)
                     continue
                 except ValueError:
                     pass
@@ -240,7 +241,7 @@ class FrameAction(argparse.Action):
 
         if unrecognized:
             msg = 'unrecognized frame parameters: %r' % ', '.join(unrecognized)
-            raise argparse.ArgumentError(self, msg)
+            raise ArgumentError(self, msg)
 
         # apply defaults
         if self.default:

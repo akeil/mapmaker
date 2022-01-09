@@ -1,5 +1,16 @@
 from collections import namedtuple
 
+from math import asin
+from math import atan
+from math import atan2
+from math import cos
+from math import degrees
+from math import floor
+from math import radians
+from math import sin
+from math import sinh
+from math import sqrt
+
 
 BRG_NORTH = 0
 BRG_EAST = 90
@@ -7,11 +18,7 @@ BRG_SOUTH = 180
 BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
-# supported lat bounds for slippy map
-MAX_LAT = 85.0511
-MIN_LAT = -85.0511
-
-
+# TODO: make this a class with eaith_aspect and from_radius
 BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
 
 
@@ -72,7 +79,7 @@ def bbox_from_radius(lat, lon, radius):
 
 
 def mercator_to_lat(mercator_y):
-    return math.degrees(math.atan(math.sinh(mercator_y)))
+    return degrees(atan(sinh(mercator_y)))
 
 
 def distance(lat0, lon0, lat1, lon1):

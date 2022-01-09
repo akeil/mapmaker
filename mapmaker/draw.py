@@ -1,4 +1,8 @@
+from collections import defaultdict
 
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 
 # Draw with lat/lon -----------------------------------------------------------
 

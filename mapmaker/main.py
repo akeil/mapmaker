@@ -1,11 +1,15 @@
 #!/bin/python
 '''The command line interface for mampmaker.'''
 import argparse
+from collections import namedtuple
+import configparser
 from pathlib import Path
 import sys
 
 from . import __author__
 from . import __version__
+from .draw import Composer
+from .geo import distance
 from .geo import with_aspect
 from .parse import aspect
 from .parse import parse_color
@@ -13,6 +17,9 @@ from .parse import BBoxAction
 from .parse import FrameAction
 from .parse import MarginAction
 from .parse import TextAction
+from .service import Cache
+from .service import TileService
+from .tilemap import RenderContext
 from .tilemap import TileMap
 
 import appdirs
@@ -20,6 +27,9 @@ import appdirs
 
 APP_NAME = 'mapmaker'
 APP_DESC = 'Create map images from tile servers.'
+
+
+Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
 
 
 def main():
@@ -263,8 +273,8 @@ def _no_reporter(msg, *args):
 
 def _show_info(report, service, map, rc):
     bbox = map.bbox
-    area_w = int(_distance(bbox.minlat, bbox.minlon, bbox.maxlat, bbox.minlon))
-    area_h = int(_distance(bbox.minlat, bbox.minlon, bbox.minlat, bbox.maxlon))
+    area_w = int(distance(bbox.minlat, bbox.minlon, bbox.maxlat, bbox.minlon))
+    area_h = int(distance(bbox.minlat, bbox.minlon, bbox.minlat, bbox.maxlon))
     unit = 'm'
     if area_w > 1000 or area_h > 1000:
         area_w = int(area_w / 100) / 10
@@ -303,6 +313,81 @@ def read_config(path):
         cache_limit=cfg.getint('cache', 'limit', fallback=None),
         parallel_downloads=cfg.getint('mapmaker', 'parallel_downloads', fallback=1),
     )
+
+
+# TODO: move to file
+_DEFAULT_CONFIG = '''[mapmaker]
+parallel_downloads = 8
+
+[services]
+# see: https://wiki.openstreetmap.org/wiki/Tile_servers
+osm         = https://tile.openstreetmap.org/{z}/{x}/{y}.png
+topo        = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
+human       = http://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png
+hillshading = http://tiles.wmflabs.org/hillshading/{z}/{x}/{y}.png
+bw          = https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png
+nolabels    = https://tiles.wmflabs.org/osm-no-labels/{z}/{x}/{y}.png
+
+# Stamen, http://maps.stamen.com/
+toner        = https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png
+toner-hybrid = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-hybrid/{z}/{x}/{y}.png
+toner-bg     = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png
+toner-lite   = https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png
+watercolor   = https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg
+terrain      = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png
+terrain-bg   = https://stamen-tiles-{s}.a.ssl.fastly.net/terrain-background/{z}/{x}/{y}.png
+
+# Carto, https://carto.com/help/building-maps/basemap-list/
+voyager            = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}.png
+voyager-nolabel    = https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png
+positron           = https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png
+positron-nolabel   = https://{s}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png
+darkmatter         = https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png
+darkmatter-nolabel = https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}.png
+
+# Thunderforest
+landscape   = http://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey={api}
+outdoors    = http://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey={api}
+atlas       = https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey={api}
+
+# Geoapify
+grey        = https://maps.geoapify.com/v1/tile/osm-bright-grey/{z}/{x}/{y}.png?apiKey={api}
+smooth      = https://maps.geoapify.com/v1/tile/osm-bright-smooth/{z}/{x}/{y}.png?apiKey={api}
+toner-grey  = https://maps.geoapify.com/v1/tile/toner-grey/{z}/{x}/{y}.png?apiKey={api}
+blue        = https://maps.geoapify.com/v1/tile/positron-blue/{z}/{x}/{y}.png?apiKey={api}
+red         = https://maps.geoapify.com/v1/tile/positron-red/{z}/{x}/{y}.png?apiKey={api}
+brown       = https://maps.geoapify.com/v1/tile/dark-matter-brown/{z}/{x}/{y}.png?apiKey={api}
+darkgrey    = https://maps.geoapify.com/v1/tile/dark-matter-dark-grey/{z}/{x}/{y}.png?apiKey={api}
+purple      = https://maps.geoapify.com/v1/tile/dark-matter-dark-purple/{z}/{x}/{y}.png?apiKey={api}
+klokantech  = https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey={api}
+
+# Mapbox
+satellite           = https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token={api}
+satellite-streets   = https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{z}/{x}/{y}?access_token={api}
+streets             = https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token={api}
+light               = https://api.mapbox.com/styles/v1/mapbox/light-v10/tiles/{z}/{x}/{y}?access_token={api}
+dark                = https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token={api}
+hike                = https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/tiles/{z}/{x}/{y}?access_token={api}
+
+[keys]
+tile.thunderforest.com  = <YOUR_API_KEY>
+maps.geoapify.com       = <YOUR_API_KEY>
+api.mapbox.com          = <YOUR_API_KEY>
+
+[copyright]
+openstreetmap.org = \u00A9 OpenStreetMap contributors
+openstreetmap.fr = \u00A9 OpenStreetMap contributors
+opentopomap.org = \u00A9 OpenStreetMap contributors
+wmflabs.org = \u00A9 OpenStreetMap contributors
+cartocdn.com = Maps \u00A9 Carto, Data \u00A9 OpenStreetMap contributors
+geoapify.com = Powered by Geoapify | \u00A9 OpenStreetMap contributors
+thunderforest.com = Maps \u00A9 Thunderforest, Data \u00A9 OpenStreetMap contributors
+stamen.com = Maps \u00A9 Stamen Design, Data \u00A9 OpenStreetMap contributors
+
+[cache]
+# 256 MB
+limit = 256000000
+'''
 
 
 if __name__ == '__main__':
