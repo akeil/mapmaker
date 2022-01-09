@@ -6,6 +6,7 @@ from .geo import bbox_from_radius
 from .geo import decimal
 from .tilemap import MIN_LAT, MAX_LAT
 from .draw import PLACEMENTS
+from .draw import Frame
 
 
 class BBoxAction(argparse.Action):
