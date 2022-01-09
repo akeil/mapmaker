@@ -3,6 +3,7 @@ from argparse import ArgumentError
 
 from .geo import BBox
 from .geo import bbox_from_radius
+from .geo import constrained_bbox
 from .geo import decimal
 from .tilemap import MIN_LAT, MAX_LAT
 from .decorations import PLACEMENTS
@@ -60,7 +61,8 @@ class BBoxAction(argparse.Action):
 
             bbox = bbox_from_radius(lat0, lon0, value)
 
-        # TODO: clamp to MINLAT / MAXLAT
+        # constrain to min/max values of slippy tile map
+        bbox = constrained_bbox(bbox, minlat=MIN_LAT, maxlat=MAX_LAT)
 
         # Validate
         if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:

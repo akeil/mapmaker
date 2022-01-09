@@ -78,6 +78,18 @@ def bbox_from_radius(lat, lon, radius):
     )
 
 
+def constrained_bbox(bbox, minlat=-90.0, maxlat=90.0, minlon=-180.0, maxlon=180.0):
+    '''Constrain a bounding box to min/max values for latitude or longitude.
+
+    Returns a new BBox with the coordinates adjusted to fit within given bounds.
+    '''
+    return BBox(
+        minlat=max(bbox.minlat, minlat),
+        maxlat=min(bbox.maxlat, maxlat),
+        minlon=max(bbox.minlon, minlon),
+        maxlon=min(bbox.maxlon, maxlon),
+    )
+
 def mercator_to_lat(mercator_y):
     return degrees(atan(sinh(mercator_y)))
 
