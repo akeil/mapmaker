@@ -8,6 +8,7 @@ from PIL import Image
 # Most (all?) services will return tiles this size
 DEFAULT_TILESIZE = (256, 256)
 
+
 class RenderContext:
     '''Renders a map, downloading required tiles on the fly.'''
 

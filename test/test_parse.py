@@ -10,7 +10,6 @@ from mapmaker.parse import MarginAction
 from mapmaker.parse import TextAction
 from mapmaker.parse import parse_color
 from mapmaker.parse import _parse_coordinates
-from mapmaker.parse import _parse_margin
 from mapmaker.parse import _parse_placement
 
 
@@ -109,47 +108,6 @@ class TestParseColor(_ParseTest):
         ('#5090aaff', (80, 144, 170, 255)),
         ('#5090aabb', (80, 144, 170, 187)),
     )
-
-
-# TODO: not needed?
-class TestParseMargin(_ParseTest):
-    parse_func = _parse_margin
-    fail = (
-        None,
-        '',
-        '  ',
-        '\n',
-        'xyz',
-        'N*',
-        'x',
-        '10px,10px',
-        '10px,10px,10px',
-        '10px,10px,10px,10px,10px',
-        '10px,10px,10px,-5px',
-        '-1px',
-        '5.5px',
-        '10 px',
-        '10cm',
-    )
-    valid = (
-        ('2px', (2, 2, 2, 2)),
-        ('0px,0px,0px,0px', (0, 0, 0, 0)),
-        ('1px,2px,3px,4px', (1, 2, 3, 4)),
-        ('2PX', (2, 2, 2, 2)),
-    )
-    def test_should_fail(self):
-        cases = (
-            '',
-            'xxx',
-            '12,34,56',  # too many values
-            '123.45.56, 123',  # 2x decimal separator
-            "47° 25'', 10°59''",  # missing "Minutes"
-            '48°15°,6°7°',
-            '500,456',  # bounds
-            '360°, -500°',  # bounds
-        )
-        for case in cases:
-            self.assertRaises(ValueError, _parse_coordinates, case)
 
 
 class TestParsePlacement(_ParseTest):

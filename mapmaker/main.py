@@ -12,7 +12,6 @@ from . import __author__
 from . import __version__
 from .decorations import Composer
 from .geo import distance
-from .geo import with_aspect
 from .parse import aspect
 from .parse import parse_color
 from .parse import BBoxAction
@@ -167,7 +166,7 @@ def main():
     args = parser.parse_args()
 
     reporter = _no_reporter if args.silent else _print_reporter
-    bbox = with_aspect(args.bbox, args.aspect)
+    bbox = args.bbox.with_aspect(args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
 
@@ -204,7 +203,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     map = TileMap.from_bbox(bbox, zoom)
 
     service = TileService(style, conf.urls[style], conf.keys)
-    service = Cache.user_dir(service, limit=conf.cache_limit)
+    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
+    service = Cache(service, cache_dir, limit=conf.cache_limit)
 
     rc = RenderContext(service, map,
         reporter=report,
@@ -255,7 +255,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
 
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
-        shading = Cache.user_dir(shading, limit=conf.cache_limit)
+        shading = Cache(service, cache_dir, limit=conf.cache_limit)
         shade = RenderContext(shading, map, reporter=report, parallel_downloads=conf.parallel_downloads).build()
         img.paste(shade.convert('RGB'), mask=shade)
 

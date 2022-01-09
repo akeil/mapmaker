@@ -513,6 +513,9 @@ class Cartouche(Decoration):
             #stroke_fill=(255, 0, 0, 255),
         )
 
+    def __repr__(self):
+        return '<Cartouche placement=%r, title=%r>' % (self.placement, self.title)
+
 
 class Scale:
 
@@ -632,6 +635,9 @@ class CompassRose(Decoration):
                 stroke_fill=self.outline,
             )
 
+    def __repr__(self):
+        return '<CompassRose placement=%r>' % self.placement
+
 
 class Frame:
 
@@ -749,6 +755,9 @@ class Frame:
 
         ticks = [start + v for v in steps]
         return ticks
+
+    def __repr__(self):
+        return '<Frame width=%r, style=%r>' % (self.width, self.style)
 
 
 def _load_font(font_name, font_size):

@@ -1,5 +1,4 @@
-from collections import namedtuple
-
+from dataclasses import dataclass
 from math import asin
 from math import atan
 from math import atan2
@@ -18,64 +17,92 @@ BRG_SOUTH = 180
 BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
-# TODO: make this a class with eaith_aspect and from_radius
-BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
 
+@dataclass(frozen=True)
+class BBox:
 
-def with_aspect(bbox, aspect):
-    '''Extend the given bounding box so that it adheres to the given aspect
-    ratio (given as a floating point number).
-    Returns a new bounding box with the desired aspect ratio that contains
-    the initial box in its center'''
-    #  4:3  =>  1.32  width > height, aspect is > 1.0
-    #  2:3  =>  0.66  width < height, aspect is < 1.0
-    if aspect == 1.0:
-        return bbox
+    minlat: float = -90.0
+    minlon: float = -180.0
+    maxlat: float = 90.0
+    maxlon: float = 180.0
 
-    lat = bbox.minlat
-    lon = bbox.minlon
-    width = distance(bbox.minlat, lon, bbox.maxlat, lon)
-    height = distance(lat, bbox.minlon, lat, bbox.maxlon)
+    def __post_init(self):
+        print('__post_init')
+        if self.minlat < -90.0:
+            raise ValueError('minlat must not be < -90')
+        if self.maxlat > 90.0:
+            raise ValueError('maxlat must not be >90')
+        if self.minlon < -180.0:
+            raise ValueError('minlon must not be < -180')
+        if self.maxlon > 180.0:
+            raise ValueError('maxlon must not be > 180.0')
 
-    if aspect < 1.0:
-        # extend "height" (latitude)
-        target_height = width / aspect
-        extend_height = (target_height - height) / 2
-        new_minlat, _ = destination_point(bbox.minlat, lon, BRG_SOUTH, extend_height)
-        new_maxlat, _ = destination_point(bbox.maxlat, lon, BRG_NORTH, extend_height)
+    def with_aspect(self, aspect):
+        '''Extend the given bounding box so that it adheres to the given aspect
+        ratio (given as a floating point number).
+        Returns a new bounding box with the desired aspect ratio that contains
+        the initial box in its center'''
+        #  4:3  =>  1.32  width > height, aspect is > 1.0
+        #  2:3  =>  0.66  width < height, aspect is < 1.0
+        if aspect == 1.0:
+            return self
+
+        lat = self.minlat
+        lon = self.minlon
+        width = distance(self.minlat, lon, self.maxlat, lon)
+        height = distance(lat, self.minlon, lat, self.maxlon)
+
+        if aspect < 1.0:
+            # extend "height" (latitude)
+            target_height = width / aspect
+            extend_height = (target_height - height) / 2
+            new_minlat, _ = destination_point(self.minlat, lon, BRG_SOUTH, extend_height)
+            new_maxlat, _ = destination_point(self.maxlat, lon, BRG_NORTH, extend_height)
+            return BBox(
+                minlat=new_minlat,
+                minlon=self.minlon,
+                maxlat=new_maxlat,
+                maxlon=self.maxlon
+            )
+        else:  # aspect > 1.0
+            # extend "width" (longitude)
+            target_width = height * aspect
+            extend_width = (target_width - width) / 2
+            _, new_minlon = destination_point(lat, self.minlon, BRG_WEST, extend_width)
+            _, new_maxlon = destination_point(lat, self.maxlon, BRG_EAST, extend_width)
+            return BBox(
+                minlat=self.minlat,
+                minlon=new_minlon,
+                maxlat=self.maxlat,
+                maxlon=new_maxlon
+            )
+
+    def constrained(self, minlat=-90.0, maxlat=90.0, minlon=-180.0, maxlon=180.0):
+        '''Constrain a bounding box to min/max values for latitude or longitude.
+
+        Returns a new BBox with the coordinates adjusted to fit within given bounds.
+        '''
         return BBox(
-            minlat=new_minlat,
-            minlon=bbox.minlon,
-            maxlat=new_maxlat,
-            maxlon=bbox.maxlon
-        )
-    else:  # aspect > 1.0
-        # extend "width" (longitude)
-        target_width = height * aspect
-        extend_width = (target_width - width) / 2
-        _, new_minlon = destination_point(lat, bbox.minlon, BRG_WEST, extend_width)
-        _, new_maxlon = destination_point(lat, bbox.maxlon, BRG_EAST, extend_width)
-        return BBox(
-            minlat=bbox.minlat,
-            minlon=new_minlon,
-            maxlat=bbox.maxlat,
-            maxlon=new_maxlon
+            minlat=max(self.minlat, minlat),
+            maxlat=min(self.maxlat, maxlat),
+            minlon=max(self.minlon, minlon),
+            maxlon=min(self.maxlon, maxlon),
         )
 
+    @classmethod
+    def from_radius(cls, lat, lon, radius):
+        '''Create a bounding box from a center point an a radius.'''
+        lat_n, lon_n = destination_point(lat, lon, BRG_NORTH, radius)
+        lat_e, lon_e = destination_point(lat, lon, BRG_EAST, radius)
+        lat_s, lon_s = destination_point(lat, lon, BRG_SOUTH, radius)
+        lat_w, lon_w = destination_point(lat, lon, BRG_WEST, radius)
 
-def bbox_from_radius(lat, lon, radius):
-    '''Create a bounding box from a center point an a radius.'''
-    lat_n, lon_n = destination_point(lat, lon, BRG_NORTH, radius)
-    lat_e, lon_e = destination_point(lat, lon, BRG_EAST, radius)
-    lat_s, lon_s = destination_point(lat, lon, BRG_SOUTH, radius)
-    lat_w, lon_w = destination_point(lat, lon, BRG_WEST, radius)
-
-    return BBox(
-        minlat=min(lat_n, lat_e, lat_s, lat_w),
-        minlon=min(lon_n, lon_e, lon_s, lon_w),
-        maxlat=max(lat_n, lat_e, lat_s, lat_w),
-        maxlon=max(lon_n, lon_e, lon_s, lon_w),
-    )
+        return cls(
+            minlat=min(lat_n, lat_e, lat_s, lat_w),
+            minlon=min(lon_n, lon_e, lon_s, lon_w),
+            maxlat=max(lat_n, lat_e, lat_s, lat_w),
+            maxlon=max(lon_n, lon_e, lon_s, lon_w),
+        )
 
 
 def mercator_to_lat(mercator_y):
