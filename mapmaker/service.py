@@ -57,7 +57,6 @@ class TileService:
         return self._api_keys.get(self.domain, '')
 
 
-# TODO: move threading-related to RenderContext?
 class Cache:
 
     def __init__(self, service, basedir, limit=None):

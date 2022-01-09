@@ -1,5 +1,4 @@
-from collections import namedtuple
-
+from dataclasses import dataclass
 from math import asin
 from math import atan
 from math import atan2
@@ -18,8 +17,26 @@ BRG_SOUTH = 180
 BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
-# TODO: make this a class with eaith_aspect and from_radius
-BBox = namedtuple('BBox', 'minlat minlon maxlat maxlon')
+
+@dataclass(frozen=True)
+class BBox:
+
+    minlat: float = -90.0
+    minlon: float = -180.0
+    maxlat: float = 90.0
+    maxlon: float = 180.0
+
+    def __post_init(self):
+        print('__post_init')
+        if self.minlat < -90.0:
+            raise ValueError('minlat must not be < -90')
+        if self.maxlat > 90.0:
+            raise ValueError('maxlat must not be >90')
+        if self.minlon < -180.0:
+            raise ValueError('minlon must not be < -180')
+        if self.maxlon > 180.0:
+            raise ValueError('maxlon must not be > 180.0')
+
 
 
 def with_aspect(bbox, aspect):
