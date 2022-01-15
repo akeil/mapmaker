@@ -331,10 +331,17 @@ class Composer:
 
         self._margins = m
 
-    def set_background(self, color):
+    def set_background(self, *args):
         '''Set the background color for the map (margin area).
         The color is an RGBA tuple.'''
-        self.background = color
+        if len(args) == 1:
+            self.background = args[0]
+        elif len(args) == 3:
+            self.background = (args[0], args[1], args[2], 255)
+        elif len(args) == 4:
+            self.background = args
+        else:
+            raise ValueError('invalid number of arguments, expected 1, 3 or 4 args')
 
     def set_frame(self, width=5, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
         '''Draw a border around the mapped content
