@@ -12,8 +12,7 @@ from . import __author__
 from . import __version__
 from .decorations import Composer
 from .geo import distance
-from .parse import aspect
-from .parse import parse_color
+from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
 from .parse import MarginAction
@@ -92,7 +91,7 @@ def main():
     )
     parser.add_argument(
         '-a', '--aspect',
-        type=aspect,
+        type=parse.aspect,
         default=1.0,
         help=(
             'Aspect ratio (e.g. "16:9") for the generated map. Extends the'
@@ -128,7 +127,7 @@ def main():
     )
     parser.add_argument(
         '--background',
-        type=parse_color,
+        type=parse.color,
         metavar='RGBA',
         default=(255, 255, 255, 255),
         help='Background color for map margin (default: white)'

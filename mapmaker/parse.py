@@ -125,7 +125,7 @@ class TextAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
 
-        placement, border, color, bg_color = None, None, None, None
+        placement, border, foreground, background = None, None, None, None
 
         remainder = []
         consumed = 0
@@ -148,17 +148,17 @@ class TextAction(argparse.Action):
                 except ValueError:
                     pass
 
-            if color is None:
+            if foreground is None:
                 try:
-                    color = parse_color(value)
+                    foreground = color(value)
                     consumed += 1
                     continue
                 except ValueError:
                     pass
 
-            if bg_color is None:
+            if background is None:
                 try:
-                    bg_color = parse_color(value)
+                    background = color(value)
                     consumed += 1
                     continue
                 except ValueError:
@@ -173,7 +173,7 @@ class TextAction(argparse.Action):
             msg = 'missing title string in %r' % ' '.join(values)
             raise ArgumentError(self, msg)
 
-        params = (placement, border, color, bg_color, text)
+        params = (placement, border, foreground, background, text)
         setattr(namespace, self.dest, params)
 
 
@@ -202,7 +202,7 @@ class FrameAction(argparse.Action):
             msg = 'invalid number of arguments (%s) for frame, expected up to four: BORDER, COLOR, ALT_COLOR and STYLE' % len(values)
             raise ArgumentError(self, msg)
 
-        width, color, alt_color, style = None, None, None, None
+        width, primary, alternate, style = None, None, None, None
 
         # accept values for BORDER, COLOR and STYLE in any order
         # accept each param only once
@@ -218,16 +218,16 @@ class FrameAction(argparse.Action):
                 except ValueError:
                     pass
 
-            if color is None:
+            if primary is None:
                 try:
-                    color = parse_color(value)
+                    primary = color(value)
                     continue
                 except ValueError:
                     pass
 
-            if alt_color is None:
+            if alternate is None:
                 try:
-                    alt_color = parse_color(value)
+                    alternate = color(value)
                     continue
                 except ValueError:
                     pass
@@ -248,11 +248,11 @@ class FrameAction(argparse.Action):
         if self.default:
             d_width, d_color, d_alt_color, d_style = self.default
             width = d_width if width is None else width
-            color = d_color if color is None else color
-            alt_color = d_alt_color if alt_color is None else alt_color
+            primary = d_color if primary is None else primary
+            alternate = d_alt_color if alternate is None else alternate
             style = d_style if style is None else style
 
-        params = (width, color, alt_color, style)
+        params = (width, primary, alternate, style)
         setattr(namespace, self.dest, params)
 
 
@@ -321,7 +321,7 @@ def _parse_coordinates(raw):
     return lat, lon
 
 
-def parse_color(raw):
+def color(raw):
     '''Parse an RGBA tuple from a string in format:
 
     - R,G,B     / 255,255,255
