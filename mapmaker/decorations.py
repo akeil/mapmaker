@@ -300,16 +300,36 @@ class Composer:
             marker=marker,
         ))
 
-    def set_margin(self, top=0, right=0, bottom=0, left=0):
+    def set_margin(self, *args):
         '''Set the size of the margin, that is the white space around the
         mapped content.
         Note that the margin will be extended automatically if a decoration is
         placed on the MARGIN area.
         '''
-        if top < 0 or right < 0 or bottom < 0 or left < 0:
-            raise ValueError('margin must not be negative')
+        if len(args) == 1 and args[0] is None:
+            self._margins = None
+            return
 
-        self._margins = (top, right, bottom, left)
+        # single value, vertical/horizontal or clockwise
+        if len(args) == 1:
+            val = args[0]
+            m = (val, val, val, val)
+        elif len(args) == 2:
+            v, h = args
+            m = (v, h, v, h)
+        elif len(args) == 4:
+            m = (x for x in args)
+        else:
+            raise ValueError('invalid number of arguments, expected 1, 2 or 4 args')
+
+        # force type error and rounding
+        m = tuple(int(x) for x in m)
+
+        for x in m:
+            if x < 0:
+                raise ValueError('margin must not be negative')
+
+        self._margins = m
 
     def set_background(self, color):
         '''Set the background color for the map (margin area).
