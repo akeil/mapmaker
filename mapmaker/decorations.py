@@ -1,10 +1,12 @@
 from collections import defaultdict
+from math import floor
 
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
-from . import geo
+from .geo import decimal
+from .geo import dms
 
 # draw with pixels ------------------------------------------------------------
 
@@ -765,7 +767,7 @@ class Frame:
         and the tick values are on full degrees, minutes or seconds if possible.
         '''
         span = end - start
-        d, m, s = geo.dms(span)
+        d, m, s = dms(span)
 
         steps = []
         if d >= n:
