@@ -52,7 +52,7 @@ class RenderContext:
         return self._map.bbox
 
     def build(self):
-        '''Download tiles on the fly and render them into an image.'''
+        '''Download tiles on the fly and render them into a PIL image.'''
         # fill the task queue
         for tile in self._map.tiles.values():
             self._queue.put(tile)

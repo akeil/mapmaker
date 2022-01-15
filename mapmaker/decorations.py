@@ -87,18 +87,11 @@ class Composer:
             w += 2 * self._frame.width
             h += 2 * self._frame.width
 
-
         base = Image.new('RGBA', (w, h), color=self.background)
 
         # add the map content
         map_box = (map_left, map_top, map_left + map_w, map_top + map_h)
-        print('Map size:  ', map_w, map_h)
-        print('Margins:   ', top, right, bottom, left)
-        print('Frame:     ', self._frame.width if self._frame else 0)
-        print('Image size:', w, h)
-        print('Map Box:   ', map_box)
         base.paste(map_img, map_box)
-
 
         # add frame around the map
         frame_box = map_box
@@ -113,6 +106,7 @@ class Composer:
             self._frame.draw(self._rc, draw, frame_size)
             base.alpha_composite(frame_img, dest=(left, top))
 
+        # add decorations for different areas
         for area in ('MAP', 'MARGIN'):
             for deco in self._decorations[area]:
                 deco_size = deco.calc_size((map_w, map_h))
