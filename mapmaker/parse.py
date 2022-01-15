@@ -1,5 +1,6 @@
 import argparse
 from argparse import ArgumentError
+from collections import namedtuple
 
 from .geo import BBox
 from .geo import decimal
@@ -177,6 +178,9 @@ class TextAction(argparse.Action):
         setattr(namespace, self.dest, params)
 
 
+FrameParams = namedtuple('FrameParams', 'width color alt_color style')
+
+
 class FrameAction(argparse.Action):
     '''Handle parameters for Frame:
 
@@ -252,8 +256,11 @@ class FrameAction(argparse.Action):
             alternate = d_alt_color if alternate is None else alternate
             style = d_style if style is None else style
 
-        params = (width, primary, alternate, style)
-        setattr(namespace, self.dest, params)
+        setattr(namespace, self.dest, FrameParams(
+            width=width,
+            color=primary,
+            alt_color=alternate,
+            style=style))
 
 
 def _parse_coordinates(raw):

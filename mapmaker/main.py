@@ -216,12 +216,11 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     decorated.set_background(args.background)
     decorated.set_margin(*args.margin)
     if args.frame:
-        width, color, alt_color, style = args.frame
         decorated.set_frame(
-            width=width or 5,
-            color=color or (0, 0, 0, 255),
-            alt_color=alt_color or (255, 255, 255, 255),
-            style=style or 'solid'
+            width=args.frame.width or 5,
+            color=args.frame.color or (0, 0, 0, 255),
+            alt_color=args.frame.alt_color or (255, 255, 255, 255),
+            style=args.frame.style or 'solid'
         )
     if args.title:
         placement, border, color, bg_color, text = args.title
