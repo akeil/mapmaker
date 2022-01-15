@@ -4,6 +4,8 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
+from . import geo
+
 # draw with pixels ------------------------------------------------------------
 
 # Placment locations on the MAP and MARGIN area.
@@ -310,6 +312,11 @@ class Composer:
             self._margins = None
             return
 
+        # unpack tuple
+        if len(args) == 1:
+            if isinstance(args[0], tuple) or isinstance(args[0], list):
+                return self.set_margin(*args[0])
+
         # single value, vertical/horizontal or clockwise
         if len(args) == 1:
             val = args[0]
@@ -318,7 +325,7 @@ class Composer:
             v, h = args
             m = (v, h, v, h)
         elif len(args) == 4:
-            m = (x for x in args)
+            m = args
         else:
             raise ValueError('invalid number of arguments, expected 1, 2 or 4 args')
 
@@ -758,7 +765,7 @@ class Frame:
         and the tick values are on full degrees, minutes or seconds if possible.
         '''
         span = end - start
-        d, m, s = dms(span)
+        d, m, s = geo.dms(span)
 
         steps = []
         if d >= n:
