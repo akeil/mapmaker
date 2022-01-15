@@ -5,6 +5,7 @@ import threading
 
 from PIL import Image
 from PIL import ImageDraw
+from PIL import ImageFont
 
 
 # Most (all?) services will return tiles this size
@@ -137,3 +138,11 @@ class RenderContext:
 
 def _no_reporter(*args):
     pass
+
+
+def load_font(font_name, font_size):
+    '''Load the given true type font, return fallback on failure.'''
+    try:
+        return ImageFont.truetype(font=font_name, size=font_size)
+    except OSError:
+        return ImageFont.load_default()
