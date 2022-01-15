@@ -29,6 +29,7 @@ import appdirs
 APP_NAME = 'mapmaker'
 APP_DESC = 'Create map images from tile servers.'
 
+HILLSHADE = 'hillshading'  # from default.ini
 
 Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
 

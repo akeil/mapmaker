@@ -4,6 +4,8 @@ import queue
 import threading
 
 from PIL import Image
+from PIL import ImageDraw
+
 
 # Most (all?) services will return tiles this size
 DEFAULT_TILESIZE = (256, 256)
@@ -131,3 +133,7 @@ class RenderContext:
         left = (y - self._map.ay) * h
         box = (top, left)
         self._img.paste(tile_img, box)
+
+
+def _no_reporter(*args):
+    pass
