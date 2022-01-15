@@ -96,7 +96,7 @@ class RenderContext:
         for layer in self._overlays:
             overlay = Image.new('RGBA', self._img.size, color=(0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay, mode='RGBA')
-            layer._draw(self, draw)
+            layer.draw(self, draw)
             self._img.alpha_composite(overlay)
 
     def _crop(self):

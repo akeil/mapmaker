@@ -8,48 +8,15 @@ from .render import load_font
 
 # Draw with lat/lon -----------------------------------------------------------
 
+
 class DrawLayer:
     '''A DrawLayer is used to draw elements on the map
     using lat/lon coordinates.
     '''
 
-    def __init__(self, waypoints, points, box, shape, line_color=None,
-        line_width=None, fill_color=None, size=None):
-        self.waypoints = waypoints
-        self.points = points
-        self.box = box
-        self.shape = shape
-        self.line_color = line_color
-        self.line_width = line_width
-        self.fill_color = fill_color
-        self.size = size
-
-    def _draw(self, rc, draw):
+    def draw(self, rc, draw):
         ''''Internal draw method, used by the rendering context.'''
-        self._draw_shape(rc, draw)
-
-    def _draw_shape(self, rc, draw):
-        if not self.shape:
-            return
-
-        xy = [rc.to_pixels(lat, lon) for lat, lon in self.shape]
-        draw.polygon(xy,
-            fill=self.fill_color,
-            outline=self.line_color)
-
-    @classmethod
-    def for_shape(cls, points, color=(0, 0, 0, 255), fill=None):
-        '''Draw a closed shape (polygon) with optional fill.
-
-        ``points`` is a list of coordinate pairs with at least three
-        coordinates.'''
-        if len(points) < 3:
-            raise ValueError('points must be a list with at least three entries')
-
-        return cls(None, None, None, points,
-            line_color=color,
-            fill_color=fill,
-        )
+        raise ValueError('Not implemented')
 
 
 class Track(DrawLayer):
@@ -63,7 +30,7 @@ class Track(DrawLayer):
         self.color = color
         self.width = width
 
-    def _draw(self, rc, draw):
+    def draw(self, rc, draw):
         xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
         draw.line(xy,
             fill=self.color,
@@ -78,7 +45,7 @@ class Marker(DrawLayer):
     ``color`` is the main color used for the outline and the text,
     ``fill`` is the optional fill color.
 
-    USe ``border`` to draw a border around the symbol.
+    Use ``border`` to draw a border around the symbol.
 
     ``size`` controls the size (in pixels) of the waypoint marker.
 
@@ -102,7 +69,7 @@ class Marker(DrawLayer):
         self.border = border
         self.size = size
 
-    def _draw(self, rc, draw):
+    def draw(self, rc, draw):
         x, y = rc.to_pixels(self.lat, self.lon)
 
         # draw the marker
@@ -186,7 +153,7 @@ class Box(DrawLayer):
         self.fill = fill
         self.width = width
 
-    def _draw(self, rc, draw):
+    def draw(self, rc, draw):
         if self.style == Box.BRACKET:
             self._draw_fill(rc, draw)
             self._draw_bracket(rc, draw)
@@ -274,7 +241,7 @@ class Circle(DrawLayer):
         self.width = width
         self.marker = marker
 
-    def _draw(self, rc, draw):
+    def draw(self, rc, draw):
         bbox = _bbox_from_radius(self.lat, self.lon, self.radius)
         xy = [
             rc.to_pixels(bbox.maxlat, bbox.minlon),
@@ -298,6 +265,24 @@ class Circle(DrawLayer):
             fill=self.color,
             outline=self.color,
             width=self.width)
+
+
+class Shape(DrawLayer):
+    '''Draw a polygon defines by a list oif lat/lon pairs.'''
+
+    def __init__(self, points, color=(0, 0, 0, 255), fill=None):
+        if len(points) < 3:
+            raise ValueError('points must be a list with at least three entries')
+
+        self.points = points
+        self.color = color
+        self.fill = fill
+
+    def draw(self, rc, draw):
+        xy = [rc.to_pixels(lat, lon) for lat, lon in self.points]
+        draw.polygon(xy,
+            fill=self.fill,
+            outline=self.color)
 
 
 # TODO: remove?
@@ -335,7 +320,7 @@ class TextLayer:
         self.outline = outline
         self.background = background
 
-    def _draw(self, rc, draw):
+    def draw(self, rc, draw):
         ''''Internal draw method, used by the rendering context.'''
         if not self.text:
             # erly exit
