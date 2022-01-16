@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from .tilemap import TileMap
 from .render import MapBuilder
-from .decorations import Composer
+from .render import Composer
 from .decorations import Cartouche, CompassRose, Frame
 
 
