@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from .tilemap import TileMap
-from .render import RenderContext
+from .render import MapBuilder
 from .decorations import Composer
 from .decorations import Cartouche, CompassRose, Frame
 
@@ -74,7 +74,7 @@ class Map:
         '''
         tiles = TileMap.from_bbox(self.bbox, zoom)
 
-        builder = RenderContext(service, tiles,
+        builder = MapBuilder(service, tiles,
             overlays=self.elements,
             parallel_downloads=parallel_downloads,
             reporter=reporter

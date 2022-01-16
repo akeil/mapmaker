@@ -28,8 +28,6 @@ import appdirs
 APP_NAME = 'mapmaker'
 APP_DESC = 'Create map images from tile servers.'
 
-HILLSHADE = 'hillshading'  # from default.ini
-
 Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
 
 
@@ -97,11 +95,6 @@ def main():
             'Aspect ratio (e.g. "16:9") for the generated map. Extends the'
             ' bounding box to match the given aspect ratio.'
         ),
-    )
-    parser.add_argument(
-        '--shading',
-        action='store_true',
-        help='Add hillshading',
     )
     parser.add_argument(
         '--copyright',
@@ -178,7 +171,6 @@ def main():
                 dst = base.joinpath(style + '.png')
                 try:
                     _run(bbox, args.zoom, dst, style, reporter, conf, args,
-                        hillshading=args.shading,
                         dry_run=args.dry_run,
                     )
                 except Exception as err:
@@ -186,7 +178,6 @@ def main():
                     reporter('ERROR for %r: %s', style, err)
         else:
             _run(bbox, args.zoom, args.dst, args.style, reporter, conf, args,
-                hillshading=args.shading,
                 dry_run=args.dry_run,
             )
     except Exception as err:
@@ -197,8 +188,7 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
-    dry_run=False):
+def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = Map(bbox)
     map.set_background(args.background)
@@ -244,14 +234,6 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         return
 
     img = map.render(service, zoom, parallel_downloads=8, reporter=report)
-
-    # TODO: this will no longer work correctly
-    if hillshading:
-        shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
-        shading = Cache(service, cache_dir, limit=conf.cache_limit)
-        shade = RenderContext(shading, map, reporter=report, parallel_downloads=conf.parallel_downloads).build()
-        img.paste(shade.convert('RGB'), mask=shade)
-
     with open(dst, 'wb') as f:
         img.save(f, format='png')
 

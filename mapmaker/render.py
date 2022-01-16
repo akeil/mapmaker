@@ -12,7 +12,7 @@ from PIL import ImageFont
 DEFAULT_TILESIZE = (256, 256)
 
 
-class RenderContext:
+class MapBuilder:
     '''Renders a map, downloading required tiles on the fly.'''
 
     def __init__(self, service, map, overlays=None, parallel_downloads=None, reporter=None):
