@@ -14,6 +14,7 @@ from PIL import ImageFont
 
 from .geo import decimal
 from .geo import dms
+from .render import load_font
 
 # draw with pixels ------------------------------------------------------------
 
@@ -341,7 +342,7 @@ class Cartouche(Decoration):
         if not self.title or not self.title.strip():
             return 0, 0
 
-        font = _load_font(self.font, self.font_size)
+        font = load_font(self.font, self.font_size)
 
         # TODO: use ImageDraw.textbox() instead?
         w, h = font.getsize(self.title)
@@ -361,7 +362,7 @@ class Cartouche(Decoration):
             return
 
         w, h = size
-        font = _load_font(self.font, self.font_size)
+        font = load_font(self.font, self.font_size)
 
         # adjust margins for proper alignment with frame
         # TODO: this belongs into calc_margin_pos
@@ -458,7 +459,7 @@ class CompassRose(Decoration):
         marker_h = 0
         if self.marker:
             font_size = size[1] // 5
-            font = _load_font(self.font, self.font_size)
+            font = load_font(self.font, self.font_size)
             marker_w, marker_h = font.getsize('N')
             marker_pad = marker_h // 16  # padding between marker and arrowhead
             h -= marker_h
@@ -645,11 +646,3 @@ class Frame:
 
     def __repr__(self):
         return '<Frame width=%r, style=%r>' % (self.width, self.style)
-
-
-def _load_font(font_name, font_size):
-    '''Load the given true type font, return fallback on failure.'''
-    try:
-        return ImageFont.truetype(font=font_name, size=font_size)
-    except OSError:
-        return ImageFont.load_default()
