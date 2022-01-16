@@ -17,6 +17,16 @@ from .geo import dms
 from .render import load_font
 
 
+# Placment locations on the MAP and MARGIN area.
+PLACEMENTS = (
+    'NW', 'NNW', 'N', 'NNE', 'NE',
+    'WNW', 'W', 'WSW',
+    'ENE', 'E', 'ESE',
+    'SW', 'SSW', 'S', 'SSE', 'SE',
+    'C',
+)
+
+
 class Decoration:
     '''Base class for decorations.
 
