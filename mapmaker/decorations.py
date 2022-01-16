@@ -1,346 +1,20 @@
+'''Decorations are graphic elements that are painted over and around the map
+content, for example a title or a legend.
+
+Decorations are placed using pixel coordinates.
+'''
+
+
 from collections import defaultdict
+from math import floor
 
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
-# draw with pixels ------------------------------------------------------------
-
-# Placment locations on the MAP and MARGIN area.
-PLACEMENTS = (
-    'NW', 'NNW', 'N', 'NNE', 'NE',
-    'WNW', 'W', 'WSW',
-    'ENE', 'E', 'ESE',
-    'SW', 'SSW', 'S', 'SSE', 'SE',
-    'C',
-)
-_NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
-_SOUTHERN = ('SW', 'SSW', 'S', 'SSE', 'SE')
-_WESTERN = ('NW', 'WNW', 'W', 'WSW', 'SW')
-_EASTERN = ('NE', 'ENE', 'E', 'ESE', 'SE')
-
-class Composer:
-    '''Compose a fully-fledged map with additional elements into an image.
-
-    The ``add_xxx`` methods add decorations (e.g. title or compass rose) to the
-    map.
-    Decorations can be placed on the ``MAP`` area or on the ``MARGIN`` area
-    beside the map.
-
-    Within each area, decorations are placed in predefined slots::
-
-        +------------------------------+
-        |                              |
-        |  NW      NNW  N  NNE    NE   |
-        |       +--------------+       |
-        |  WNW  |  NW   N  NE  |  ENE  |
-        |       |              |       |
-        |  W    |  W    C  E   |  E    |
-        |       |              |       |
-        |  WSW  |  SW   S  SE  |  ESE  |
-        |       +--------------+       |
-        |  SW      SSW  S  SSE    SE   |
-        |                              |
-        +------------------------------+
-
-    There are 9 slots within the MAP and 12 slots on the MARGIN.
-    '''
-
-    MAP = 'MAP'
-    MARGIN = 'MARGIN'
-
-    _SLOTS = {
-        'MAP': (
-            'NW', 'N', 'NE',
-            'W', 'C', 'E',
-            'SW', 'S', 'SE',
-        ),
-        'MARGIN': (
-            'NW', 'NNW', 'N', 'NNE', 'NE',
-            'WNW', 'W', 'WSW',
-            'ENE', 'E', 'ESE',
-            'SW', 'SSW', 'S', 'SSE', 'SE',
-        ),
-    }
-
-    def __init__(self, rc):
-        self._rc = rc
-        self._margins = (0, 0, 0, 0)
-        self._frame = None
-        self._decorations = defaultdict(list)
-        self.background = (255, 255, 255, 255)
-
-    def build(self):
-        '''Create the map image including decorations.'''
-        map_img = self._rc.build()
-
-        map_w, map_h, = map_img.size
-        top, right, bottom, left = self._calc_margins((map_w, map_h))
-        w = left + map_w + right
-        h = top + map_h + bottom
-
-        map_top = top
-        map_left = left
-        if self._frame:
-            map_top += self._frame.width
-            map_left += self._frame.width
-            w += 2 * self._frame.width
-            h += 2 * self._frame.width
-
-
-        base = Image.new('RGBA', (w, h), color=self.background)
-
-        # add the map content
-        map_box = (map_left, map_top, map_left + map_w, map_top + map_h)
-        print('Map size:  ', map_w, map_h)
-        print('Margins:   ', top, right, bottom, left)
-        print('Frame:     ', self._frame.width if self._frame else 0)
-        print('Image size:', w, h)
-        print('Map Box:   ', map_box)
-        base.paste(map_img, map_box)
-
-
-        # add frame around the map
-        frame_box = map_box
-        if self._frame:
-            frame_w = map_w + 2 * self._frame.width
-            frame_h = map_h + 2 *self._frame.width
-            frame_size = (frame_w, frame_h)
-            frame_box = (left, top, left+frame_w, top + frame_h)
-
-            frame_img = Image.new('RGBA', frame_size, color=(0, 0, 0, 0))
-            draw = ImageDraw.Draw(frame_img, mode='RGBA')
-            self._frame.draw(self._rc, draw, frame_size)
-            base.alpha_composite(frame_img, dest=(left, top))
-
-        for area in ('MAP', 'MARGIN'):
-            for deco in self._decorations[area]:
-                deco_size = deco.calc_size((map_w, map_h))
-                deco_pos = None
-                if area == 'MAP':
-                    deco_pos = self._calc_map_pos(deco.placement, map_box, deco_size)
-                elif area == 'MARGIN':
-                    deco_pos = self._calc_margin_pos(deco.placement, (w, h), frame_box, deco_size)
-
-                deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
-                draw = ImageDraw.Draw(deco_img, mode='RGBA')
-                deco.draw(draw, deco_size)
-
-                base.alpha_composite(deco_img, dest=deco_pos)
-
-        return base
-
-    def _calc_margins(self, map_size):
-        '''Calculate the margins, including the space required for decorations.
-        '''
-        # TODO: optio to keep left and right margins the same size
-
-        top, right, bottom, left = 0, 0, 0, 0
-
-        for deco in self._decorations['MARGIN']:
-            w, h = deco.calc_size(map_size)
-            if deco.placement in _NORTHERN:
-                top = max(h, top)
-            elif deco.placement in _SOUTHERN:
-                bottom = max(h, bottom)
-
-            if deco.placement in _WESTERN:
-                left = max(w, left)
-            elif deco.placement in _EASTERN:
-                right = max(w, right)
-
-        m = self._margins
-        return top + m[0], right + m[1], bottom + m[2], left + m[3]
-
-    def _calc_margin_pos(self, placement, img_size, frame_box, deco_size):
-        '''Determine the top-left placement for a decoration.'''
-        total_w, total_h = img_size
-        deco_w, deco_h = deco_size
-        frame_left, frame_top, frame_right, frame_bottom = frame_box
-        top, right, bottom, left = self._margins
-
-        x, y = None, None
-
-        # top area: y is top margin
-        if placement in _NORTHERN:
-            # align bottom edge of decoration with top of map/frame
-            y = frame_top - deco_h
-        elif placement in _SOUTHERN:
-            # align top edge of decoration with bottom edge of map/frame
-            y = frame_bottom
-        elif placement in ('WNW', 'ENE'):
-            # align top edge of decoration with top of map/frame
-            y = frame_top
-        elif placement in ('W', 'E'):
-            # W, E. center vertically
-            y = total_h // 2 - deco_h // 2
-        elif placement in ('WSW', 'ESE'):
-            # align bottom edge of decoration with bottom of map/frame
-            y = frame_bottom - deco_h
-        else:
-            raise ValueError('invalid placement %r' % placement)
-
-        if placement in _WESTERN:
-            # align right edge of decoration with left edge of frame
-            x = frame_left - deco_w
-        elif placement in _EASTERN:
-            # align left edge of decoration with right edge of frame
-            x = frame_right
-        elif placement in ('NNW', 'SSW'):
-            # align left edge of decoration with left edge of frame
-            x = frame_left
-        elif placement in ('N', 'S'):
-            # center horizontally
-            x = total_w // 2 - deco_w // 2
-        elif placement in ('NNE', 'SSE'):
-            # align right edge of decoration with right edge of frame
-            x = frame_right - deco_w
-        else:
-            raise ValueError('invalid placement %r' % placement)
-
-        return x, y
-
-    def _calc_map_pos(self, placement, map_box, deco_size):
-        '''Calculate the top-left placement for a decoration within the map
-        content.
-        The position referes to the map image.
-        '''
-        map_left, map_top, map_right, map_bottom = map_box
-        map_w = map_right - map_left
-        map_h = map_bottom - map_top
-        deco_w, deco_h = deco_size
-
-        x, y = None, None
-
-        if placement in ('NW', 'N', 'NE'):
-            # align top of decoration wit htop of map
-            y = map_top
-        elif placement in ('W', 'C', 'E'):
-            # center vertically
-            y = map_top + map_h // 2 - deco_h // 2
-        elif placement in ('SW', 'S', 'SE'):
-            # align bottom of decoration to bottom of map
-            y = map_bottom - deco_h
-        else:
-            raise ValueError('invalid placement %r' % placement)
-
-        if placement in ('NW', 'W', 'SW'):
-            # align left edge of decortation with left edge of map
-            x = map_left
-        elif placement in ('N', 'C', 'S'):
-            # center vertically
-            x = map_left + map_w // 2 - deco_w // 2
-        elif placement in ('NE', 'E', 'SE'):
-            # align right edges
-            x = map_right - deco_w
-        else:
-            raise ValueError('invalid placement %r' % placement)
-
-        return x, y
-
-    def add_decoration(self, area, decoration):
-        '''Add a decoration to the given map area.
-
-        ``area is one of ``MAP`` or ``MARGIN``,
-        ``decoration`` must be a subclass of ``Decoration``.
-
-        The decoration must specify its *placement* slot and the slot must be
-        valid for the selected *area*.
-        '''
-        try:
-            if decoration.placement not in self._SLOTS[area]:
-                raise ValueError('invalid area/placement %r' % area)
-        except (KeyError, AttributeError):
-            raise ValueError('invalid area/placement %r' % area)
-
-        # TODO validate decoration.placement w/ placements for area
-        self._decorations[area].append(decoration)
-
-    def add_title(self, text, area='MARGIN', placement='N',
-        color=(0, 0, 0, 255),
-        font_size=16,
-        background=None,
-        border_width=0,
-        border_color=None):
-        '''Add a title to the map.
-
-        The title can be surrounded by a box with border and background.
-        '''
-        self.add_decoration(area, Cartouche(text,
-            placement=placement,
-            color=color,
-            background=background,
-            border_width=border_width,
-            border_color=border_color,
-            font_size=font_size,
-        ))
-
-    def add_comment(self, text, area='MARGIN', placement='SSE',
-        color=(0, 0, 0, 255),
-        background=None,
-        font_size=12,
-        border_width=0,
-        border_color=None):
-        '''Add a comment to the map.'''
-        self.add_decoration(area, Cartouche(text,
-            placement=placement,
-            color=color,
-            background=background,
-            border_width=border_width,
-            border_color=border_color,
-            font_size=font_size,
-        ))
-
-    def add_scale(self):
-        deco = Scale()
-
-    def add_compass_rose(self, area='MAP', placement='SE',
-        color=(0, 0, 0, 255),
-        outline=None,
-        marker=False):
-        '''Add a compass rose to the map.'''
-        self.add_decoration(area, CompassRose(
-            placement=placement,
-            color=color,
-            outline=outline,
-            marker=marker,
-        ))
-
-    def set_margin(self, top=0, right=0, bottom=0, left=0):
-        '''Set the size of the margin, that is the white space around the
-        mapped content.
-        Note that the margin will be extended automatically if a decoration is
-        placed on the MARGIN area.
-        '''
-        if top < 0 or right < 0 or bottom < 0 or left < 0:
-            raise ValueError('margin must not be negative')
-
-        self._margins = (top, right, bottom, left)
-
-    def set_background(self, color):
-        '''Set the background color for the map (margin area).
-        The color is an RGBA tuple.'''
-        self.background = color
-
-    def set_frame(self, width=5, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
-        '''Draw a border around the mapped content
-        (between MAP area and MARGIN).
-
-        Set the width to ``0`` to remove the frame.
-        '''
-        # coordinate markers
-        # coordinate labels
-        if width < 0:
-            raise ValueError('frame width must not be negative')
-        elif width == 0:
-            self._frame = None
-        else:
-            self._frame = Frame(
-                width=width,
-                color=color,
-                alt_color=alt_color,
-                style=style
-            )
+from .geo import decimal
+from .geo import dms
+from .render import load_font
 
 
 class Decoration:
@@ -350,7 +24,6 @@ class Decoration:
     '''
 
     def __init__(self, placement):
-        # TODO: validate pos
         self.placement = placement
         self.margin = (4, 4, 4, 4)
 
@@ -454,7 +127,7 @@ class Cartouche(Decoration):
         if not self.title or not self.title.strip():
             return 0, 0
 
-        font = _load_font(self.font, self.font_size)
+        font = load_font(self.font, self.font_size)
 
         # TODO: use ImageDraw.textbox() instead?
         w, h = font.getsize(self.title)
@@ -474,7 +147,7 @@ class Cartouche(Decoration):
             return
 
         w, h = size
-        font = _load_font(self.font, self.font_size)
+        font = load_font(self.font, self.font_size)
 
         # adjust margins for proper alignment with frame
         # TODO: this belongs into calc_margin_pos
@@ -571,7 +244,7 @@ class CompassRose(Decoration):
         marker_h = 0
         if self.marker:
             font_size = size[1] // 5
-            font = _load_font(self.font, self.font_size)
+            font = load_font(self.font, self.font_size)
             marker_w, marker_h = font.getsize('N')
             marker_pad = marker_h // 16  # padding between marker and arrowhead
             h -= marker_h
@@ -758,11 +431,3 @@ class Frame:
 
     def __repr__(self):
         return '<Frame width=%r, style=%r>' % (self.width, self.style)
-
-
-def _load_font(font_name, font_size):
-    '''Load the given true type font, return fallback on failure.'''
-    try:
-        return ImageFont.truetype(font=font_name, size=font_size)
-    except OSError:
-        return ImageFont.load_default()

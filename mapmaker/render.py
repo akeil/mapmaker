@@ -5,14 +5,22 @@ import threading
 
 from PIL import Image
 from PIL import ImageDraw
+from PIL import ImageFont
 
 
 # Most (all?) services will return tiles this size
 DEFAULT_TILESIZE = (256, 256)
 
 
-class RenderContext:
-    '''Renders a map, downloading required tiles on the fly.'''
+class MapBuilder:
+    '''Renders map content, downloading required tiles on the fly.
+
+    ``service`` is an instance of ``TileService`` and is used to obtain the map
+    tiles.
+    ``map`` is a ``TileMap`` which describes the mapped area.
+
+    Optional ``overlay`` is a list of map elements.
+    '''
 
     def __init__(self, service, map, overlays=None, parallel_downloads=None, reporter=None):
         self._service = service
@@ -20,6 +28,7 @@ class RenderContext:
         self._overlays = overlays or []
         self._parallel_downloads = parallel_downloads or 1
         self._report = reporter or _no_reporter
+        # State that is created during `build()`
         self._queue = queue.Queue()
         self._lock = threading.Lock()
         # will be set to the actual size once the first tile is downloaded
@@ -50,29 +59,6 @@ class RenderContext:
         '''The maps bounding box coordinates.'''
         return self._map.bbox
 
-    def build(self):
-        '''Download tiles on the fly and render them into an image.'''
-        # fill the task queue
-        for tile in self._map.tiles.values():
-            self._queue.put(tile)
-
-        self._total_tiles = self._queue.qsize()
-        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
-
-        # start parallel downloads
-        for w in range(self._parallel_downloads):
-            threading.Thread(daemon=True, target=self._work).run()
-
-        self._queue.join()
-
-        self._report('Download complete, create map image')
-
-        if self._overlays:
-            self._report('Draw %d overlays', len(self._overlays))
-            self._draw_overlays()
-
-        self._crop()
-        return self._img
 
     def to_pixels(self, lat, lon):
         '''Convert the given lat,lon coordinates to pixels on the map image.
@@ -88,6 +74,20 @@ class RenderContext:
 
         return px(frac_x * w), px(frac_y * h)
 
+    def build(self):
+        '''Download tiles on the fly and render them into a PIL image.'''
+        # fill the task queue
+        self._stitch()
+
+        self._report('Download complete, create map image')
+
+        if self._overlays:
+            self._report('Draw %d overlays', len(self._overlays))
+            self._draw_overlays()
+
+        self._crop()
+        return self._img
+
     def _draw_overlays(self):
         '''Draw overlay layers on the map image.'''
         # For transparent overlays, we cannot paint directly on the image.
@@ -95,12 +95,26 @@ class RenderContext:
         for layer in self._overlays:
             overlay = Image.new('RGBA', self._img.size, color=(0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay, mode='RGBA')
-            layer._draw(self, draw)
+            layer.draw(self, draw)
             self._img.alpha_composite(overlay)
 
     def _crop(self):
         '''Crop the map image to the bounding box.'''
         self._img = self._img.crop(self.crop_box)
+
+    def _stitch(self):
+        '''Fetch map tiles and combine them to a single map image.'''
+        for tile in self._map.tiles.values():
+            self._queue.put(tile)
+
+        self._total_tiles = self._queue.qsize()
+        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
+
+        # start parallel downloads
+        for w in range(self._parallel_downloads):
+            threading.Thread(daemon=True, target=self._work).run()
+
+        self._queue.join()
 
     def _work(self):
         '''Download map tiles and paste them onto the result image.'''
@@ -135,5 +149,228 @@ class RenderContext:
         self._img.paste(tile_img, box)
 
 
+# placement slots on the map MARGIN
+_NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
+_SOUTHERN = ('SW', 'SSW', 'S', 'SSE', 'SE')
+_WESTERN = ('NW', 'WNW', 'W', 'WSW', 'SW')
+_EASTERN = ('NE', 'ENE', 'E', 'ESE', 'SE')
+
+
+class Composer:
+    '''Builds a fully-fledged map with additional decorations into an image.
+
+    The ``add_xxx`` methods add decorations (e.g. title or compass rose) to the
+    map.
+    Decorations can be placed on the ``MAP`` area or on the ``MARGIN`` area
+    beside the map.
+
+    Within each area, decorations are placed in predefined slots::
+
+        +------------------------------+
+        |                              |
+        |  NW      NNW  N  NNE    NE   |
+        |       +--------------+       |
+        |  WNW  |  NW   N  NE  |  ENE  |
+        |       |              |       |
+        |  W    |  W    C  E   |  E    |
+        |       |              |       |
+        |  WSW  |  SW   S  SE  |  ESE  |
+        |       +--------------+       |
+        |  SW      SSW  S  SSE    SE   |
+        |                              |
+        +------------------------------+
+
+    There are 9 slots within the MAP and 12 slots on the MARGIN.
+    '''
+
+    def __init__(self, map_builder,
+        margin=None,
+        frame=None,
+        decorations=None,
+        background=None):
+        '''Set up a decorated map based on the given ``MapBuilder`` with added
+        ``frame`` around the map, additional whitespace ``margin`` and a
+        ``background`` color.
+
+        Decorations can be specified using a dict with entries for ``MAP``
+        and ``MARGIN`` and lists with decorations for each placement area.
+        '''
+        self._map_builder = map_builder
+        self._margins = margin or (0, 0, 0, 0)
+        self._frame = frame
+        self._decorations = decorations or defaultdict(list)
+        self._background = background or (255, 255, 255, 255)
+
+    def build(self):
+        '''Create the map image including decorations.'''
+        map_img = self._map_builder.build()
+
+        map_w, map_h, = map_img.size
+        top, right, bottom, left = self._calc_margins((map_w, map_h))
+        w = left + map_w + right
+        h = top + map_h + bottom
+
+        map_top = top
+        map_left = left
+        if self._frame:
+            map_top += self._frame.width
+            map_left += self._frame.width
+            w += 2 * self._frame.width
+            h += 2 * self._frame.width
+
+        base = Image.new('RGBA', (w, h), color=self._background)
+
+        # add the map content
+        map_box = (map_left, map_top, map_left + map_w, map_top + map_h)
+        base.paste(map_img, map_box)
+
+        # add frame around the map
+        frame_box = map_box
+        if self._frame:
+            frame_w = map_w + 2 * self._frame.width
+            frame_h = map_h + 2 *self._frame.width
+            frame_size = (frame_w, frame_h)
+            frame_box = (left, top, left+frame_w, top + frame_h)
+
+            frame_img = Image.new('RGBA', frame_size, color=(0, 0, 0, 0))
+            draw = ImageDraw.Draw(frame_img, mode='RGBA')
+            self._frame.draw(self._map_builder, draw, frame_size)
+            base.alpha_composite(frame_img, dest=(left, top))
+
+        # add decorations for different areas
+        for area in ('MAP', 'MARGIN'):
+            for deco in self._decorations[area]:
+                deco_size = deco.calc_size((map_w, map_h))
+                deco_pos = None
+                if area == 'MAP':
+                    deco_pos = self._calc_map_pos(deco.placement, map_box, deco_size)
+                elif area == 'MARGIN':
+                    deco_pos = self._calc_margin_pos(deco.placement, (w, h), frame_box, deco_size)
+
+                deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
+                draw = ImageDraw.Draw(deco_img, mode='RGBA')
+                deco.draw(draw, deco_size)
+
+                base.alpha_composite(deco_img, dest=deco_pos)
+
+        return base
+
+    def _calc_margins(self, map_size):
+        '''Calculate the margins, including the space required for decorations.
+        '''
+        # TODO: optio to keep left and right margins the same size
+
+        top, right, bottom, left = 0, 0, 0, 0
+
+        for deco in self._decorations['MARGIN']:
+            w, h = deco.calc_size(map_size)
+            if deco.placement in _NORTHERN:
+                top = max(h, top)
+            elif deco.placement in _SOUTHERN:
+                bottom = max(h, bottom)
+
+            if deco.placement in _WESTERN:
+                left = max(w, left)
+            elif deco.placement in _EASTERN:
+                right = max(w, right)
+
+        m = self._margins
+        return top + m[0], right + m[1], bottom + m[2], left + m[3]
+
+    def _calc_margin_pos(self, placement, img_size, frame_box, deco_size):
+        '''Determine the top-left placement for a decoration.'''
+        total_w, total_h = img_size
+        deco_w, deco_h = deco_size
+        frame_left, frame_top, frame_right, frame_bottom = frame_box
+        top, right, bottom, left = self._margins
+
+        x, y = None, None
+
+        # top area: y is top margin
+        if placement in _NORTHERN:
+            # align bottom edge of decoration with top of map/frame
+            y = frame_top - deco_h
+        elif placement in _SOUTHERN:
+            # align top edge of decoration with bottom edge of map/frame
+            y = frame_bottom
+        elif placement in ('WNW', 'ENE'):
+            # align top edge of decoration with top of map/frame
+            y = frame_top
+        elif placement in ('W', 'E'):
+            # W, E. center vertically
+            y = total_h // 2 - deco_h // 2
+        elif placement in ('WSW', 'ESE'):
+            # align bottom edge of decoration with bottom of map/frame
+            y = frame_bottom - deco_h
+        else:
+            raise ValueError('invalid placement %r' % placement)
+
+        if placement in _WESTERN:
+            # align right edge of decoration with left edge of frame
+            x = frame_left - deco_w
+        elif placement in _EASTERN:
+            # align left edge of decoration with right edge of frame
+            x = frame_right
+        elif placement in ('NNW', 'SSW'):
+            # align left edge of decoration with left edge of frame
+            x = frame_left
+        elif placement in ('N', 'S'):
+            # center horizontally
+            x = total_w // 2 - deco_w // 2
+        elif placement in ('NNE', 'SSE'):
+            # align right edge of decoration with right edge of frame
+            x = frame_right - deco_w
+        else:
+            raise ValueError('invalid placement %r' % placement)
+
+        return x, y
+
+    def _calc_map_pos(self, placement, map_box, deco_size):
+        '''Calculate the top-left placement for a decoration within the map
+        content.
+        The position referes to the map image.
+        '''
+        map_left, map_top, map_right, map_bottom = map_box
+        map_w = map_right - map_left
+        map_h = map_bottom - map_top
+        deco_w, deco_h = deco_size
+
+        x, y = None, None
+
+        if placement in ('NW', 'N', 'NE'):
+            # align top of decoration wit htop of map
+            y = map_top
+        elif placement in ('W', 'C', 'E'):
+            # center vertically
+            y = map_top + map_h // 2 - deco_h // 2
+        elif placement in ('SW', 'S', 'SE'):
+            # align bottom of decoration to bottom of map
+            y = map_bottom - deco_h
+        else:
+            raise ValueError('invalid placement %r' % placement)
+
+        if placement in ('NW', 'W', 'SW'):
+            # align left edge of decortation with left edge of map
+            x = map_left
+        elif placement in ('N', 'C', 'S'):
+            # center vertically
+            x = map_left + map_w // 2 - deco_w // 2
+        elif placement in ('NE', 'E', 'SE'):
+            # align right edges
+            x = map_right - deco_w
+        else:
+            raise ValueError('invalid placement %r' % placement)
+
+        return x, y
+
+
 def _no_reporter(*args):
     pass
+
+
+def load_font(font_name, font_size):
+    '''Load the given true type font, return fallback on failure.'''
+    try:
+        return ImageFont.truetype(font=font_name, size=font_size)
+    except OSError:
+        return ImageFont.load_default()

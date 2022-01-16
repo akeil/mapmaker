@@ -2,13 +2,12 @@ import argparse
 import unittest
 from unittest import TestCase
 
-from mapmaker.parse import aspect
 from mapmaker.geo import BBox
+from mapmaker import parse
 from mapmaker.parse import BBoxAction
 from mapmaker.parse import FrameAction
 from mapmaker.parse import MarginAction
 from mapmaker.parse import TextAction
-from mapmaker.parse import parse_color
 from mapmaker.parse import _parse_coordinates
 from mapmaker.parse import _parse_placement
 
@@ -73,7 +72,7 @@ class TestParseCoordinates(_ParseTest):
 
 class TestParseColor(_ParseTest):
 
-    parse_func = parse_color
+    parse_func = parse.color
     fail = (
         None,
         '',
@@ -131,7 +130,7 @@ class TestParsePlacement(_ParseTest):
 
 
 class TestParseAspect(_ParseTest):
-    parse_func = aspect
+    parse_func = parse.aspect
     places = 4
     fail = (
         '',

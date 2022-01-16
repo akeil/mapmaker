@@ -1,5 +1,7 @@
 #!/bin/python
-'''The command line interface for mampmaker.'''
+'''The command line interface for mapmaker.'''
+
+
 import argparse
 from collections import namedtuple
 import configparser
@@ -10,26 +12,21 @@ import sys
 
 from . import __author__
 from . import __version__
-from .decorations import Composer
+from .core import Map
 from .geo import distance
-from .parse import aspect
-from .parse import parse_color
+from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
 from .parse import MarginAction
 from .parse import TextAction
 from .service import Cache
 from .service import TileService
-from .render import RenderContext
-from .tilemap import TileMap
 
 import appdirs
 
 
 APP_NAME = 'mapmaker'
 APP_DESC = 'Create map images from tile servers.'
-
-HILLSHADE = 'hillshading'  # from default.ini
 
 Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
 
@@ -92,17 +89,12 @@ def main():
     )
     parser.add_argument(
         '-a', '--aspect',
-        type=aspect,
+        type=parse.aspect,
         default=1.0,
         help=(
             'Aspect ratio (e.g. "16:9") for the generated map. Extends the'
             ' bounding box to match the given aspect ratio.'
         ),
-    )
-    parser.add_argument(
-        '--shading',
-        action='store_true',
-        help='Add hillshading',
     )
     parser.add_argument(
         '--copyright',
@@ -128,7 +120,7 @@ def main():
     )
     parser.add_argument(
         '--background',
-        type=parse_color,
+        type=parse.color,
         metavar='RGBA',
         default=(255, 255, 255, 255),
         help='Background color for map margin (default: white)'
@@ -179,7 +171,6 @@ def main():
                 dst = base.joinpath(style + '.png')
                 try:
                     _run(bbox, args.zoom, dst, style, reporter, conf, args,
-                        hillshading=args.shading,
                         dry_run=args.dry_run,
                     )
                 except Exception as err:
@@ -187,7 +178,6 @@ def main():
                     reporter('ERROR for %r: %s', style, err)
         else:
             _run(bbox, args.zoom, args.dst, args.style, reporter, conf, args,
-                hillshading=args.shading,
                 dry_run=args.dry_run,
             )
     except Exception as err:
@@ -198,35 +188,21 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
-    dry_run=False):
+def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
-    map = TileMap.from_bbox(bbox, zoom)
-
-    service = TileService(style, conf.urls[style], conf.keys)
-    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-    service = Cache(service, cache_dir, limit=conf.cache_limit)
-
-    rc = RenderContext(service, map,
-        reporter=report,
-        parallel_downloads=8)
-
-    _show_info(report, service, map, rc)
-
-    decorated = Composer(rc)
-    decorated.set_background(args.background)
-    decorated.set_margin(*args.margin)
+    map = Map(bbox)
+    map.set_background(args.background)
+    map.set_margin(*args.margin)
     if args.frame:
-        width, color, alt_color, style = args.frame
-        decorated.set_frame(
-            width=width or 5,
-            color=color or (0, 0, 0, 255),
-            alt_color=alt_color or (255, 255, 255, 255),
-            style=style or 'solid'
+        map.set_frame(
+            width=args.frame.width or 5,
+            color=args.frame.color or (0, 0, 0, 255),
+            alt_color=args.frame.alt_color or (255, 255, 255, 255),
+            style=args.frame.style or 'solid'
         )
     if args.title:
         placement, border, color, bg_color, text = args.title
-        decorated.add_title(
+        map.add_title(
             text,
             placement=placement or 'N',
             color=color or (0, 0, 0, 255),
@@ -236,7 +212,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         )
     if args.comment:
         placement, border, color, bg_color, text = args.comment
-        decorated.add_comment(
+        map.add_comment(
             text,
             placement=placement or 'SSE',
             color=color or (0, 0, 0, 255),
@@ -246,20 +222,18 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         )
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)
-        decorated.add_comment(copyright, placement='ENE', font_size=8)
+        map.add_comment(copyright, placement='ENE', font_size=8)
     if args.compass:
-        decorated.add_compass_rose()
+        map.add_compass_rose()
+
+    service = TileService(style, conf.urls[style], conf.keys)
+    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
+    service = Cache(service, cache_dir, limit=conf.cache_limit)
 
     if dry_run:
         return
-    img = decorated.build()
 
-    if hillshading:
-        shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
-        shading = Cache(service, cache_dir, limit=conf.cache_limit)
-        shade = RenderContext(shading, map, reporter=report, parallel_downloads=conf.parallel_downloads).build()
-        img.paste(shade.convert('RGB'), mask=shade)
-
+    img = map.render(service, zoom, parallel_downloads=8, reporter=report)
     with open(dst, 'wb') as f:
         img.save(f, format='png')
 
