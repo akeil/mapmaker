@@ -1,2 +1,2 @@
-__version__ = '1.4.0dev5'
+__version__ = '1.4.0dev6'
 __author__ = 'akeil'

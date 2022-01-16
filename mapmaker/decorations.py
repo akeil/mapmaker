@@ -11,6 +11,7 @@ from .geo import dms
 # draw with pixels ------------------------------------------------------------
 
 # Placment locations on the MAP and MARGIN area.
+# TODO: not used(?)
 PLACEMENTS = (
     'NW', 'NNW', 'N', 'NNE', 'NE',
     'WNW', 'W', 'WSW',
@@ -18,10 +19,12 @@ PLACEMENTS = (
     'SW', 'SSW', 'S', 'SSE', 'SE',
     'C',
 )
+# placement slots on the map MARGIN
 _NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
 _SOUTHERN = ('SW', 'SSW', 'S', 'SSE', 'SE')
 _WESTERN = ('NW', 'WNW', 'W', 'WSW', 'SW')
 _EASTERN = ('NE', 'ENE', 'E', 'ESE', 'SE')
+
 
 class Composer:
     '''Compose a fully-fledged map with additional elements into an image.
@@ -50,29 +53,12 @@ class Composer:
     There are 9 slots within the MAP and 12 slots on the MARGIN.
     '''
 
-    MAP = 'MAP'
-    MARGIN = 'MARGIN'
-
-    _SLOTS = {
-        'MAP': (
-            'NW', 'N', 'NE',
-            'W', 'C', 'E',
-            'SW', 'S', 'SE',
-        ),
-        'MARGIN': (
-            'NW', 'NNW', 'N', 'NNE', 'NE',
-            'WNW', 'W', 'WSW',
-            'ENE', 'E', 'ESE',
-            'SW', 'SSW', 'S', 'SSE', 'SE',
-        ),
-    }
-
-    def __init__(self, rc):
+    def __init__(self, rc, margin=None, frame=None, decorations=None, background=None):
         self._rc = rc
-        self._margins = (0, 0, 0, 0)
-        self._frame = None
-        self._decorations = defaultdict(list)
-        self.background = (255, 255, 255, 255)
+        self._margins = margin or (0, 0, 0, 0)
+        self._frame = frame
+        self._decorations = decorations or defaultdict(list)
+        self._background = background or (255, 255, 255, 255)
 
     def build(self):
         '''Create the map image including decorations.'''
@@ -91,7 +77,7 @@ class Composer:
             w += 2 * self._frame.width
             h += 2 * self._frame.width
 
-        base = Image.new('RGBA', (w, h), color=self.background)
+        base = Image.new('RGBA', (w, h), color=self._background)
 
         # add the map content
         map_box = (map_left, map_top, map_left + map_w, map_top + map_h)
@@ -235,142 +221,6 @@ class Composer:
             raise ValueError('invalid placement %r' % placement)
 
         return x, y
-
-    def add_decoration(self, area, decoration):
-        '''Add a decoration to the given map area.
-
-        ``area is one of ``MAP`` or ``MARGIN``,
-        ``decoration`` must be a subclass of ``Decoration``.
-
-        The decoration must specify its *placement* slot and the slot must be
-        valid for the selected *area*.
-        '''
-        try:
-            if decoration.placement not in self._SLOTS[area]:
-                raise ValueError('invalid area/placement %r' % area)
-        except (KeyError, AttributeError):
-            raise ValueError('invalid area/placement %r' % area)
-
-        # TODO validate decoration.placement w/ placements for area
-        self._decorations[area].append(decoration)
-
-    def add_title(self, text, area='MARGIN', placement='N',
-        color=(0, 0, 0, 255),
-        font_size=16,
-        background=None,
-        border_width=0,
-        border_color=None):
-        '''Add a title to the map.
-
-        The title can be surrounded by a box with border and background.
-        '''
-        self.add_decoration(area, Cartouche(text,
-            placement=placement,
-            color=color,
-            background=background,
-            border_width=border_width,
-            border_color=border_color,
-            font_size=font_size,
-        ))
-
-    def add_comment(self, text, area='MARGIN', placement='SSE',
-        color=(0, 0, 0, 255),
-        background=None,
-        font_size=12,
-        border_width=0,
-        border_color=None):
-        '''Add a comment to the map.'''
-        self.add_decoration(area, Cartouche(text,
-            placement=placement,
-            color=color,
-            background=background,
-            border_width=border_width,
-            border_color=border_color,
-            font_size=font_size,
-        ))
-
-    def add_scale(self):
-        deco = Scale()
-
-    def add_compass_rose(self, area='MAP', placement='SE',
-        color=(0, 0, 0, 255),
-        outline=None,
-        marker=False):
-        '''Add a compass rose to the map.'''
-        self.add_decoration(area, CompassRose(
-            placement=placement,
-            color=color,
-            outline=outline,
-            marker=marker,
-        ))
-
-    def set_margin(self, *args):
-        '''Set the size of the margin, that is the white space around the
-        mapped content.
-        Note that the margin will be extended automatically if a decoration is
-        placed on the MARGIN area.
-        '''
-        if len(args) == 1 and args[0] is None:
-            self._margins = None
-            return
-
-        # unpack tuple
-        if len(args) == 1:
-            if isinstance(args[0], tuple) or isinstance(args[0], list):
-                return self.set_margin(*args[0])
-
-        # single value, vertical/horizontal or clockwise
-        if len(args) == 1:
-            val = args[0]
-            m = (val, val, val, val)
-        elif len(args) == 2:
-            v, h = args
-            m = (v, h, v, h)
-        elif len(args) == 4:
-            m = args
-        else:
-            raise ValueError('invalid number of arguments, expected 1, 2 or 4 args')
-
-        # force type error and rounding
-        m = tuple(int(x) for x in m)
-
-        for x in m:
-            if x < 0:
-                raise ValueError('margin must not be negative')
-
-        self._margins = m
-
-    def set_background(self, *args):
-        '''Set the background color for the map (margin area).
-        The color is an RGBA tuple.'''
-        if len(args) == 1:
-            self.background = args[0]
-        elif len(args) == 3:
-            self.background = (args[0], args[1], args[2], 255)
-        elif len(args) == 4:
-            self.background = args
-        else:
-            raise ValueError('invalid number of arguments, expected 1, 3 or 4 args')
-
-    def set_frame(self, width=5, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
-        '''Draw a border around the mapped content
-        (between MAP area and MARGIN).
-
-        Set the width to ``0`` to remove the frame.
-        '''
-        # coordinate markers
-        # coordinate labels
-        if width < 0:
-            raise ValueError('frame width must not be negative')
-        elif width == 0:
-            self._frame = None
-        else:
-            self._frame = Frame(
-                width=width,
-                color=color,
-                alt_color=alt_color,
-                style=style
-            )
 
 
 class Decoration:

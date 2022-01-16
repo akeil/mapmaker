@@ -21,6 +21,7 @@ class RenderContext:
         self._overlays = overlays or []
         self._parallel_downloads = parallel_downloads or 1
         self._report = reporter or _no_reporter
+        # State that is created during `build()`
         self._queue = queue.Queue()
         self._lock = threading.Lock()
         # will be set to the actual size once the first tile is downloaded
@@ -51,29 +52,6 @@ class RenderContext:
         '''The maps bounding box coordinates.'''
         return self._map.bbox
 
-    def build(self):
-        '''Download tiles on the fly and render them into a PIL image.'''
-        # fill the task queue
-        for tile in self._map.tiles.values():
-            self._queue.put(tile)
-
-        self._total_tiles = self._queue.qsize()
-        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
-
-        # start parallel downloads
-        for w in range(self._parallel_downloads):
-            threading.Thread(daemon=True, target=self._work).run()
-
-        self._queue.join()
-
-        self._report('Download complete, create map image')
-
-        if self._overlays:
-            self._report('Draw %d overlays', len(self._overlays))
-            self._draw_overlays()
-
-        self._crop()
-        return self._img
 
     def to_pixels(self, lat, lon):
         '''Convert the given lat,lon coordinates to pixels on the map image.
@@ -89,6 +67,20 @@ class RenderContext:
 
         return px(frac_x * w), px(frac_y * h)
 
+    def build(self):
+        '''Download tiles on the fly and render them into a PIL image.'''
+        # fill the task queue
+        self._stitch()
+
+        self._report('Download complete, create map image')
+
+        if self._overlays:
+            self._report('Draw %d overlays', len(self._overlays))
+            self._draw_overlays()
+
+        self._crop()
+        return self._img
+
     def _draw_overlays(self):
         '''Draw overlay layers on the map image.'''
         # For transparent overlays, we cannot paint directly on the image.
@@ -102,6 +94,20 @@ class RenderContext:
     def _crop(self):
         '''Crop the map image to the bounding box.'''
         self._img = self._img.crop(self.crop_box)
+
+    def _stitch(self):
+        '''Fetch map tiles and combine them to a single map image.'''
+        for tile in self._map.tiles.values():
+            self._queue.put(tile)
+
+        self._total_tiles = self._queue.qsize()
+        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
+
+        # start parallel downloads
+        for w in range(self._parallel_downloads):
+            threading.Thread(daemon=True, target=self._work).run()
+
+        self._queue.join()
 
     def _work(self):
         '''Download map tiles and paste them onto the result image.'''

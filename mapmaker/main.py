@@ -10,7 +10,7 @@ import sys
 
 from . import __author__
 from . import __version__
-from .decorations import Composer
+from .core import Map
 from .geo import distance
 from . import parse
 from .parse import BBoxAction
@@ -19,8 +19,6 @@ from .parse import MarginAction
 from .parse import TextAction
 from .service import Cache
 from .service import TileService
-from .render import RenderContext
-from .tilemap import TileMap
 
 import appdirs
 
@@ -200,23 +198,11 @@ def main():
 def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
     dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
-    map = TileMap.from_bbox(bbox, zoom)
-
-    service = TileService(style, conf.urls[style], conf.keys)
-    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-    service = Cache(service, cache_dir, limit=conf.cache_limit)
-
-    rc = RenderContext(service, map,
-        reporter=report,
-        parallel_downloads=8)
-
-    _show_info(report, service, map, rc)
-
-    decorated = Composer(rc)
-    decorated.set_background(args.background)
-    decorated.set_margin(*args.margin)
+    map = Map(bbox)
+    map.set_background(args.background)
+    map.set_margin(*args.margin)
     if args.frame:
-        decorated.set_frame(
+        map.set_frame(
             width=args.frame.width or 5,
             color=args.frame.color or (0, 0, 0, 255),
             alt_color=args.frame.alt_color or (255, 255, 255, 255),
@@ -224,7 +210,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         )
     if args.title:
         placement, border, color, bg_color, text = args.title
-        decorated.add_title(
+        map.add_title(
             text,
             placement=placement or 'N',
             color=color or (0, 0, 0, 255),
@@ -234,7 +220,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         )
     if args.comment:
         placement, border, color, bg_color, text = args.comment
-        decorated.add_comment(
+        map.add_comment(
             text,
             placement=placement or 'SSE',
             color=color or (0, 0, 0, 255),
@@ -244,14 +230,20 @@ def _run(bbox, zoom, dst, style, report, conf, args, hillshading=False,
         )
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)
-        decorated.add_comment(copyright, placement='ENE', font_size=8)
+        map.add_comment(copyright, placement='ENE', font_size=8)
     if args.compass:
-        decorated.add_compass_rose()
+        map.add_compass_rose()
+
+    service = TileService(style, conf.urls[style], conf.keys)
+    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
+    service = Cache(service, cache_dir, limit=conf.cache_limit)
 
     if dry_run:
         return
-    img = decorated.build()
 
+    img = map.render(service, zoom, parallel_downloads=8, reporter=report)
+
+    # TODO: this will no longer work correctly
     if hillshading:
         shading = TileService(HILLSHADE, conf.urls[HILLSHADE], conf.keys)
         shading = Cache(service, cache_dir, limit=conf.cache_limit)
