@@ -39,8 +39,8 @@ class Track(DrawLayer):
         )
 
 
-class Marker(DrawLayer):
-    '''Draw a marker with a ``symbol`` and a ``label`` at the given location.
+class Placemark(DrawLayer):
+    '''Draw a placemark with a ``symbol`` and a ``label`` at the given location.
 
     ``color`` is the main color used for the outline and the text,
     ``fill`` is the optional fill color.
@@ -75,9 +75,9 @@ class Marker(DrawLayer):
         # draw the marker
         if self.size and self.symbol:
             brush = {
-                Marker.DOT: self._dot,
-                Marker.SQUARE: self._square,
-                Marker.TRIANGLE: self._triangle,
+                Placemark.DOT: self._dot,
+                Placemark.SQUARE: self._square,
+                Placemark.TRIANGLE: self._triangle,
             }[self.symbol]
             brush(draw, x, y)
 
