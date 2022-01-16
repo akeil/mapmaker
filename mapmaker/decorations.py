@@ -1,3 +1,10 @@
+'''Decorations are graphic elements that are painted over and around the map
+content, for example a title or a legend.
+
+Decorations are placed using pixel coordinates.
+'''
+
+
 from collections import defaultdict
 from math import floor
 

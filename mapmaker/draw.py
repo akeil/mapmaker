@@ -1,12 +1,17 @@
+'''Draw elements on the map content.
+
+Map Elements are additional content such as *Placemarks* or *Tracks* that are
+painted over the map content.
+They are typically placed using lat/lon coordinates.
+'''
+
+
 from math import radians
 from math import sin
 
 from PIL import Image
 
 from .render import load_font
-
-
-# Draw with lat/lon -----------------------------------------------------------
 
 
 class DrawLayer:

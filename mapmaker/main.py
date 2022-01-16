@@ -1,5 +1,7 @@
 #!/bin/python
-'''The command line interface for mampmaker.'''
+'''The command line interface for mapmaker.'''
+
+
 import argparse
 from collections import namedtuple
 import configparser
