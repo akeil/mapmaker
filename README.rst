@@ -115,11 +115,13 @@ large enough to accommodate the title.
 
 .. code:: shell-session
 
-    $ mapmaker --title My Map 45.83,6.88 100km
-    $ mapmaker --title NNW My Map 45.83,6.88 100km
-    $ mapmaker --title NNW 5 My Map 45.83,6.88 100km
-    $ mapmaker --title NNW 5 255,0,0 My Map 45.83,6.88 100km
-    $ mapmaker --title NNW 5 255,0,0 0,0,255 My Map 45.83,6.88 100km
+    $ mapmaker --title My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW 5 My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW 5 255,0,0 My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW 5 255,0,0 0,0,255 My Map -- 45.83,6.88 100km
+
+*Note the ``--`` to indicate the end of non-positional arguments.*
 
 Use ``--comment`` to add a comment in small print. Arguments are the same
 as for ``--title``:

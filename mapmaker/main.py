@@ -209,6 +209,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
             background=bg_color,
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
+            font_name='DejaVuSans',
+            font_size=16,
         )
     if args.comment:
         placement, border, color, bg_color, text = args.comment
@@ -219,12 +221,24 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
             background=bg_color,
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
+            font_name='DejaVuSans',
+            font_size=10,
         )
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)
         map.add_comment(copyright, placement='ENE', font_size=8)
     if args.compass:
         map.add_compass_rose()
+
+    # TODO: temporary
+    from .draw import Placemark
+    map.add_element(Placemark(47.437, 10.953,
+        label='Zugspitze',
+        font_name='DejaVuSans',
+        font_size=20,
+        label_color=(0,0,0,255),
+        label_bg=(200,200,200,255),
+    ))
 
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)

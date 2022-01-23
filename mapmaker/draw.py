@@ -12,6 +12,7 @@ from math import sin
 from PIL import Image
 
 from .render import load_font
+from .render import contrast_color
 
 
 class DrawLayer:
@@ -47,32 +48,43 @@ class Track(DrawLayer):
 class Placemark(DrawLayer):
     '''Draw a placemark with a ``symbol`` and a ``label`` at the given location.
 
-    ``color`` is the main color used for the outline and the text,
-    ``fill`` is the optional fill color.
-
-    Use ``border`` to draw a border around the symbol.
-
-    ``size`` controls the size (in pixels) of the waypoint marker.
-
-    ``symbol`` is the icon that will be drawn on the map. Must be one of
-    *dot*,
-    *square*
-    or +triangle*.
+    :label:         Text the will be shown on the map.
+    :symbol:        The icon that will be drawn on the map. Must be one of
+                    *dot*, *square* or *triangle*.
+                    Default is "dot", use *None* to omit the icon.
+    :border:        If >0, draws a border around the icon.
+    :color:         The main color for the icon.
+    :fill:          An optional fill color for the icon.
+    :size:          Controls the size (in pixels) of the marker.
+    :font_name:     Font family to use for the label.
+    :font_size:     Font size for the label.
+    :label_color:   Text color to use for the label.
+    :label_bg:      Background color for the label.
     '''
 
     DOT = 'dot'
     SQUARE = 'square'
     TRIANGLE = 'triangle'
 
-    def __init__(self, lat, lon, symbol='dot', label=None, color=(0, 0, 0, 255), fill=None, border=0, size=4):
+    def __init__(self, lat, lon, symbol='dot', label=None,
+        color=(0, 0, 0, 255), fill=None, border=0, size=4,
+        font_name=None, font_size=10, label_color=(0, 0, 0, 255), label_bg=None,
+        ):
         self.lat = lat
         self.lon = lon
+        # Marker
         self.symbol = symbol
-        self.label = label
         self.color = color
         self.fill = fill
         self.border = border
         self.size = size
+        # Label
+        self.label = label
+        self.font_name = font_name or 'DejaVuSans.ttf'
+        self.font_size = font_size or 10
+        self.label_color = label_color
+        self.label_bg = label_bg
+        self.padding = (2, 4, 2, 4)  # padding between text and box
 
     def draw(self, rc, draw):
         x, y = rc.to_pixels(self.lat, self.lon)
@@ -80,17 +92,18 @@ class Placemark(DrawLayer):
         # draw the marker
         if self.size and self.symbol:
             brush = {
-                Placemark.DOT: self._dot,
-                Placemark.SQUARE: self._square,
-                Placemark.TRIANGLE: self._triangle,
+                Placemark.DOT: self._draw_dot,
+                Placemark.SQUARE: self._draw_square,
+                Placemark.TRIANGLE: self._draw_triangle,
             }[self.symbol]
             brush(draw, x, y)
 
         # draw the label
         if self.label:
-            self._label(draw, x, y)
+            self._draw_label(draw, x, y)
 
-    def _dot(self, draw, x, y):
+    def _draw_dot(self, draw, x, y):
+        '''Draw a circular symbol.'''
         d = self.size / 2
         xy = [x-d, y-d, x+d, y+d]
         draw.ellipse(xy,
@@ -98,7 +111,8 @@ class Placemark(DrawLayer):
             outline=self.color,
             width=self.border)
 
-    def _square(self, draw, x, y):
+    def _draw_square(self, draw, x, y):
+        '''Draw a square symbol.'''
         d = self.size / 2
         xy = [x-d, y-d, x+d, y+d]
         draw.rectangle(xy,
@@ -106,7 +120,7 @@ class Placemark(DrawLayer):
             outline=self.color,
             width=self.border)
 
-    def _triangle(self, draw, x, y):
+    def _draw_triangle(self, draw, x, y):
         '''Draw a triangle with equally sized sides and the center point
         on the XY location.
         '''
@@ -125,17 +139,71 @@ class Placemark(DrawLayer):
             fill=self.fill or self.color,
             outline=self.color)
 
-    def _label(self, draw, x, y):
-        font = load_font('DejaVuSans.ttf', 10)
+    def _draw_label(self, draw, x, y):
+        '''Draw the label.'''
+        font = load_font(self.font_name, self.font_size)
         # place label below marker
         loc = (x, y + self.size / 2 + 2)
+        text = self.label.strip()
+        anchor = 'ma'  # middle ascender
+        text_color = self.label_color or (0, 0, 0, 255)
+        stroke_width = 0  # do not use stroke_width w/o stroke_fill (looks bad)
+        stroke_fill = None
 
-        draw.text(loc, self.label,
+        # background box or outline around the text
+        if self.label_bg:
+            self._draw_label_bg(draw, loc, text, font, anchor, stroke_width, text_color)
+        else:
+            stroke_width = 1
+            stroke_fill = contrast_color(text_color)
+
+        draw.text(loc, text,
             font=font,
-            anchor='ma',  # middle ascender
-            fill=(0, 0, 0, 255),
-            stroke_width=1,
-            stroke_fill=(255, 255, 255, 255))
+            anchor=anchor,
+            fill=text_color,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
+
+    def _draw_label_bg(self, draw, loc, text, font, anchor, stroke_width, text_color):
+        '''Draw a rectangle as the background for the label.'''
+        px, py = loc
+        box = None
+
+        try:
+            box = font.getbbox(text, anchor=anchor, stroke_width=stroke_width)
+            box = (
+                px + box[0] - 1,
+                py + box[1] - 1,
+                px + box[2] - 1,
+                py + box[3] - 1,
+            )
+        except AttributeError:
+            # the fallback font cannot calculate a bbox
+            # fallback will not be rendered at "anchor"
+            tw, th = font.getsize(text, stroke_width=stroke_width)
+            box = (
+                px,
+                py,
+                px + tw,
+                py + th,
+            )
+
+        # pad the box
+        padding = self.padding or (0, 0, 0, 0)
+        pad_top, pad_right, pad_bottom, pad_left = padding
+        box = (
+            box[0] - pad_left,
+            box[1] - pad_top,
+            box[2] + pad_right,
+            box[3] + pad_bottom,
+        )
+
+        draw.rectangle(box,
+            fill=self.label_bg,
+            outline=text_color,
+            width=1,
+        )
 
 
 class Box(DrawLayer):
