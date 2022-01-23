@@ -77,7 +77,7 @@ class TileMap:
         return pixel_x, pixel_y
 
     def __repr__(self):
-        return '<TileMap a=%s,%s b=%s,%s>' % (self.ax, self.ay, self.bx, self.by)
+        return '<TileMap a=%s,%s b=%s,%s, zoom=%s>' % (self.ax, self.ay, self.bx, self.by, self.zoom)
 
     @classmethod
     def from_bbox(cls, bbox, zoom):

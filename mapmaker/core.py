@@ -231,3 +231,6 @@ class Map:
                 alt_color=alt_color,
                 style=style
             )
+
+    def __repr__(self):
+        return '<Map bbox=%s>' % self.bbox

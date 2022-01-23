@@ -8,6 +8,7 @@ import requests
 
 
 class TileService:
+    '''A web service that fetches slippy map tiles in OSM format.'''
 
     def __init__(self, name, url_pattern, api_keys):
         self.name = name
@@ -61,6 +62,23 @@ class TileService:
 
 
 class Cache:
+    '''File system cache that can be used as a wrapper around a *TileService*.
+
+    The *Cache* can be used instead of the service and will attempt to load
+    requested tiles from the file system before falling back on the backing
+    service.
+
+    Downloaded tiles are automatically added to the cache.
+
+    No attempt is made to obtain the lifetime of a cache entry from the
+    service response. Instead the files ``mtime`` attribute is used to
+    delete older files until a given size ``limit`` is reached.
+    If the cache is set up with no ``limit``, entries are kept indefinetly.
+
+    If available, the cache keeps the ``ETAG`` from the server response
+    and uses the ``If-None-Match`` header when requesting tiles.
+    So even with cache, a HTTP request is made for each requested tile.
+    '''
 
     def __init__(self, service, basedir, limit=None):
         self._service = service

@@ -45,6 +45,10 @@ class Decoration:
 
 
 class Cartouche(Decoration):
+    '''Draws a text area either on the map or on the margin.
+
+    The text can have a box with an optional border or background color.
+    '''
 
     _MARGIN_MASK = {
         'NW': (1, 1, 1, 1),
@@ -212,6 +216,11 @@ class Scale:
 
 
 class CompassRose(Decoration):
+    '''Draws a compass rose at the given placement location on the map.
+
+    The "compass" consists of an error pointing north
+    and an optional "N" marker at the top of the arrow.
+    '''
 
     def __init__(self, placement='SE', color=(0, 0, 0, 255), outline=None, marker=False):
         super().__init__(placement)
@@ -324,6 +333,13 @@ class CompassRose(Decoration):
 
 
 class Frame:
+    '''Draws a frame around the map content.
+
+    Either a "solid" border or a two-colored border sized according to lat/lon
+    coordinates.
+
+    The frame width adds to the total size of the map image.
+    '''
 
     STYLES = ('coordinates', 'solid')
 

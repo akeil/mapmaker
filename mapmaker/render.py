@@ -149,6 +149,9 @@ class MapBuilder:
         box = (top, left)
         self._img.paste(tile_img, box)
 
+    def _repr__(self):
+        return '<MapBuilder>'
+
 
 # placement slots on the map MARGIN
 _NORTHERN = ('NW', 'NNW', 'N', 'NNE', 'NE')
@@ -363,6 +366,9 @@ class Composer:
             raise ValueError('invalid placement %r' % placement)
 
         return x, y
+
+    def __repr__(self):
+        return '<Composer>'
 
 
 def _no_reporter(*args):

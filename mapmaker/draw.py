@@ -29,6 +29,10 @@ class Track(DrawLayer):
     '''Draw a path along the given list of coordinates (``waypoints``).
 
     ``color`` and ``width`` control the line that is used to draw the track.
+
+    :waypoints: A list (or iterable) of lat/lon pairs.
+    :color:     An RGBA tuple for the color with which to draw the track.
+    :width:     The thickness of the line.
     '''
 
     def __init__(self, waypoints, color=(0, 0, 0, 255), width=1):
@@ -43,6 +47,9 @@ class Track(DrawLayer):
             width=self.width,
             joint='curve'
         )
+
+    def __repr__(self):
+        return '<Track waypoints=%d color=%s>' % (len(self.waypoints), self.color)
 
 
 class Placemark(DrawLayer):
@@ -60,6 +67,9 @@ class Placemark(DrawLayer):
     :font_size:     Font size for the label.
     :label_color:   Text color to use for the label.
     :label_bg:      Background color for the label.
+
+    You can omit ``symbol`` to draw only the ``label`` and vice-versa.
+    If you omit both, nothing will be drawn.
     '''
 
     DOT = 'dot'
@@ -205,6 +215,10 @@ class Placemark(DrawLayer):
             width=1,
         )
 
+    def __repr__(self):
+        return '<Placemark lat=%s, lon=%s, symbol=%r, label=%r>' % (
+            self.lat, self.lon, self.symbol, self.label)
+
 
 class Box(DrawLayer):
     '''Draw a rectangular box on the map as defined by the given bounding box.
@@ -214,12 +228,23 @@ class Box(DrawLayer):
 
     Style can be ``Box.REGULAR`` for a normal rectangle
     or ``Box.BRACKET`` for painting only the "edges" of the box.
+
+    :bbox:  a *BoundingBox* with the box that should be drawn.
+    :color: Border color for the box, RGBA tuple.
+    :fill:  Fill color for the box, RGBA tuple. If *None*, only the outline
+            is drawn.
+    :width: The thickness of the outline border.
+    :style: The type of box to be drawn, see above.
     '''
 
     REGULAR = 'regular'
     BRACKET = 'bracket'
 
-    def __init__(self, bbox, color=(0, 0, 0, 255), fill=None, width=1, style=None):
+    def __init__(self, bbox,
+        color=(0, 0, 0, 255),
+        fill=None,
+        width=1,
+        style=None):
         self.bbox = bbox
         self.style = style or Box.REGULAR
         self.color = color
@@ -294,6 +319,9 @@ class Box(DrawLayer):
             width=0,
         )
 
+    def __repr__(self):
+        return '<Box bbox=%s, style=%r>' % (self.bbox, self.style)
+
 
 class Circle(DrawLayer):
     '''Draw a circle around a given center in ``lat, lon``
@@ -303,9 +331,21 @@ class Circle(DrawLayer):
     color (box will not be filled if *None*).
 
     If ``marker`` is *True*, a small marker is drawn in the center.
+
+    :lat:    Latitude of the center for the circle.
+    :lon:    Longitude of the center for the circle.
+    :radius: Radius im meters.
+    :color:  Outline color, RGBA tuple.
+    :fill:   Optional fill color. If *None*, only the outline is drawn.
+    :width:  Line width for the outline.
+    :marker: If *True*, a small dot is drawn at the center.
     '''
 
-    def __init__(self, lat, lon, radius, color=(0, 0, 0, 255), fill=None, width=1, marker=False):
+    def __init__(self, lat, lon, radius,
+        color=(0, 0, 0, 255),
+        fill=None,
+        width=1,
+        marker=False):
         self.lat = lat
         self.lon = lon
         self.radius = radius
@@ -339,6 +379,10 @@ class Circle(DrawLayer):
             outline=self.color,
             width=self.width)
 
+    def __repr__(self):
+        return '<Circle lat=%s, lon=%s, radius=%s>' % (
+            self.lat, self.lon, self.radius)
+
 
 class Shape(DrawLayer):
     '''Draw a polygon defines by a list oif lat/lon pairs.'''
@@ -356,3 +400,6 @@ class Shape(DrawLayer):
         draw.polygon(xy,
             fill=self.fill,
             outline=self.color)
+
+    def __repr__(self):
+        return '<Polygon points=%d>' % len(self.points)
