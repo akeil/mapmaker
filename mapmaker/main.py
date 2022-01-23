@@ -226,6 +226,16 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
     if args.compass:
         map.add_compass_rose()
 
+    # TODO: temporary
+    from .draw import Placemark
+    map.add_element(Placemark(47.437, 10.953,
+        label='Zugspitze',
+        font_name='DejaVuSans',
+        font_size=20,
+        label_color=(0,0,0,255),
+        label_bg=(200,200,200,255),
+    ))
+
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
     service = Cache(service, cache_dir, limit=conf.cache_limit)

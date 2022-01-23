@@ -370,7 +370,27 @@ def _no_reporter(*args):
 
 def load_font(font_name, font_size):
     '''Load the given true type font, return fallback on failure.'''
+    # TODO:
+    # add file extension ('.ttf') if missing ???
     try:
         return ImageFont.truetype(font=font_name, size=font_size)
     except OSError:
         return ImageFont.load_default()
+
+
+def is_dark(color):
+    '''Tell if the given color is dark.'''
+    import colorsys
+    h, s, v = colorsys.rgb_to_hsv(color[0], color[1], color[2])
+    return v <= 0.5
+
+
+def contrast_color(color):
+    alpha = 255
+    if len(color) == 4:
+        alpha = color[3]
+
+    if is_dark(color):
+        return (255, 255, 255, alpha)
+    else:
+        return (0, 0, 0, alpha)
