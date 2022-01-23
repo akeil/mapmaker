@@ -20,6 +20,7 @@ EARTH_RADIUS = 6371.0 * 1000.0
 
 @dataclass(frozen=True)
 class BBox:
+    '''An axis-aligned Bounding box defined by two coordinates.'''
 
     minlat: float = -90.0
     minlon: float = -180.0
@@ -88,6 +89,10 @@ class BBox:
             minlon=max(self.minlon, minlon),
             maxlon=min(self.maxlon, maxlon),
         )
+
+    def __repr__(self):
+        return '<BBox minlat=%s, minlon=%s, maxlat=%s, maxlon=%s>' % (
+            self.minlat, self.minlon, self.maxlat, self.maxlon)
 
     @classmethod
     def from_radius(cls, lat, lon, radius):
