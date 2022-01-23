@@ -1,5 +1,6 @@
 import io
 from math import ceil
+from math import sqrt
 import queue
 import threading
 
@@ -378,9 +379,12 @@ def load_font(font_name, font_size):
 
 def is_dark(color):
     '''Tell if the given color is dark.'''
-    import colorsys
-    h, s, v = colorsys.rgb_to_hsv(color[0], color[1], color[2])
-    return v <= 0.5
+    # https://alienryderflex.com/hsp.html
+    r, g, b = color[0], color[1], color[2]
+    brightness = sqrt(0.299 * r * r + 0.587 * g * g + 0.114 * b * b)
+    # _, _, brightness = colorsys.rgb_to_hsv(r, g, b)
+
+    return brightness <= 127
 
 
 def contrast_color(color):

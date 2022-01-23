@@ -84,6 +84,7 @@ class Placemark(DrawLayer):
         self.font_size = font_size or 10
         self.label_color = label_color
         self.label_bg = label_bg
+        self.padding = (2, 4, 2, 4)  # padding between text and box
 
     def draw(self, rc, draw):
         x, y = rc.to_pixels(self.lat, self.lon)
@@ -151,7 +152,7 @@ class Placemark(DrawLayer):
 
         # background box or outline around the text
         if self.label_bg:
-            self._draw_label_bg(draw, loc, text, font, anchor, stroke_width)
+            self._draw_label_bg(draw, loc, text, font, anchor, stroke_width, text_color)
         else:
             stroke_width = 1
             stroke_fill = contrast_color(text_color)
@@ -164,7 +165,7 @@ class Placemark(DrawLayer):
             stroke_fill=stroke_fill,
         )
 
-    def _draw_label_bg(self, draw, loc, text, font, anchor, stroke_width):
+    def _draw_label_bg(self, draw, loc, text, font, anchor, stroke_width, text_color):
         '''Draw a rectangle as the background for the label.'''
         px, py = loc
         box = None
@@ -189,17 +190,18 @@ class Placemark(DrawLayer):
             )
 
         # pad the box
-        pad = 2
+        padding = self.padding or (0, 0, 0, 0)
+        pad_top, pad_right, pad_bottom, pad_left = padding
         box = (
-            box[0] - pad,
-            box[1] - pad,
-            box[2] + pad,
-            box[3] + pad,
+            box[0] - pad_left,
+            box[1] - pad_top,
+            box[2] + pad_right,
+            box[3] + pad_bottom,
         )
 
         draw.rectangle(box,
             fill=self.label_bg,
-            outline=contrast_color(self.label_bg),
+            outline=text_color,
             width=1,
         )
 
