@@ -370,8 +370,6 @@ def _no_reporter(*args):
 
 def load_font(font_name, font_size):
     '''Load the given true type font, return fallback on failure.'''
-    # TODO:
-    # add file extension ('.ttf') if missing ???
     try:
         return ImageFont.truetype(font=font_name, size=font_size)
     except OSError:

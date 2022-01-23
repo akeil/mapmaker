@@ -113,6 +113,7 @@ class Map:
     def add_title(self, text, area='MARGIN', placement='N',
         color=(0, 0, 0, 255),
         font_size=16,
+        font_name=None,
         background=None,
         border_width=0,
         border_color=None):
@@ -127,12 +128,14 @@ class Map:
             border_width=border_width,
             border_color=border_color,
             font_size=font_size,
+            font_name=font_name,
         ))
 
     def add_comment(self, text, area='MARGIN', placement='SSE',
         color=(0, 0, 0, 255),
         background=None,
         font_size=12,
+        font_name=None,
         border_width=0,
         border_color=None):
         '''Add a comment to the map.'''
@@ -143,6 +146,7 @@ class Map:
             border_width=border_width,
             border_color=border_color,
             font_size=font_size,
+            font_name=font_name,
         ))
 
     def add_scale(self):

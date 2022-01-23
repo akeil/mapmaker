@@ -209,6 +209,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
             background=bg_color,
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
+            font_name='DejaVuSans',
+            font_size=16,
         )
     if args.comment:
         placement, border, color, bg_color, text = args.comment
@@ -219,6 +221,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
             background=bg_color,
             border_color=color or (0, 0, 0, 255),
             border_width=border or 0,
+            font_name='DejaVuSans',
+            font_size=10,
         )
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)

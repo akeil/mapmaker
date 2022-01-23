@@ -120,6 +120,7 @@ class Cartouche(Decoration):
         background=None,
         border_width=0,
         border_color=None,
+        font_name=None,
         font_size=12,
     ):
         '''Initialize a Text area.'''
@@ -129,15 +130,17 @@ class Cartouche(Decoration):
         self.background = background
         self.border_width = border_width or 0
         self.border_color = border_color
-        self.font = 'DejaVuSans.ttf'
+        self.font_name = font_name or 'DejaVuSans'
         self.font_size = font_size
-        self.padding = (4, 8, 4, 8)
+        self.padding = (4, 8, 4, 8)  # padding between text and border
+
+        # TODO: when placed at the edge, add 1px padding towards edge
 
     def calc_size(self, map_size):
         if not self.title or not self.title.strip():
             return 0, 0
 
-        font = load_font(self.font, self.font_size)
+        font = load_font(self.font_name, self.font_size)
 
         # TODO: use ImageDraw.textbox() instead?
         w, h = font.getsize(self.title)
@@ -157,7 +160,7 @@ class Cartouche(Decoration):
             return
 
         w, h = size
-        font = load_font(self.font, self.font_size)
+        font = load_font(self.font_name, self.font_size)
 
         # adjust margins for proper alignment with frame
         # TODO: this belongs into calc_margin_pos
@@ -192,8 +195,6 @@ class Cartouche(Decoration):
             font=font,
             anchor=anchor,
             fill=self.color,
-            #stroke_width=1,
-            #stroke_fill=(255, 0, 0, 255),
         )
 
     def __repr__(self):
