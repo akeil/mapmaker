@@ -28,7 +28,6 @@ class BBox:
     maxlon: float = 180.0
 
     def __post_init(self):
-        print('__post_init')
         if self.minlat < -90.0:
             raise ValueError('minlat must not be < -90')
         if self.maxlat > 90.0:
@@ -42,7 +41,7 @@ class BBox:
         '''Extend the given bounding box so that it adheres to the given aspect
         ratio (given as a floating point number).
         Returns a new bounding box with the desired aspect ratio that contains
-        the initial box in its center'''
+        the initial box in its center.'''
         #  4:3  =>  1.32  width > height, aspect is > 1.0
         #  2:3  =>  0.66  width < height, aspect is < 1.0
         if aspect == 1.0:
@@ -50,8 +49,8 @@ class BBox:
 
         lat = self.minlat
         lon = self.minlon
-        width = distance(self.minlat, lon, self.maxlat, lon)
-        height = distance(lat, self.minlon, lat, self.maxlon)
+        height = distance(self.minlat, lon, self.maxlat, lon)
+        width = distance(lat, self.minlon, lat, self.maxlon)
 
         if aspect < 1.0:
             # extend "height" (latitude)
