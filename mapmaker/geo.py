@@ -42,6 +42,7 @@ class BBox:
         ratio (given as a floating point number).
         Returns a new bounding box with the desired aspect ratio that contains
         the initial box in its center.'''
+        # aspect = width : height
         #  4:3  =>  1.32  width > height, aspect is > 1.0
         #  2:3  =>  0.66  width < height, aspect is < 1.0
         if aspect == 1.0:
@@ -52,8 +53,9 @@ class BBox:
         height = distance(self.minlat, lon, self.maxlat, lon)
         width = distance(lat, self.minlon, lat, self.maxlon)
 
-        if aspect < 1.0:
-            # extend "height" (latitude)
+        current_aspect = width / height
+
+        if current_aspect > 1.0:  # extend height (latitude)
             target_height = width / aspect
             extend_height = (target_height - height) / 2
             new_minlat, _ = destination_point(self.minlat, lon, BRG_SOUTH, extend_height)
@@ -64,8 +66,7 @@ class BBox:
                 maxlat=new_maxlat,
                 maxlon=self.maxlon
             )
-        else:  # aspect > 1.0
-            # extend "width" (longitude)
+        else:  # < 1.0, extend width (longitude)
             target_width = height * aspect
             extend_width = (target_width - width) / 2
             _, new_minlon = destination_point(lat, self.minlon, BRG_WEST, extend_width)
