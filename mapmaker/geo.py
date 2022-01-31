@@ -77,6 +77,30 @@ class BBox:
                 maxlon=new_maxlon
             )
 
+    def padded(self, pad):
+        '''Create a BBox that is extended towards all sides
+        by the given amount in meters.'''
+        if not pad:
+            return self
+
+        if pad < 0:
+            raise ValueError('Pad must be a positive value, got %s' % pad)
+
+        north = self.maxlat
+        west = self.minlon
+        south = self.minlat
+        east = self.maxlon
+
+        maxlat, minlon = destination_point(north, west, 315.0, pad)
+        minlat, maxlon = destination_point(south, east, 135.0, pad)
+
+        return BBox(
+            minlat=minlat,
+            minlon=minlon,
+            maxlat=maxlat,
+            maxlon=maxlon
+        )
+
     def constrained(self, minlat=-90.0, maxlat=90.0, minlon=-180.0, maxlon=180.0):
         '''Constrain a bounding box to min/max values for latitude or longitude.
 
