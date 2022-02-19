@@ -34,8 +34,8 @@ class TestTiles(TestCase):
                 self.assertEqual(x, expected[0])
                 self.assertEqual(y, expected[1])
 
-        # Check if the tile coordinates lie in the top-left (top-right, bottom-...)
-        # corner of the coordinate system.
+        # Check if the tile coordinates lie in the top-left
+        # (top-right, bottom-...) corner of the coordinate system.
         for zoom in range(1, 19):
             tiles = 2**zoom
             half = tiles / 2

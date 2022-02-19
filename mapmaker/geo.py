@@ -57,9 +57,9 @@ class BBox:
 
         if current_aspect > 1.0:  # extend height (latitude)
             target_height = width / aspect
-            extend_height = (target_height - height) / 2
-            new_minlat, _ = destination_point(self.minlat, lon, BRG_SOUTH, extend_height)
-            new_maxlat, _ = destination_point(self.maxlat, lon, BRG_NORTH, extend_height)
+            ext = (target_height - height) / 2
+            new_minlat, _ = destination_point(self.minlat, lon, BRG_SOUTH, ext)
+            new_maxlat, _ = destination_point(self.maxlat, lon, BRG_NORTH, ext)
             return BBox(
                 minlat=new_minlat,
                 minlon=self.minlon,
@@ -68,9 +68,9 @@ class BBox:
             )
         else:  # < 1.0, extend width (longitude)
             target_width = height * aspect
-            extend_width = (target_width - width) / 2
-            _, new_minlon = destination_point(lat, self.minlon, BRG_WEST, extend_width)
-            _, new_maxlon = destination_point(lat, self.maxlon, BRG_EAST, extend_width)
+            ext = (target_width - width) / 2
+            _, new_minlon = destination_point(lat, self.minlon, BRG_WEST, ext)
+            _, new_maxlon = destination_point(lat, self.maxlon, BRG_EAST, ext)
             return BBox(
                 minlat=self.minlat,
                 minlon=new_minlon,
@@ -102,17 +102,21 @@ class BBox:
             maxlon=maxlon
         )
 
-    def constrained(self, minlat=-90.0, maxlat=90.0, minlon=-180.0, maxlon=180.0):
-        '''Constrain a bounding box to min/max values for latitude or longitude.
+    def constrained(self,
+                    minlat=-90.0,
+                    maxlat=90.0,
+                    minlon=-180.0,
+                    maxlon=180.0):
+        '''Constrain a bounding box to min/max values for latitude or
+        longitude.
 
-        Returns a new BBox with the coordinates adjusted to fit within given bounds.
+        Returns a new BBox with the coordinates adjusted to fit within
+        given bounds.
         '''
-        return BBox(
-            minlat=max(self.minlat, minlat),
-            maxlat=min(self.maxlat, maxlat),
-            minlon=max(self.minlon, minlon),
-            maxlon=min(self.maxlon, maxlon),
-        )
+        return BBox(minlat=max(self.minlat, minlat),
+                    maxlat=min(self.maxlat, maxlat),
+                    minlon=max(self.minlon, minlon),
+                    maxlon=min(self.maxlon, maxlon))
 
     def __repr__(self):
         return '<BBox minlat=%s, minlon=%s, maxlat=%s, maxlon=%s>' % (
@@ -126,12 +130,10 @@ class BBox:
         lat_s, lon_s = destination_point(lat, lon, BRG_SOUTH, radius)
         lat_w, lon_w = destination_point(lat, lon, BRG_WEST, radius)
 
-        return cls(
-            minlat=min(lat_n, lat_e, lat_s, lat_w),
-            minlon=min(lon_n, lon_e, lon_s, lon_w),
-            maxlat=max(lat_n, lat_e, lat_s, lat_w),
-            maxlon=max(lon_n, lon_e, lon_s, lon_w),
-        )
+        return cls(minlat=min(lat_n, lat_e, lat_s, lat_w),
+                   minlon=min(lon_n, lon_e, lon_s, lon_w),
+                   maxlat=max(lat_n, lat_e, lat_s, lat_w),
+                   maxlon=max(lon_n, lon_e, lon_s, lon_w))
 
 
 def mercator_to_lat(mercator_y):
@@ -162,7 +164,8 @@ def distance(lat0, lon0, lat1, lon1):
 
 
 def destination_point(lat, lon, bearing, distance):
-    '''Determine a destination point from a start location, a bearing and a distance.
+    '''Determine a destination point from a start location, a bearing
+    and a distance.
 
     Distance is given in METERS.
     Bearing is given in DEGREES
@@ -186,7 +189,9 @@ def destination_point(lat, lon, bearing, distance):
 
 
 def dms(decimal):
-    '''Convert decimal coordinate into a DMS-tuple (degrees, munites, seconds).'''
+    '''Convert decimal coordinate into a DMS-tuple
+    (degrees, munites, seconds).
+    '''
     d = floor(decimal)
     m = floor((decimal - d) * 60)
     s = (decimal - d - m / 60) * 3600.0

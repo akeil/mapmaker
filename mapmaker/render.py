@@ -24,7 +24,10 @@ class MapBuilder:
     Optional ``overlay`` is a list of map elements.
     '''
 
-    def __init__(self, service, map, overlays=None, parallel_downloads=None, reporter=None):
+    def __init__(self, service, map,
+                 overlays=None,
+                 parallel_downloads=None,
+                 reporter=None):
         self._service = service
         self._map = map
         self._overlays = overlays or []
@@ -43,9 +46,9 @@ class MapBuilder:
         self._downloaded_tiles += 1
         percentage = int(self._downloaded_tiles / self._total_tiles * 100.0)
         self._report('%3d%%  %4d / %4d',
-            percentage,
-            self._downloaded_tiles,
-            self._total_tiles)
+                     percentage,
+                     self._downloaded_tiles,
+                     self._total_tiles)
 
     @property
     def crop_box(self):
@@ -60,7 +63,6 @@ class MapBuilder:
     def bbox(self):
         '''The maps bounding box coordinates.'''
         return self._map.bbox
-
 
     def to_pixels(self, lat, lon):
         '''Convert the given lat,lon coordinates to pixels on the map image.
@@ -110,7 +112,9 @@ class MapBuilder:
             self._queue.put(tile)
 
         self._total_tiles = self._queue.qsize()
-        self._report('Download %d tiles (parallel downloads: %d)', self._total_tiles, self._parallel_downloads)
+        self._report('Download %d tiles (parallel downloads: %d)',
+                     self._total_tiles,
+                     self._parallel_downloads)
 
         # start parallel downloads
         for w in range(self._parallel_downloads):
@@ -189,10 +193,10 @@ class Composer:
     '''
 
     def __init__(self, map_builder,
-        margin=None,
-        frame=None,
-        decorations=None,
-        background=None):
+                 margin=None,
+                 frame=None,
+                 decorations=None,
+                 background=None):
         '''Set up a decorated map based on the given ``MapBuilder`` with added
         ``frame`` around the map, additional whitespace ``margin`` and a
         ``background`` color.
@@ -233,7 +237,7 @@ class Composer:
         frame_box = map_box
         if self._frame:
             frame_w = map_w + 2 * self._frame.width
-            frame_h = map_h + 2 *self._frame.width
+            frame_h = map_h + 2 * self._frame.width
             frame_size = (frame_w, frame_h)
             frame_box = (left, top, left+frame_w, top + frame_h)
 
@@ -248,9 +252,14 @@ class Composer:
                 deco_size = deco.calc_size((map_w, map_h))
                 deco_pos = None
                 if area == 'MAP':
-                    deco_pos = self._calc_map_pos(deco.placement, map_box, deco_size)
+                    deco_pos = self._calc_map_pos(deco.placement,
+                                                  map_box,
+                                                  deco_size)
                 elif area == 'MARGIN':
-                    deco_pos = self._calc_margin_pos(deco.placement, (w, h), frame_box, deco_size)
+                    deco_pos = self._calc_margin_pos(deco.placement,
+                                                     (w, h),
+                                                     frame_box,
+                                                     deco_size)
 
                 deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
                 draw = ImageDraw.Draw(deco_img, mode='RGBA')

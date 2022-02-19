@@ -23,8 +23,8 @@ class BBoxAction(argparse.Action):
             bbox = self._parse_bbox(values)
             setattr(namespace, self.dest, bbox)
         except ValueError as err:
-            msg = 'failed to parse bounding box from %r: %s' % (' '.join(values), err)
-            raise ArgumentError(self, msg)
+            raise ArgumentError(self, ('failed to parse bounding box from'
+                                       ' %r: %s') % (' '.join(values), err))
 
     def _parse_bbox(self, values):
         lat0, lon0 = _parse_coordinates(values[0])
@@ -90,18 +90,20 @@ class MarginAction(argparse.Action):
             v = int(values[0])
             margins = v, v, v, v
         elif len(values) == 2:
-            vertical, horizontal = values
-            margins = int(vertical), int(horizontal), int(vertical), int(horizontal)
+            vert, hori = values
+            margins = int(vert), int(hori), int(vert), int(hori)
         elif len(values) == 4:
             top, right, bottom, left = values
             margins = int(top), int(right), int(bottom), int(left)
         else:
-            msg = 'invalid number of arguments (%s) for margin, expected 1, 2, or 4 values' % len(values)
+            msg = ('invalid number of arguments (%s) for margin,'
+                   ' expected 1, 2, or 4 values') % len(values)
             raise ArgumentError(self, msg)
 
         for v in margins:
             if v < 0:
-                raise ArgumentError(self, 'invalid margin %r, must not be negative' % v)
+                raise ArgumentError(self, ('invalid margin %r,'
+                                           ' must not be negative') % v)
 
         setattr(namespace, self.dest, margins)
 
@@ -128,7 +130,6 @@ class TextAction(argparse.Action):
 
         placement, border, foreground, background = None, None, None, None
 
-        remainder = []
         consumed = 0
         for value in values:
             if placement is None:
@@ -142,8 +143,11 @@ class TextAction(argparse.Action):
             if border is None:
                 try:
                     border = int(value)
-                    if border <0:
-                        raise ArgumentError(self, 'Invalid border width %r, must not be negtive' % value)
+                    if border < 0:
+                        msg = ('invalid border width %r,'
+                               ' must not be negative' % value)
+                        raise ArgumentError(self, msg)
+
                     consumed += 1
                     continue
                 except ValueError:
@@ -203,7 +207,8 @@ class FrameAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) > 4:
-            msg = 'invalid number of arguments (%s) for frame, expected up to four: BORDER, COLOR, ALT_COLOR and STYLE' % len(values)
+            msg = ('invalid number of arguments (%s) for frame, expected up to'
+                   ' four: BORDER, COLOR, ALT_COLOR and STYLE') % len(values)
             raise ArgumentError(self, msg)
 
         width, primary, alternate, style = None, None, None, None
@@ -216,8 +221,10 @@ class FrameAction(argparse.Action):
             if width is None:
                 try:
                     width = int(value)
-                    if width <0:
-                        raise ArgumentError(self, 'Invalid width %r, must not be negtive' % value)
+                    if width < 0:
+                        msg = ('invalid width %r,'
+                               ' must not be negative') % value
+                        raise ArgumentError(self, msg)
                     continue
                 except ValueError:
                     pass
@@ -280,7 +287,8 @@ def _parse_coordinates(raw):
             s = float(s)
 
         if remainder.strip():
-            raise ValueError('extra content for DMS coordinates: %r' % remainder)
+            msg = 'extra content for DMS coordinates: %r' % remainder
+            raise ValueError(msg)
 
         # combine + return
         return decimal(d=d, m=m, s=s)
@@ -385,7 +393,7 @@ def aspect(raw):
 
     parts = raw.split(':')
     if len(parts) != 2:
-        raise ValueError('Invalid aspect ratio %r, expected format "W:H"' % raw)
+        raise ValueError('invalid aspect %r, expected format "W:H"' % raw)
 
     w, h = parts
     w, h = float(w), float(h)

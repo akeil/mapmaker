@@ -69,22 +69,26 @@ class TileMap:
 
         see http://msdn.microsoft.com/en-us/library/bb259689.aspx
         '''
-        globe_px = pow(2, self.zoom)
-        pixel_x = ((lon + 180.0) / 360.0) * globe_px
+        globe = pow(2, self.zoom)
+        pixel_x = ((lon + 180.0) / 360.0) * globe
 
         sinlat = sin(lat * PI / 180.0)
-        pixel_y = (0.5 - log((1 + sinlat) / (1 - sinlat)) / (4 * PI)) * globe_px
+        pixel_y = (0.5 - log((1 + sinlat) / (1 - sinlat)) / (4 * PI)) * globe
         return pixel_x, pixel_y
 
     def __repr__(self):
-        return '<TileMap a=%s,%s b=%s,%s, zoom=%s>' % (self.ax, self.ay, self.bx, self.by, self.zoom)
+        return '<TileMap a=%s,%s b=%s,%s, zoom=%s>' % (self.ax,
+                                                       self.ay,
+                                                       self.bx,
+                                                       self.by,
+                                                       self.zoom)
 
     @classmethod
     def from_bbox(cls, bbox, zoom):
         '''Set up a map with tiles that will *contain* the given bounding box.
         The map may be larger than the bounding box.'''
         ax, ay = _tile_coordinates(bbox.minlat, bbox.minlon, zoom)  # top left
-        bx, by = _tile_coordinates(bbox.maxlat, bbox.maxlon, zoom)  # bottom right
+        bx, by = _tile_coordinates(bbox.maxlat, bbox.maxlon, zoom)  # btm right
         return cls(ax, ay, bx, by, zoom, bbox)
 
 
@@ -102,7 +106,7 @@ class Tile:
         '''The bounding box coordinates of this tile.'''
         north, south = self._lat_edges()
         west, east = self._lon_edges()
-        # TODO havin North/South and West/East as min/max might be slightly wrong?
+        # TODO having North/South and West/East as min/max is slightly wrong?
         return BBox(
             minlat=north,
             minlon=west,

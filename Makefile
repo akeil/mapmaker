@@ -41,11 +41,11 @@ dev-install:
 	pip install --editable .
 
 samples:
-	./mapmaker.py --zoom 10 --gallery 63.0695,-151.0074 30km ./samples
+	mapmaker --zoom 10 --gallery 63.0695,-151.0074 30km ./samples
 
 lint:
 	# use `pip install flake8`
-	flake8 ./mapmaker.py test/*.py
+	flake8 ./mapmaker/*.py test/*.py
 
 test:
 	# if tox is not installed, use `python -m unittest discover`
