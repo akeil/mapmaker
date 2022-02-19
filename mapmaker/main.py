@@ -28,7 +28,11 @@ import appdirs
 APP_NAME = 'mapmaker'
 APP_DESC = 'Create map images from tile servers.'
 
-Config = namedtuple('Config', 'urls keys copyrights cache_limit parallel_downloads')
+Config = namedtuple('Config', ('urls'
+                               ' keys'
+                               ' copyrights'
+                               ' cache_limit'
+                               ' parallel_downloads'))
 
 
 def main():
@@ -48,32 +52,27 @@ def main():
         ),
     )
 
-    parser.add_argument(
-        '--version',
-        action='version',
-        version=__version__,
-        help='Print version number and exit',
-    )
+    parser.add_argument('--version',
+                        action='version',
+                        version=__version__,
+                        help='Print version number and exit')
 
-    parser.add_argument(
-        'bbox',
-        metavar='AREA',
-        action=BBoxAction,
-        nargs=2,
-        help=(
-            'Bounding box coordinates. Either two lat,lon pairs'
-            ' ("47.437,10.953 47.374,11.133") or a center point'
-            ' and a radius ("47.437,10.953 4km").'
-        )
-    )
+    parser.add_argument('bbox',
+                        metavar='AREA',
+                        action=BBoxAction,
+                        nargs=2,
+                        help=('Bounding box coordinates. Either two lat,lon'
+                              ' pairs ("47.437,10.953 47.374,11.133")'
+                              ' or a center point and a radius'
+                              ' ("47.437,10.953 4km").'))
+
     default_dst = 'map.png'
-    parser.add_argument(
-        'dst',
-        metavar='PATH',
-        nargs='?',
-        default=default_dst,
-        help='Where to save the generated image (default: %r).' % default_dst
-    )
+    parser.add_argument('dst',
+                        metavar='PATH',
+                        nargs='?',
+                        default=default_dst,
+                        help=('Where to save the generated image'
+                              ' (default: %r).') % default_dst)
 
     def zoom(raw):
         v = int(raw)
@@ -82,87 +81,78 @@ def main():
         return v
 
     default_zoom = 8
-    parser.add_argument(
-        '-z', '--zoom',
-        default=default_zoom,
-        type=zoom,
-        help='Zoom level (0..19), higher means more detailed (default: %s).' % default_zoom
-    )
+    parser.add_argument('-z', '--zoom',
+                        default=default_zoom,
+                        type=zoom,
+                        help=('Zoom level (0..19), higher means more detailed'
+                              ' (default: %s).') % default_zoom)
+
     default_style = 'osm'
-    parser.add_argument(
-        '-s', '--style',
-        choices=styles,
-        default=default_style,
-        help='Map style (default: %r)' % default_style,
-    )
-    parser.add_argument(
-        '-a', '--aspect',
-        type=parse.aspect,
-        default=1.0,
-        help=(
-            'Aspect ratio (e.g. "16:9") for the generated map. Extends the'
-            ' bounding box to match the given aspect ratio.'
-        ),
-    )
-    parser.add_argument(
-        '--copyright',
-        action='store_true',
-        help='Add copyright notice',
-    )
-    parser.add_argument(
-        '--title',
-        action=TextAction,
-        metavar='ARGS',
-        help='Add a title to the map (optional args: PLACEMENT, COLOR, BORDER followed by title string)',
-    )
-    parser.add_argument(
-        '--comment',
-        action=TextAction,
-        help='Add a comment to the map',
-    )
-    parser.add_argument(
-        '--margin',
-        action=MarginAction,
-        default=(0, 0, 0, 0),
-        help='Add a margin (white space) around the map ("TOP RIGHT BOTTOM LEFT" or "ALL")',
-    )
-    parser.add_argument(
-        '--background',
-        type=parse.color,
-        metavar='RGBA',
-        default=(255, 255, 255, 255),
-        help='Background color for map margin (default: white)'
-    )
-    parser.add_argument(
-        '--frame',
-        action=FrameAction,
-        metavar='ARGS',
-        help='Draw a frame around the map area (any of: WIDTH, COLOR, ALT_COLOR and STYLE)',
-    )
+    parser.add_argument('-s', '--style',
+                        choices=styles,
+                        default=default_style,
+                        help='Map style (default: %r)' % default_style)
+
+    parser.add_argument('-a', '--aspect',
+                        type=parse.aspect,
+                        default=1.0,
+                        help=(
+                            'Aspect ratio (e.g. "16:9") for the generated map.'
+                            ' Extends the bounding box to match the given'
+                            ' aspect ratio.'))
+
+    parser.add_argument('--copyright',
+                        action='store_true',
+                        help='Add copyright notice')
+
+    parser.add_argument('--title',
+                        action=TextAction,
+                        metavar='ARGS',
+                        help=('Add a title to the map'
+                              ' (optional args: PLACEMENT, COLOR, BORDER'
+                              ' followed by title string)'))
+
+    parser.add_argument('--comment',
+                        action=TextAction,
+                        help='Add a comment to the map')
+
+    parser.add_argument('--margin',
+                        action=MarginAction,
+                        default=(0, 0, 0, 0),
+                        help=('Add a margin (white space) around the map'
+                              ' ("TOP RIGHT BOTTOM LEFT" or "ALL")'))
+
+    parser.add_argument('--background',
+                        type=parse.color,
+                        metavar='RGBA',
+                        default=(255, 255, 255, 255),
+                        help=('Background color for map margin'
+                              ' (default: white)'))
+
+    parser.add_argument('--frame',
+                        action=FrameAction,
+                        metavar='ARGS',
+                        help=('Draw a frame around the map area'
+                              ' (any of: WIDTH, COLOR, ALT_COLOR and STYLE)'))
+
     # TODO: placement, color, marker "N"
-    parser.add_argument(
-        '--compass',
-        action='store_true',
-        help='Draw a compass rose on the map',
-    )
-    parser.add_argument(
-        '--gallery',
-        action='store_true',
-        help=(
-            'Create a map image for each available style.'
-            ' WARNING: generates a lot of images.'
-        ),
-    )
-    parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show map info, do not download tiles',
-    )
-    parser.add_argument(
-        '--silent',
-        action='store_true',
-        help='Do not output messages to the console',
-    )
+    parser.add_argument('--compass',
+                        action='store_true',
+                        help='Draw a compass rose on the map')
+
+    parser.add_argument('--gallery',
+                        action='store_true',
+                        help=(
+                            'Create a map image for each available style.'
+                            ' WARNING: generates a lot of images.'))
+
+    parser.add_argument('--dry-run',
+                        action='store_true',
+                        help='Show map info, do not download tiles')
+
+    parser.add_argument('--silent',
+                        action='store_true',
+                        help='Do not output messages to the console')
 
     args = parser.parse_args()
 
@@ -179,15 +169,13 @@ def main():
                 dst = base.joinpath(style + '.png')
                 try:
                     _run(bbox, args.zoom, dst, style, reporter, conf, args,
-                        dry_run=args.dry_run,
-                    )
+                         dry_run=args.dry_run)
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
             _run(bbox, args.zoom, args.dst, args.style, reporter, conf, args,
-                dry_run=args.dry_run,
-            )
+                 dry_run=args.dry_run)
     except Exception as err:
         reporter('ERROR: %s', err)
         raise
@@ -202,45 +190,41 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
     map.set_background(args.background)
     map.set_margin(*args.margin)
     if args.frame:
-        map.set_frame(
-            width=args.frame.width or 5,
-            color=args.frame.color or (0, 0, 0, 255),
-            alt_color=args.frame.alt_color or (255, 255, 255, 255),
-            style=args.frame.style or 'solid'
-        )
+        map.set_frame(width=args.frame.width or 5,
+                      color=args.frame.color or (0, 0, 0, 255),
+                      alt_color=args.frame.alt_color or (255, 255, 255, 255),
+                      style=args.frame.style or 'solid')
     if args.title:
         placement, border, color, bg_color, text = args.title
-        map.add_title(
-            text,
-            placement=placement or 'N',
-            color=color or (0, 0, 0, 255),
-            background=bg_color,
-            border_color=color or (0, 0, 0, 255),
-            border_width=border or 0,
-            font_name='DejaVuSans',
-            font_size=16,
-        )
+        map.add_title(text,
+                      placement=placement or 'N',
+                      color=color or (0, 0, 0, 255),
+                      background=bg_color,
+                      border_color=color or (0, 0, 0, 255),
+                      border_width=border or 0,
+                      font_name='DejaVuSans',
+                      font_size=16)
     if args.comment:
         placement, border, color, bg_color, text = args.comment
-        map.add_comment(
-            text,
-            placement=placement or 'SSE',
-            color=color or (0, 0, 0, 255),
-            background=bg_color,
-            border_color=color or (0, 0, 0, 255),
-            border_width=border or 0,
-            font_name='DejaVuSans',
-            font_size=10,
-        )
-    if args.copyright:
-        copyright = conf.copyrights.get(service.top_level_domain)
-        map.add_comment(copyright, placement='ENE', font_size=8)
+        map.add_comment(text,
+                        placement=placement or 'SSE',
+                        color=color or (0, 0, 0, 255),
+                        background=bg_color,
+                        border_color=color or (0, 0, 0, 255),
+                        border_width=border or 0,
+                        font_name='DejaVuSans',
+                        font_size=10)
+
     if args.compass:
         map.add_compass_rose()
 
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
     service = Cache(service, cache_dir, limit=conf.cache_limit)
+
+    if args.copyright:
+        copyright = conf.copyrights.get(service.top_level_domain)
+        map.add_comment(copyright, placement='ENE', font_size=8)
 
     if dry_run:
         return
@@ -295,13 +279,13 @@ def read_config(path):
     # user settings
     cfg.read([path, ])
 
-    return Config(
-        urls={k: v for k, v in cfg.items('services')},
-        keys={k: v for k, v in cfg.items('keys')},
-        copyrights={k: v for k, v in cfg.items('copyright')},
-        cache_limit=cfg.getint('cache', 'limit', fallback=None),
-        parallel_downloads=cfg.getint('mapmaker', 'parallel_downloads', fallback=1),
-    )
+    parallel = cfg.getint('mapmaker', 'parallel_downloads', fallback=1)
+
+    return Config(urls={k: v for k, v in cfg.items('services')},
+                  keys={k: v for k, v in cfg.items('keys')},
+                  copyrights={k: v for k, v in cfg.items('copyright')},
+                  cache_limit=cfg.getint('cache', 'limit', fallback=None),
+                  parallel_downloads=parallel)
 
 
 if __name__ == '__main__':

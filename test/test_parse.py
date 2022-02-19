@@ -31,7 +31,8 @@ class _ParseTest(TestCase):
             if self.places:
                 self.assertAlmostEqual(f(raw), expected, places=self.places)
             else:
-                self.assertEqual(f(raw), expected, msg='%r != %r, parsed from %r' % (f(raw), expected, raw))
+                msg = '%r != %r, parsed from %r' % (f(raw), expected, raw)
+                self.assertEqual(f(raw), expected, msg=msg)
 
 
 class TestParseCoordinates(_ParseTest):
@@ -212,10 +213,10 @@ class TestFrameAction(_ActionTest):
     valid = (
         ([], (None, None, None, None)),
         (['8'], (8, None, None, None)),
-        (['200,200,200'], (None, (200,200,200,255), None, None)),
+        (['200,200,200'], (None, (200, 200, 200, 255), None, None)),
         (['coordinates'], (None, None, None, 'coordinates')),
-        (['200,200,200', '220,220,220'], (None, (200,200,200,255), (220,220,220,255), None)),
-        (['200,200,200', '220,220,220', '5', 'solid'], (5, (200,200,200,255), (220,220,220,255), 'solid')),
+        (['200,200,200', '220,220,220'], (None, (200, 200, 200, 255), (220, 220, 220, 255), None)),
+        (['200,200,200', '220,220,220', '5', 'solid'], (5, (200, 200, 200, 255), (220, 220, 220, 255), 'solid')),
     )
 
 
@@ -223,11 +224,11 @@ class TestMarginAction(_ActionTest):
     action = MarginAction
     fail = (
         [],
-        [''],
+        ['', ],
         ['2', '2', '2'],
         ['2', '2', '2', '2', '2'],
-        ['-2',],
-        ['-2', '2',],
+        ['-2', ],
+        ['-2', '2', ],
         ['-2', '2', '2', '2'],
     )
     valid = (

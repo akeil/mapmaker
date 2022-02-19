@@ -75,18 +75,16 @@ class Map:
         tiles = TileMap.from_bbox(self.bbox, zoom)
 
         builder = MapBuilder(service, tiles,
-            overlays=self.elements,
-            parallel_downloads=parallel_downloads,
-            reporter=reporter
-        )
+                             overlays=self.elements,
+                             parallel_downloads=parallel_downloads,
+                             reporter=reporter)
 
         if self._has_decorations:
             builder = Composer(builder,
-                margin=self._margin,
-                frame=self._frame,
-                background=self._background,
-                decorations=self._decorations,
-            )
+                               margin=self._margin,
+                               frame=self._frame,
+                               background=self._background,
+                               decorations=self._decorations)
 
         return builder.build()
 
@@ -110,59 +108,63 @@ class Map:
 
         self._decorations[area].append(decoration)
 
-    def add_title(self, text, area='MARGIN', placement='N',
-        color=(0, 0, 0, 255),
-        font_size=16,
-        font_name=None,
-        background=None,
-        border_width=0,
-        border_color=None):
+    def add_title(self, text,
+                  area='MARGIN',
+                  placement='N',
+                  color=(0, 0, 0, 255),
+                  font_size=16,
+                  font_name=None,
+                  background=None,
+                  border_width=0,
+                  border_color=None):
         '''Add a title to the map.
 
         The title can be surrounded by a box with border and background.
         '''
         self.add_decoration(area, Cartouche(text,
-            placement=placement,
-            color=color,
-            background=background,
-            border_width=border_width,
-            border_color=border_color,
-            font_size=font_size,
-            font_name=font_name,
-        ))
+                                            placement=placement,
+                                            color=color,
+                                            background=background,
+                                            border_width=border_width,
+                                            border_color=border_color,
+                                            font_size=font_size,
+                                            font_name=font_name))
 
-    def add_comment(self, text, area='MARGIN', placement='SSE',
-        color=(0, 0, 0, 255),
-        background=None,
-        font_size=12,
-        font_name=None,
-        border_width=0,
-        border_color=None):
+    def add_comment(self, text,
+                    area='MARGIN',
+                    placement='SSE',
+                    color=(0, 0, 0, 255),
+                    background=None,
+                    font_size=12,
+                    font_name=None,
+                    border_width=0,
+                    border_color=None):
         '''Add a comment to the map.'''
         self.add_decoration(area, Cartouche(text,
-            placement=placement,
-            color=color,
-            background=background,
-            border_width=border_width,
-            border_color=border_color,
-            font_size=font_size,
-            font_name=font_name,
-        ))
+                            placement=placement,
+                            color=color,
+                            background=background,
+                            border_width=border_width,
+                            border_color=border_color,
+                            font_size=font_size,
+                            font_name=font_name))
 
     def add_scale(self):
-        deco = Scale()
+        pass
+        # TODO: implement
+        # deco = Scale()
 
-    def add_compass_rose(self, area='MAP', placement='SE',
-        color=(0, 0, 0, 255),
-        outline=None,
-        marker=False):
+    def add_compass_rose(self,
+                         area='MAP',
+                         placement='SE',
+                         color=(0, 0, 0, 255),
+                         outline=None,
+                         marker=False):
         '''Add a compass rose to the map.'''
-        self.add_decoration(area, CompassRose(
-            placement=placement,
-            color=color,
-            outline=outline,
-            marker=marker,
-        ))
+        self.add_decoration(area, CompassRose(placement=placement,
+                                              color=color,
+                                              outline=outline,
+                                              marker=marker))
 
     def set_margin(self, *args):
         '''Set the size of the margin, that is the white space around the
@@ -189,7 +191,8 @@ class Map:
         elif len(args) == 4:
             m = args
         else:
-            raise ValueError('invalid number of arguments, expected 1, 2 or 4 args')
+            raise ValueError(('invalid number of arguments,'
+                              ' expected 1, 2 or 4 args'))
 
         # force type error and rounding
         m = tuple(int(x) for x in m)
@@ -210,9 +213,14 @@ class Map:
         elif len(args) == 4:
             self.background = args
         else:
-            raise ValueError('invalid number of arguments, expected 1, 3 or 4 args')
+            raise ValueError(('invalid number of arguments,'
+                              ' expected 1, 3 or 4 args'))
 
-    def set_frame(self, width=5, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
+    def set_frame(self,
+                  width=5,
+                  color=(0, 0, 0, 255),
+                  alt_color=(255, 255, 255, 255),
+                  style='solid'):
         '''Draw a border around the mapped content
         (between MAP area and MARGIN).
 

@@ -1,4 +1,3 @@
-import unittest
 from unittest import TestCase
 
 from mapmaker.geo import BBox
@@ -27,6 +26,12 @@ class TestBBox(TestCase):
         same = box.constrained()
         self.assertEqual(box, same)
 
-        different = box.constrained(minlat=12.0, maxlat=18.0, minlon=32.0, maxlon=38.0)
+        different = box.constrained(minlat=12.0,
+                                    maxlat=18.0,
+                                    minlon=32.0,
+                                    maxlon=38.0)
         self.assertNotEqual(box, different)
-        self.assertEqual(different, BBox(minlat=12.0, maxlat=18.0, minlon=32.0, maxlon=38.0))
+        self.assertEqual(different, BBox(minlat=12.0,
+                                         maxlat=18.0,
+                                         minlon=32.0,
+                                         maxlon=38.0))

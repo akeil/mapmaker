@@ -9,8 +9,7 @@ They are typically placed using lat/lon coordinates.
 from math import radians
 from math import sin
 
-from PIL import Image
-
+from .geo import BBox
 from .render import load_font
 from .render import contrast_color
 
@@ -43,13 +42,13 @@ class Track(DrawLayer):
     def draw(self, rc, draw):
         xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
         draw.line(xy,
-            fill=self.color,
-            width=self.width,
-            joint='curve'
-        )
+                  fill=self.color,
+                  width=self.width,
+                  joint='curve')
 
     def __repr__(self):
-        return '<Track waypoints=%d color=%s>' % (len(self.waypoints), self.color)
+        return '<Track waypoints=%d color=%s>' % (len(self.waypoints),
+                                                  self.color)
 
 
 class Placemark(DrawLayer):
@@ -76,10 +75,17 @@ class Placemark(DrawLayer):
     SQUARE = 'square'
     TRIANGLE = 'triangle'
 
-    def __init__(self, lat, lon, symbol='dot', label=None,
-        color=(0, 0, 0, 255), fill=None, border=0, size=4,
-        font_name=None, font_size=10, label_color=(0, 0, 0, 255), label_bg=None,
-        ):
+    def __init__(self, lat, lon,
+                 symbol='dot',
+                 label=None,
+                 color=(0, 0, 0, 255),
+                 fill=None,
+                 border=0,
+                 size=4,
+                 font_name=None,
+                 font_size=10,
+                 label_color=(0, 0, 0, 255),
+                 label_bg=None):
         self.lat = lat
         self.lon = lon
         # Marker
@@ -118,18 +124,18 @@ class Placemark(DrawLayer):
         d = self.size / 2
         xy = [x-d, y-d, x+d, y+d]
         draw.ellipse(xy,
-            fill=self.fill or self.color,
-            outline=self.color,
-            width=self.border)
+                     fill=self.fill or self.color,
+                     outline=self.color,
+                     width=self.border)
 
     def _draw_square(self, draw, x, y):
         '''Draw a square symbol.'''
         d = self.size / 2
         xy = [x-d, y-d, x+d, y+d]
         draw.rectangle(xy,
-            fill=self.fill or self.color,
-            outline=self.color,
-            width=self.border)
+                       fill=self.fill or self.color,
+                       outline=self.color,
+                       width=self.border)
 
     def _draw_triangle(self, draw, x, y):
         '''Draw a triangle with equally sized sides and the center point
@@ -147,8 +153,8 @@ class Placemark(DrawLayer):
         right = (x + side / 2, y + h / 2)
 
         draw.polygon([top, right, left],
-            fill=self.fill or self.color,
-            outline=self.color)
+                     fill=self.fill or self.color,
+                     outline=self.color)
 
     def _draw_label(self, draw, x, y):
         '''Draw the label.'''
@@ -163,58 +169,52 @@ class Placemark(DrawLayer):
 
         # background box or outline around the text
         if self.label_bg:
-            self._draw_label_bg(draw, loc, text, font, anchor, stroke_width, text_color)
+            self._draw_label_bg(draw, loc, text, font, anchor,
+                                stroke_width, text_color)
         else:
             stroke_width = 1
             stroke_fill = contrast_color(text_color)
 
         draw.text(loc, text,
-            font=font,
-            anchor=anchor,
-            fill=text_color,
-            stroke_width=stroke_width,
-            stroke_fill=stroke_fill,
-        )
+                  font=font,
+                  anchor=anchor,
+                  fill=text_color,
+                  stroke_width=stroke_width,
+                  stroke_fill=stroke_fill)
 
-    def _draw_label_bg(self, draw, loc, text, font, anchor, stroke_width, text_color):
+    def _draw_label_bg(self, draw, loc, text, font, anchor,
+                       stroke_width, text_color):
         '''Draw a rectangle as the background for the label.'''
         px, py = loc
         box = None
 
         try:
             box = font.getbbox(text, anchor=anchor, stroke_width=stroke_width)
-            box = (
-                px + box[0] - 1,
-                py + box[1] - 1,
-                px + box[2] - 1,
-                py + box[3] - 1,
-            )
+            box = (px + box[0] - 1,
+                   py + box[1] - 1,
+                   px + box[2] - 1,
+                   py + box[3] - 1)
         except AttributeError:
             # the fallback font cannot calculate a bbox
             # fallback will not be rendered at "anchor"
             tw, th = font.getsize(text, stroke_width=stroke_width)
-            box = (
-                px,
-                py,
-                px + tw,
-                py + th,
-            )
+            box = (px,
+                   py,
+                   px + tw,
+                   py + th)
 
         # pad the box
         padding = self.padding or (0, 0, 0, 0)
         pad_top, pad_right, pad_bottom, pad_left = padding
-        box = (
-            box[0] - pad_left,
-            box[1] - pad_top,
-            box[2] + pad_right,
-            box[3] + pad_bottom,
-        )
+        box = (box[0] - pad_left,
+               box[1] - pad_top,
+               box[2] + pad_right,
+               box[3] + pad_bottom)
 
         draw.rectangle(box,
-            fill=self.label_bg,
-            outline=text_color,
-            width=1,
-        )
+                       fill=self.label_bg,
+                       outline=text_color,
+                       width=1)
 
     def __repr__(self):
         return '<Placemark lat=%s, lon=%s, symbol=%r, label=%r>' % (
@@ -242,10 +242,10 @@ class Box(DrawLayer):
     BRACKET = 'bracket'
 
     def __init__(self, bbox,
-        color=(0, 0, 0, 255),
-        fill=None,
-        width=1,
-        style=None):
+                 color=(0, 0, 0, 255),
+                 fill=None,
+                 width=1,
+                 style=None):
         self.bbox = bbox
         self.style = style or Box.REGULAR
         self.color = color
@@ -266,10 +266,9 @@ class Box(DrawLayer):
         ]
 
         draw.rectangle(xy,
-            outline=self.color,
-            fill=self.fill,
-            width=self.width
-        )
+                       outline=self.color,
+                       fill=self.fill,
+                       width=self.width)
 
     def _draw_bracket(self, rc, draw):
         if not self.color or not self.width:
@@ -315,10 +314,9 @@ class Box(DrawLayer):
         ]
 
         draw.rectangle(xy,
-            outline=None,
-            fill=self.fill,
-            width=0,
-        )
+                       outline=None,
+                       fill=self.fill,
+                       width=0)
 
     def __repr__(self):
         return '<Box bbox=%s, style=%r>' % (self.bbox, self.style)
@@ -343,10 +341,10 @@ class Circle(DrawLayer):
     '''
 
     def __init__(self, lat, lon, radius,
-        color=(0, 0, 0, 255),
-        fill=None,
-        width=1,
-        marker=False):
+                 color=(0, 0, 0, 255),
+                 fill=None,
+                 width=1,
+                 marker=False):
         self.lat = lat
         self.lon = lon
         self.radius = radius
@@ -356,17 +354,16 @@ class Circle(DrawLayer):
         self.marker = marker
 
     def draw(self, rc, draw):
-        bbox = _bbox_from_radius(self.lat, self.lon, self.radius)
+        bbox = BBox.from_radius(self.lat, self.lon, self.radius)
         xy = [
             rc.to_pixels(bbox.maxlat, bbox.minlon),
             rc.to_pixels(bbox.minlat, bbox.maxlon),
         ]
 
         draw.ellipse(xy,
-            outline=self.color,
-            fill=self.fill,
-            width=self.width,
-        )
+                     outline=self.color,
+                     fill=self.fill,
+                     width=self.width)
 
         if self.marker:
             center_x, center_y = rc.to_pixels(self.lat, self.lon)
@@ -376,9 +373,9 @@ class Circle(DrawLayer):
         r = 2
         xy = [x-r, y-r, x+r, y+r]
         draw.ellipse(xy,
-            fill=self.color,
-            outline=self.color,
-            width=self.width)
+                     fill=self.color,
+                     outline=self.color,
+                     width=self.width)
 
     def __repr__(self):
         return '<Circle lat=%s, lon=%s, radius=%s>' % (
@@ -390,7 +387,8 @@ class Shape(DrawLayer):
 
     def __init__(self, points, color=(0, 0, 0, 255), fill=None):
         if len(points) < 3:
-            raise ValueError('points must be a list with at least three entries')
+            raise ValueError(('points must be a list '
+                              'with at least three entries'))
 
         self.points = points
         self.color = color
@@ -399,8 +397,8 @@ class Shape(DrawLayer):
     def draw(self, rc, draw):
         xy = [rc.to_pixels(lat, lon) for lat, lon in self.points]
         draw.polygon(xy,
-            fill=self.fill,
-            outline=self.color)
+                     fill=self.fill,
+                     outline=self.color)
 
     def __repr__(self):
         return '<Polygon points=%d>' % len(self.points)

@@ -5,12 +5,7 @@ Decorations are placed using pixel coordinates.
 '''
 
 
-from collections import defaultdict
 from math import floor
-
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
 
 from .geo import decimal
 from .geo import dms
@@ -119,14 +114,13 @@ class Cartouche(Decoration):
     }
 
     def __init__(self, title,
-        placement='N',
-        color=(0, 0, 0, 255),
-        background=None,
-        border_width=0,
-        border_color=None,
-        font_name=None,
-        font_size=12,
-    ):
+                 placement='N',
+                 color=(0, 0, 0, 255),
+                 background=None,
+                 border_width=0,
+                 border_color=None,
+                 font_name=None,
+                 font_size=12):
         '''Initialize a Text area.'''
         super().__init__(placement)
         self.title = title
@@ -175,10 +169,9 @@ class Cartouche(Decoration):
 
         # border/decoration
         draw.rectangle([m_left, m_top, w - m_right - 1, h - m_bottom - 1],
-            fill=self.background,
-            outline=self.border_color or self.color,
-            width=self.border_width
-        )
+                       fill=self.background,
+                       outline=self.border_color or self.color,
+                       width=self.border_width)
         # text
         anchor = self._TEXT_ANCHOR[self.placement]
         x = {
@@ -196,13 +189,13 @@ class Cartouche(Decoration):
             'd': h - p_bottom - m_bottom,
         }[anchor[1]]
         draw.text((x, y), self.title,
-            font=font,
-            anchor=anchor,
-            fill=self.color,
-        )
+                  font=font,
+                  anchor=anchor,
+                  fill=self.color)
 
     def __repr__(self):
-        return '<Cartouche placement=%r, title=%r>' % (self.placement, self.title)
+        return '<Cartouche placement=%r, title=%r>' % (self.placement,
+                                                       self.title)
 
 
 class Scale:
@@ -222,7 +215,11 @@ class CompassRose(Decoration):
     and an optional "N" marker at the top of the arrow.
     '''
 
-    def __init__(self, placement='SE', color=(0, 0, 0, 255), outline=None, marker=False):
+    def __init__(self,
+                 placement='SE',
+                 color=(0, 0, 0, 255),
+                 outline=None,
+                 marker=False):
         super().__init__(placement)
         self.color = color
         self.outline = outline
@@ -263,7 +260,6 @@ class CompassRose(Decoration):
         marker_pad = 0
         marker_h = 0
         if self.marker:
-            font_size = size[1] // 5
             font = load_font(self.font, self.font_size)
             marker_w, marker_h = font.getsize('N')
             marker_pad = marker_h // 16  # padding between marker and arrowhead
@@ -312,21 +308,19 @@ class CompassRose(Decoration):
         x_offset = m_left
         y_offset = m_top + marker_h + marker_pad
         draw.polygon([(x + x_offset, y + y_offset) for x, y in points],
-            fill=self.color,
-            outline=self.outline,
-        )
+                     fill=self.color,
+                     outline=self.outline)
 
         if self.marker:
             w, h = size
             x = w // 2
             y = m_top
             draw.text((x, y), 'N',
-                font=font,
-                anchor='mt',
-                fill=self.color,
-                stroke_width=1,
-                stroke_fill=self.outline,
-            )
+                      font=font,
+                      anchor='mt',
+                      fill=self.color,
+                      stroke_width=1,
+                      stroke_fill=self.outline)
 
     def __repr__(self):
         return '<CompassRose placement=%r>' % self.placement
@@ -343,7 +337,11 @@ class Frame:
 
     STYLES = ('coordinates', 'solid')
 
-    def __init__(self, width=8, color=(0, 0, 0, 255), alt_color=(255, 255, 255, 255), style='solid'):
+    def __init__(self,
+                 width=8,
+                 color=(0, 0, 0, 255),
+                 alt_color=(255, 255, 255, 255),
+                 style='solid'):
         self.width = width
         self.color = color
         self.alt_color = alt_color
@@ -361,7 +359,6 @@ class Frame:
         xy = (0, 0, w - 1, h - 1)
         draw.rectangle(xy, outline=self.color, width=self.width)
 
-
     def _draw_coords(self, rc, draw, size):
         crop_left, crop_top, _, _ = rc.crop_box
         top, right, bottom, left = self._tick_coordinates(rc.bbox)
@@ -369,13 +366,13 @@ class Frame:
             prev_x = self.width
             for i, tick_pos in enumerate(coords):
                 # x, y are pixels on the MAP
-                # the draw context refers to the size incl. border around the map
+                # draw context refers to the size incl. border around the map
                 x, y = rc.to_pixels(*tick_pos)
                 x -= crop_left
                 x += self.width
 
                 y -= crop_top
-                if which == 1: # bottom
+                if which == 1:  # bottom
                     y += self.width
 
                 # "-1" accounts for 1px border
@@ -400,22 +397,23 @@ class Frame:
                 y -= crop_top
                 y += self.width
 
-                draw.rectangle([
-                    x, y - 1,
-                    x + self.width - 1, prev_y,],
-                    fill=self.color if i % 2 else self.alt_color,
-                    outline=self.color,
-                    width=1
-                )
+                xy = [x,
+                      y - 1,
+                      x + self.width - 1,
+                      prev_y]
+                draw.rectangle(xy,
+                               fill=self.color if i % 2 else self.alt_color,
+                               outline=self.color,
+                               width=1)
                 prev_y = y
 
         # draw corners
         w, h = size
-        draw.rectangle([0, 0, self.width - 1, self.width - 1], fill=self.color)
-        draw.rectangle([w - self.width, 0, w - 1, self.width - 1], fill=self.color)
-        draw.rectangle([0, h - self.width, self.width - 1, h - 1], fill=self.color)
-        draw.rectangle([w - self.width, h - self.width, w - 1, h - 1], fill=self.color)
-
+        width = self.width
+        draw.rectangle([0, 0, width - 1, width - 1], fill=self.color)
+        draw.rectangle([w - width, 0, w - 1, width - 1], fill=self.color)
+        draw.rectangle([0, h - width, width - 1, h - 1], fill=self.color)
+        draw.rectangle([w - width, h - width, w - 1, h - 1], fill=self.color)
 
     def _tick_coordinates(self, bbox, n=8):
         lon_ticks = self._ticks(bbox.minlon, bbox.maxlon, n=n)
@@ -433,8 +431,8 @@ class Frame:
 
     def _ticks(self, start, end, n=8):
         '''Create a list of ticks from start to end so that we have ``n`` ticks
-        in total (plus a fraction)
-        and the tick values are on full degrees, minutes or seconds if possible.
+        in total (plus a fraction) and the tick values are on full degrees,
+        minutes or seconds if possible.
         '''
         span = end - start
         d, m, s = dms(span)
