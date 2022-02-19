@@ -101,6 +101,83 @@ and max be extended to North/South or East/West to match the aspect ratio.
 Note that the *resolution* of the image depends on the ``--zoom`` factor.
 
 
+Decorations
+-----------
+Set a headline with ``--title``, specify optional ``PLACEMENT``, ``COLOR``
+and ``BORDER`` followed by the title string.
+The title will be added to the *Margin Area* and will force a margin that is
+large enough to accommodate the title.
+
+:PLACEMENT:   one of the cardinal directions e.g. ``NW, NNW, N, NNE, NE, ...``.
+:BORDER:      a single integer value for the border width in in pixels.
+:COLOR:       RGB(A) tuple as a comma separated string, e.g. "255,0,0".
+:BACKGROUND:  RGB(A) tuple as a comma separated string, e.g. "255,0,0".
+
+.. code:: shell-session
+
+    $ mapmaker --title My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW 5 My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW 5 255,0,0 My Map -- 45.83,6.88 100km
+    $ mapmaker --title NNW 5 255,0,0 0,0,255 My Map -- 45.83,6.88 100km
+
+*Note the ``--`` to indicate the end of non-positional arguments.*
+
+Use ``--comment`` to add a comment in small print. Arguments are the same
+as for ``--title``:
+
+.. code:: shell-session
+
+    $ mapmaker --comment My Comment 45.83,6.88 100km
+    $ mapmaker --comment SE 200,200,200 My Comment 45.83,6.88 100km
+
+Use ``--margin`` and ``--background`` to apply a border around the map.
+Note that some decoration arguments will automatically add a margin area.
+
+``margin`` is given in pixels as a single value (all sides),
+a pair of two values (top/bottom and left/right)
+or as four separate values for top, right, bottom, left (clockwise).
+
+.. code:: shell-session
+
+    $ mapmaker --margin 50 45.83,6.88 100km
+    $ mapmaker --margin 20 40 45.83,6.88 100km
+    $ mapmaker --margin 10 15 20 15 45.83,6.88 100km
+
+``background`` is given as a comma separated RGB(A) value:
+
+.. code:: shell-session
+
+    $ mapmaker --background 200,200,200 45.83,6.88 100km
+    $ mapmaker --background 200,200,200,128 45.83,6.88 100km
+
+The ``--frame`` argument adds a border around the map content, that is between
+the map and the (optional) margin area.
+``frame`` has up to four optional parameters:
+
+:``WIDTH``:     The width in pixels, e.g. "8".
+:``COLOR``:     The main color as an RGB(A) value, e.g. "0,0,0" (black).
+:``ALT_COLOR``: The secondary color as an RGB(A) value, e.g. "255,255,255" (white).
+:``STYLE``:     The style, either "solid" or "coordinates".
+
+Arguments can be supplied in any order.
+``ALT_COLOR`` is only needed for styles that feature alternating colors,
+if two RGB(A) values are specified, the second is considered the ``ALT_COLOR``.
+
+All arguments are optional and if ``--frame`` is specified without arguments,
+a default frame will be drawn.
+
+Examples:
+
+.. code:: shell-session
+
+    $ mapmaker --frame 45.83,6.88 100km
+    $ mapmaker --frame 12 45.83,6.88 100km
+    $ mapmaker --frame 12 255,0,0 45.83,6.88 100km
+    $ mapmaker --frame 12 255,0,0 0,0,255 coordinates 45.83,6.88 100km
+    $ mapmaker --frame coordinates 45.83,6.88 100km
+
+
 Create a Gallery
 ----------------
 Use the ``--gallery`` flag to render a set of maps, one for each available style.
