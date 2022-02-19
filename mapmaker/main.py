@@ -47,6 +47,14 @@ def main():
             author=__author__,
         ),
     )
+
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=__version__,
+        help='Print version number and exit',
+    )
+
     parser.add_argument(
         'bbox',
         metavar='AREA',

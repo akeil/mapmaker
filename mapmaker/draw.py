@@ -86,6 +86,7 @@ class Placemark(DrawLayer):
         self.symbol = symbol
         self.color = color
         self.fill = fill
+        # TODO: make sure border !=0 if "color" is set?
         self.border = border
         self.size = size
         # Label
