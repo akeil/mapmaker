@@ -26,6 +26,7 @@ class BBoxAction(argparse.Action):
             raise ArgumentError(self, ('failed to parse bounding box from'
                                        ' %r: %s') % (' '.join(values), err))
 
+
 def bbox(values):
     '''Parse a bounding box from a pair of coordinates or from a single
     coordinate and a redius.
@@ -99,27 +100,41 @@ class MarginAction(argparse.Action):
         super().__init__(option_strings, dest, nargs='+', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        margins = None
-        if len(values) == 1:
-            v = int(values[0])
-            margins = v, v, v, v
-        elif len(values) == 2:
-            vert, hori = values
-            margins = int(vert), int(hori), int(vert), int(hori)
-        elif len(values) == 4:
-            top, right, bottom, left = values
-            margins = int(top), int(right), int(bottom), int(left)
+        try:
+            margins = margin(values)
+            setattr(namespace, self.dest, margins)
+        except ValueError as err:
+            raise ArgumentError(self, str(err))
+
+
+def margin(raw):
+    if isinstance(raw, str):
+        if ',' in raw:
+            values = raw.split(',')
         else:
-            msg = ('invalid number of arguments (%s) for margin,'
-                   ' expected 1, 2, or 4 values') % len(values)
-            raise ArgumentError(self, msg)
+            values = raw.split()  # whitespace
+    else:  # assume list of ints
+        values = raw
 
-        for v in margins:
-            if v < 0:
-                raise ArgumentError(self, ('invalid margin %r,'
-                                           ' must not be negative') % v)
+    # handle different variatnes vor "values"
+    if len(values) == 1:
+        v = int(values[0])
+        margins = v, v, v, v
+    elif len(values) == 2:
+        vert, hori = values
+        margins = int(vert), int(hori), int(vert), int(hori)
+    elif len(values) == 4:
+        top, right, bottom, left = values
+        margins = int(top), int(right), int(bottom), int(left)
+    else:
+        raise ValueError(('invalid number of arguments (%s) for margin,'
+                          ' expected 1, 2, or 4 values') % len(values))
 
-        setattr(namespace, self.dest, margins)
+    for v in margins:
+        if v < 0:
+            raise ValueError(('invalid margin %r, must not be negative') % v)
+
+    return margins
 
 
 class TextAction(argparse.Action):
