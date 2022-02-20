@@ -361,6 +361,8 @@ class Frame:
 
     def _draw_coords(self, rc, draw, size):
         crop_left, crop_top, _, _ = rc.crop_box
+        _, h = size
+
         top, right, bottom, left = self._tick_coordinates(rc.bbox)
         for which, coords in enumerate((top, bottom)):
             prev_x = self.width
@@ -387,6 +389,7 @@ class Frame:
 
         for which, coords in enumerate((left, right)):
             prev_y = self.width
+            prev_y = h - self.width - 1
             for i, tick_pos in enumerate(coords):
                 x, y = rc.to_pixels(*tick_pos)
 
@@ -401,26 +404,23 @@ class Frame:
                       y - 1,
                       x + self.width - 1,
                       prev_y]
+                fill = self.color if i % 2 else self.alt_color
                 draw.rectangle(xy,
-                               fill=self.color if i % 2 else self.alt_color,
+                               fill=fill,
                                outline=self.color,
                                width=1)
                 prev_y = y
 
-        # draw corners
-        w, h = size
-        width = self.width
-        draw.rectangle([0, 0, width - 1, width - 1], fill=self.color)
-        draw.rectangle([w - width, 0, w - 1, width - 1], fill=self.color)
-        draw.rectangle([0, h - width, width - 1, h - 1], fill=self.color)
-        draw.rectangle([w - width, h - width, w - 1, h - 1], fill=self.color)
+        self._draw_corners(draw, size)
 
-    def _tick_coordinates(self, bbox, n=8):
-        lon_ticks = self._ticks(bbox.minlon, bbox.maxlon, n=n)
+    def _tick_coordinates(self, bbox, n=5):
+        # regular ticks
+        lon_ticks = self._ticks(bbox.minlon, bbox.maxlon, n)
+        # partial tick for the last segment
         lon_ticks.append(bbox.maxlon)
 
-        lat_ticks = self._ticks(bbox.minlat, bbox.maxlat, n=n)
-        lat_ticks.insert(0, bbox.minlat)
+        lat_ticks = self._ticks(bbox.minlat, bbox.maxlat, n)
+        lat_ticks.append(bbox.maxlat)
 
         top = [(bbox.maxlat, lon) for lon in lon_ticks]
         bottom = [(bbox.minlat, lon) for lon in lon_ticks]
@@ -429,13 +429,18 @@ class Frame:
 
         return top, right, bottom, left
 
-    def _ticks(self, start, end, n=8):
+    def _ticks(self, start, end, n):
         '''Create a list of ticks from start to end so that we have ``n`` ticks
         in total (plus a fraction) and the tick values are on full degrees,
         minutes or seconds if possible.
         '''
         span = end - start
         d, m, s = dms(span)
+        m_half = m * 2
+
+        print('DMS for ticks', d, m, m_half, s)
+        print('N-Ticks:', n)
+        print('Span', span)
 
         steps = []
         if d >= n:
@@ -446,6 +451,12 @@ class Frame:
             per_tick = m // n
             n_ticks = floor(span / decimal(m=per_tick))
             steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
+        elif m_half >= n:
+            per_tick = (m_half // n) / 2
+            print('Per Tick', per_tick)
+            n_ticks = floor(span / decimal(m=per_tick))
+            print('N Ticks', n_ticks)
+            steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
         else:
             per_tick = s // n
             n_ticks = floor(span / decimal(s=per_tick))
@@ -453,6 +464,14 @@ class Frame:
 
         ticks = [start + v for v in steps]
         return ticks
+
+    def _draw_corners(self, draw, size):
+        w, h = size
+        width = self.width
+        draw.rectangle([0, 0, width - 1, width - 1], fill=self.color)
+        draw.rectangle([w - width, 0, w - 1, width - 1], fill=self.color)
+        draw.rectangle([0, h - width, width - 1, h - 1], fill=self.color)
+        draw.rectangle([w - width, h - width, w - 1, h - 1], fill=self.color)
 
     def __repr__(self):
         return '<Frame width=%r, style=%r>' % (self.width, self.style)
