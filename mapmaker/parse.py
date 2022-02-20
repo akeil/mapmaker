@@ -20,60 +20,74 @@ class BBoxAction(argparse.Action):
         # B: lat/lon and radius
         #    e.g. 47.437,10.953 2km
         try:
-            bbox = self._parse_bbox(values)
-            setattr(namespace, self.dest, bbox)
+            box = bbox(values)
+            setattr(namespace, self.dest, box)
         except ValueError as err:
             raise ArgumentError(self, ('failed to parse bounding box from'
                                        ' %r: %s') % (' '.join(values), err))
 
-    def _parse_bbox(self, values):
-        lat0, lon0 = _parse_coordinates(values[0])
+def bbox(values):
+    '''Parse a bounding box from a pair of coordinates or from a single
+    coordinate and a redius.
 
-        # simple case, BBox from lat,lon pairs
-        if ',' in values[1]:
-            lat1, lon1 = _parse_coordinates(values[1])
-            bbox = BBox(
-                minlat=min(lat0, lat1),
-                minlon=min(lon0, lon1),
-                maxlat=max(lat0, lat1),
-                maxlon=max(lon0, lon1),
-            )
-        # bbox from point and radius
-        else:
-            s = values[1].lower()
-            unit = None
-            value = None
-            allowed_units = ('km', 'm')
-            for u in allowed_units:
-                if s.endswith(u):
-                    unit = u
-                    value = float(s[:-len(u)])
-                    break
+    1. two lat lon pairs::
 
-            if value is None:  # no unit specified
-                value = float(s)
-                unit = 'm'
+        ["47.437,10.953", "47.374,11.133"]
 
-            # convert to meters,
-            if unit == 'km':
-                value *= 1000.0
+    2. single coordinate and radius::
 
-            bbox = BBox.from_radius(lat0, lon0, value)
+        ["47.437,10.953", "2km"]
 
-        # constrain to min/max values of slippy tile map
-        bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT)
+    If successful, returns a ``BBox`` object.
+    Raises *ValueError* on failure.
+    '''
+    lat0, lon0 = _parse_coordinates(values[0])
 
-        # Validate
-        if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
-            raise ValueError
-        if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
-            raise ValueError
-        if bbox.minlon < -180.0 or bbox.minlon > 180.0:
-            raise ValueError
-        if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
-            raise ValueError
+    # simple case, BBox from lat,lon pairs
+    if ',' in values[1]:
+        lat1, lon1 = _parse_coordinates(values[1])
+        bbox = BBox(
+            minlat=min(lat0, lat1),
+            minlon=min(lon0, lon1),
+            maxlat=max(lat0, lat1),
+            maxlon=max(lon0, lon1),
+        )
+    # bbox from point and radius
+    else:
+        s = values[1].lower()
+        unit = None
+        value = None
+        allowed_units = ('km', 'm')
+        for u in allowed_units:
+            if s.endswith(u):
+                unit = u
+                value = float(s[:-len(u)])
+                break
 
-        return bbox
+        if value is None:  # no unit specified
+            value = float(s)
+            unit = 'm'
+
+        # convert to meters,
+        if unit == 'km':
+            value *= 1000.0
+
+        bbox = BBox.from_radius(lat0, lon0, value)
+
+    # constrain to min/max values of slippy tile map
+    bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT)
+
+    # Validate
+    if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
+        raise ValueError
+    if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
+        raise ValueError
+    if bbox.minlon < -180.0 or bbox.minlon > 180.0:
+        raise ValueError
+    if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
+        raise ValueError
+
+    return bbox
 
 
 class MarginAction(argparse.Action):
