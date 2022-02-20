@@ -396,6 +396,7 @@ class Shape(DrawLayer):
 
     def draw(self, rc, draw):
         xy = [rc.to_pixels(lat, lon) for lat, lon in self.points]
+        # TODO: width
         draw.polygon(xy,
                      fill=self.fill,
                      outline=self.color)
