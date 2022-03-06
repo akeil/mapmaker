@@ -79,20 +79,33 @@ def load(arg):
     '''Load GeoJSON object from the given ``arg`` which is either
     a file-like object, a path or a JSON string.
 
+    Returns a GeoJSON object that can be added as a *drawable* element
+    to a map.
+
+    .. code:: python
+
+        my_map = Map(bbox)
+        elem = load(data)
+        my_map.add_element(elem)
+        my_map.render(...)  # draws GeoJSON elements on the map
+
+    If the GeoJSON contains multiple elements (e.g. GeometryCollection),
+    all of these will be drawn on the map.
+
     Raises an error if no JSON can be parsed or if the JSON is not a valid
     GeoJSON object.
     '''
     # arg is a file-like object?
     try:
         obj = geojson.load(arg)
-        return _wrap(obj)
+        return wrap(obj)
     except Exception as err:
         pass
 
     # arg is a JSON string?
     try:
         obj = geojson.loads(arg)
-        return _wrap(obj)
+        return wrap(obj)
     except Exception as err:
         pass
 
@@ -101,12 +114,12 @@ def load(arg):
     if not isinstance (arg, int):
         with open(arg) as f:
             obj = geojson.load(f)
-            return _wrap(obj)
+            return wrap(obj)
 
     raise ValueError('invalid GeoJSON %r' % arg)
 
 
-def _wrap(obj):
+def wrap(obj):
     '''Wrap a GeoJSON object into a *drawable* element for the map.'''
     try:
         t = obj['type']
@@ -236,7 +249,7 @@ class _GeometryCollection(_Wrapper):
     def draw(self, rc, draw):
         for geometry in self.geometries:
             # raises error for unknown `type`
-            _wrap(geometry).draw(rc, draw)
+            wrap(geometry).draw(rc, draw)
 
 
 class _Feature(_Wrapper):
@@ -249,7 +262,7 @@ class _Feature(_Wrapper):
         # geometry can be `null`
         if self.geometry:
             # raises error for unknown `type`
-            _wrap(self.geometry).draw(rc, draw)
+            wrap(self.geometry).draw(rc, draw)
 
 
 class _FeatureCollection(_Wrapper):
