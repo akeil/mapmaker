@@ -37,7 +37,7 @@ points.
 
 LineString, MultiLineString
 ---------------------------
-Draws a line on the map
+Draws a line on the map.
 
 Special attributes:
 
@@ -47,11 +47,9 @@ Special attributes:
 
 Polygon, MultiPolygon
 ---------------------
-
 Special attributes:
 
 :color: RGB value to control the color of the line
-:width: Controls the width of the line
 :fill: Controls the fill color
 
 
@@ -63,6 +61,10 @@ Draws whatever is contained in the collection.
 Feature, FeatureCollection
 --------------------------
 Draws the ``geometry`` member.
+
+The ``properties`` attribute of a *Feature* can hold the special attributes
+for the geometries. In this case, these attrbiutes are applied to the contained
+geometries.
 
 
 Attribute Types
@@ -142,7 +144,7 @@ def load(arg):
     raise ValueError('invalid GeoJSON %r' % arg)
 
 
-def wrap(obj):
+def wrap(obj, feature=None):
     '''Wrap a GeoJSON object into a *drawable* element for the map.'''
     try:
         t = obj['type']
@@ -161,7 +163,7 @@ def wrap(obj):
             _COLLECTION: _GeometryCollection,
             _FEATURE: _Feature,
             _FEATURE_COLLECTION: _FeatureCollection,
-        }[t](obj)
+        }[t](obj, feature=feature)
     except KeyError:
         raise ValueError('Unsupported type %r' % t)
 
@@ -169,23 +171,44 @@ def wrap(obj):
 class _Wrapper:
     '''Base class for making a GeoJSON Geometry *drawable*.'''
 
-    def __init__(self, obj):
+    def __init__(self, obj, feature=None):
         self._obj = obj
+        self._feature = feature
+
+    def _get(self, key):
+        '''Get a value from the wrapped GeoJSON objects "foreign members".
+
+        If the value is not set *and* if we have a parent feature, look up
+        the value in the Feature's ``properties`` dict.
+        '''
+        print('get', key)
+        try:
+            return self._obj[key]
+        except KeyError:
+            if self._feature:
+                print('get from feature', key, self._feature.get('properties', {}))
+                return self._feature.get('properties', {})[key]
 
     def _int(self, key):
         try:
-            return int(self._obj[key])
+            return int(self._get(key))
         except (KeyError, ValueError, TypeError):
             pass
 
     def _str(self, key):
+        print('get str for', key)
         try:
-            return str(self._obj[key])
+            print('Raw value:', self._get(key))
+            return str(self._get(key))
         except KeyError:
             pass
 
     def _color(self, key):
-        val = self._obj.get(key)
+        try:
+            val = self._get(key)
+        except KeyError:
+            return
+        
         if not val:
             return
 
@@ -214,16 +237,19 @@ class _Point(_Wrapper):
 
     @property
     def symbol(self):
-        symbol = self._obj.get('symbol')
+        symbol = self._str('symbol')
+        print('Symbol is', symbol)
         if symbol in Placemark.SYMBOLS:
             return symbol
+
+        return Placemark.DOT
 
     def _placemark(self, lat, lon):
         # also used by _PointList
         return Placemark(lat,
                          lon,
                          symbol=self.symbol,
-                         label=self._obj.get('label'),
+                         label=self._str('label'),
                          color=self._color('color'),
                          fill=self._color('fill'),
                          border=self._int('border'),
@@ -247,6 +273,7 @@ class _MultiPoint(_Point):
 
     def draw(self, rc, draw):
         for lat, lon in self.coordinates:
+            print('Draw', self._placemark(lat, lon))
             self._placemark(lat, lon).draw(rc, draw)
 
 
@@ -336,13 +363,13 @@ class _Feature(_Wrapper):
         # geometry can be `null`
         if self.geometry:
             # raises error for unknown `type`
-            wrap(self.geometry).draw(rc, draw)
+            wrap(self.geometry, feature=self._obj).draw(rc, draw)
 
 
 class _FeatureCollection(_Wrapper):
 
     @property
-    def coordinates(self):
+    def features(self):
         return [_Feature(x) for x in self._obj.get('features', [])]
 
     def draw(self, rc, draw):
