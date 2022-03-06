@@ -20,60 +20,75 @@ class BBoxAction(argparse.Action):
         # B: lat/lon and radius
         #    e.g. 47.437,10.953 2km
         try:
-            bbox = self._parse_bbox(values)
-            setattr(namespace, self.dest, bbox)
+            box = bbox(values)
+            setattr(namespace, self.dest, box)
         except ValueError as err:
             raise ArgumentError(self, ('failed to parse bounding box from'
                                        ' %r: %s') % (' '.join(values), err))
 
-    def _parse_bbox(self, values):
-        lat0, lon0 = _parse_coordinates(values[0])
 
-        # simple case, BBox from lat,lon pairs
-        if ',' in values[1]:
-            lat1, lon1 = _parse_coordinates(values[1])
-            bbox = BBox(
-                minlat=min(lat0, lat1),
-                minlon=min(lon0, lon1),
-                maxlat=max(lat0, lat1),
-                maxlon=max(lon0, lon1),
-            )
-        # bbox from point and radius
-        else:
-            s = values[1].lower()
-            unit = None
-            value = None
-            allowed_units = ('km', 'm')
-            for u in allowed_units:
-                if s.endswith(u):
-                    unit = u
-                    value = float(s[:-len(u)])
-                    break
+def bbox(values):
+    '''Parse a bounding box from a pair of coordinates or from a single
+    coordinate and a redius.
 
-            if value is None:  # no unit specified
-                value = float(s)
-                unit = 'm'
+    1. two lat lon pairs::
 
-            # convert to meters,
-            if unit == 'km':
-                value *= 1000.0
+        ["47.437,10.953", "47.374,11.133"]
 
-            bbox = BBox.from_radius(lat0, lon0, value)
+    2. single coordinate and radius::
 
-        # constrain to min/max values of slippy tile map
-        bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT)
+        ["47.437,10.953", "2km"]
 
-        # Validate
-        if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
-            raise ValueError
-        if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
-            raise ValueError
-        if bbox.minlon < -180.0 or bbox.minlon > 180.0:
-            raise ValueError
-        if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
-            raise ValueError
+    If successful, returns a ``BBox`` object.
+    Raises *ValueError* on failure.
+    '''
+    lat0, lon0 = _parse_coordinates(values[0])
 
-        return bbox
+    # simple case, BBox from lat,lon pairs
+    if ',' in values[1]:
+        lat1, lon1 = _parse_coordinates(values[1])
+        bbox = BBox(
+            minlat=min(lat0, lat1),
+            minlon=min(lon0, lon1),
+            maxlat=max(lat0, lat1),
+            maxlon=max(lon0, lon1),
+        )
+    # bbox from point and radius
+    else:
+        s = values[1].lower()
+        unit = None
+        value = None
+        allowed_units = ('km', 'm')
+        for u in allowed_units:
+            if s.endswith(u):
+                unit = u
+                value = float(s[:-len(u)])
+                break
+
+        if value is None:  # no unit specified
+            value = float(s)
+            unit = 'm'
+
+        # convert to meters,
+        if unit == 'km':
+            value *= 1000.0
+
+        bbox = BBox.from_radius(lat0, lon0, value)
+
+    # constrain to min/max values of slippy tile map
+    bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT)
+
+    # Validate
+    if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
+        raise ValueError
+    if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
+        raise ValueError
+    if bbox.minlon < -180.0 or bbox.minlon > 180.0:
+        raise ValueError
+    if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
+        raise ValueError
+
+    return bbox
 
 
 class MarginAction(argparse.Action):
@@ -85,27 +100,41 @@ class MarginAction(argparse.Action):
         super().__init__(option_strings, dest, nargs='+', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        margins = None
-        if len(values) == 1:
-            v = int(values[0])
-            margins = v, v, v, v
-        elif len(values) == 2:
-            vert, hori = values
-            margins = int(vert), int(hori), int(vert), int(hori)
-        elif len(values) == 4:
-            top, right, bottom, left = values
-            margins = int(top), int(right), int(bottom), int(left)
+        try:
+            margins = margin(values)
+            setattr(namespace, self.dest, margins)
+        except ValueError as err:
+            raise ArgumentError(self, str(err))
+
+
+def margin(raw):
+    if isinstance(raw, str):
+        if ',' in raw:
+            values = raw.split(',')
         else:
-            msg = ('invalid number of arguments (%s) for margin,'
-                   ' expected 1, 2, or 4 values') % len(values)
-            raise ArgumentError(self, msg)
+            values = raw.split()  # whitespace
+    else:  # assume list of ints
+        values = raw
 
-        for v in margins:
-            if v < 0:
-                raise ArgumentError(self, ('invalid margin %r,'
-                                           ' must not be negative') % v)
+    # handle different variatnes vor "values"
+    if len(values) == 1:
+        v = int(values[0])
+        margins = v, v, v, v
+    elif len(values) == 2:
+        vert, hori = values
+        margins = int(vert), int(hori), int(vert), int(hori)
+    elif len(values) == 4:
+        top, right, bottom, left = values
+        margins = int(top), int(right), int(bottom), int(left)
+    else:
+        raise ValueError(('invalid number of arguments (%s) for margin,'
+                          ' expected 1, 2, or 4 values') % len(values))
 
-        setattr(namespace, self.dest, margins)
+    for v in margins:
+        if v < 0:
+            raise ValueError(('invalid margin %r, must not be negative') % v)
+
+    return margins
 
 
 class TextAction(argparse.Action):
