@@ -180,7 +180,7 @@ Examples:
 
 GeoJSON
 -------
-The ``--geojson`` option can be used to draw `GeoJSON<https://geojson.org/>`_
+The ``--geojson`` option can be used to draw `GeoJSON <https://geojson.org/>`_
 objects onto the map.
 
 The GeoJSON can contain additional attributes to control the color, line width,
