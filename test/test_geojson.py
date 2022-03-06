@@ -9,7 +9,14 @@ from mapmaker import geoj
 _HOME = Path(__file__).parent
 
 
-class LoadTest(TestCase):
+class _GeoJSONTest(TestCase):
+
+    def assertIsGeoJSON(self, obj):
+        self.assertIsNotNone(obj)
+        self.assertTrue(hasattr(obj, 'draw'))
+
+
+class LoadTest(_GeoJSONTest):
     '''Test the various options to open and parse geojson.'''
 
     def test_load_str(self):
@@ -36,10 +43,6 @@ class LoadTest(TestCase):
             obj = geoj.load(fp)
         self.assertIsGeoJSON(obj)
 
-    def assertIsGeoJSON(self, obj):
-        self.assertIsNotNone(obj)
-        self.assertTrue(hasattr(obj, 'draw'))
-
     def test_invalid_arg(self):
         self.assertRaises(Exception, geoj.load, None)
         self.assertRaises(Exception, geoj.load, 'invalid')
@@ -47,5 +50,75 @@ class LoadTest(TestCase):
         self.assertRaises(Exception, geoj.load, '{}')
         self.assertRaises(Exception, geoj.load, '/does/not/exists.json')
 
-        # valid JSON, but invalid GeoJSON type
-        self.assertRaises(Exception, geoj.load, '{"type": "INVALID"}')
+        # valid JSON, but invalid GeoJSON
+        self.assertRaises(Exception, geoj.load, '{"type": "INVALID", "coordinates": [12, 34]}')
+        # after loading with geojson, Point will have an empty coordinates array []
+        # self.assertRaises(Exception, geoj.load, '{"type": "Point"}')  # no coordinates
+
+
+class GeometriesTest(_GeoJSONTest):
+    '''Test if we understand all of the GeoJSON gemoetries.'''
+
+    def test_point(self):
+        jsonstr = '''{
+            "coordinates": [123.45, 12.45],
+            "type": "Point"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_multi_point(self):
+        jsonstr = '''{
+            "coordinates": [[123.45, 12.45], [101.45, 11.45], [102.45, 13.45]],
+            "type": "MultiPoint"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_line_string(self):
+        jsonstr = '''{
+            "coordinates": [[123.45, 12.45], [101.45, 11.45], [102.45, 13.45]],
+            "type": "LineString"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_multi_line_string(self):
+        jsonstr = '''{
+            "coordinates": [
+                [[123.45, 12.45], [101.45, 11.45], [102.45, 13.45]],
+                [[50.12, 20.12], [51.12, 21.12], [52.12, 22.12]]
+            ],
+            "type": "MultiLineString"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_polygon(self):
+        jsonstr = '''{
+            "coordinates": [[123.45, 12.45], [101.45, 11.45], [102.45, 13.45]],
+            "type": "Polygon"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_multi_polygon(self):
+        jsonstr = '''{
+            "coordinates": [
+                [[123.45, 12.45], [101.45, 11.45], [102.45, 13.45]],
+                [[50.12, 20.12], [51.12, 21.12], [52.12, 22.12]]
+            ],
+            "type": "MultiPolygon"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_elevation(self):
+        '''Test if we can handle an additional ``elevation`` value in
+        coordinates.'''
+        jsonstr = '''{
+            "coordinates": [123.45, 12.45, 220.2],
+            "type": "Point"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)

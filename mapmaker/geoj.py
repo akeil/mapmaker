@@ -57,6 +57,7 @@ Ideas
 
 '''
 from .draw import Placemark
+from .draw import Shape
 from .draw import Track
 
 import geojson
@@ -64,7 +65,7 @@ import geojson
 
 # GeoJSON types
 _POINT = 'Point'
-_MULTI_POINT = 'MultPoint'
+_MULTI_POINT = 'MultiPoint'
 _LINE = 'LineString'
 _MULTI_LINE = 'MultiLineString'
 _POLYGON = 'Polygon'
@@ -113,15 +114,21 @@ def _wrap(obj):
         raise ValueError('Missing type attribute. Not a GeoJSON object?')
 
     try:
+        # TODO: validate() each object?
         return {
             _POINT: _Point,
             _MULTI_POINT: _MultiPoint,
+            _LINE: _LineString,
+            _MULTI_LINE: _MultiLineString,
+            _POLYGON: _Polygon,
+            _MULTI_POLYGON: _MultiPolygon,
         }[t](obj)
     except KeyError:
         raise ValueError('Unsupported type %r' % t)
 
 
 class _Wrapper:
+    '''Base class for making a GeoJSON Geometry *drawable*.'''
 
     def __init__(self, obj):
         self._obj = obj
@@ -167,3 +174,51 @@ class _LineString(_Wrapper):
         # TODO: additional properties
         waypoints = self.coordinates
         Track(waypoints).draw(rc, draw)
+
+
+class _MultiLineString(_LineString):
+
+    @property
+    def coordinates(self):
+        coords = self._obj['coordinates']
+        collection = []
+        for points in coordinates:
+            collection.append([(x[0], x[1]) for x in points])
+        return collection
+
+    def draw(self, rc, draw):
+        # TODO: additional properties, same as _LineString
+        tracks = self.coordinates
+        for track in tracks:
+            Track(waypoints).draw(rc, draw)
+
+
+class _Polygon(_Wrapper):
+
+    @property
+    def coordinates(self):
+        coords = self._obj['coordinates']
+        return [(x[0], x[1]) for x in coords]
+
+    def draw(self, rc, draw):
+        # TODO: additional properties, same as _LineString
+        tracks = self.coordinates
+        for track in tracks:
+            Track(waypoints).draw(rc, draw)
+
+
+class _MultiPolygon(_Wrapper):
+
+    @property
+    def coordinates(self):
+        coords = self._obj['coordinates']
+        collection = []
+        for points in coordinates:
+            collection.append([(x[0], x[1]) for x in points])
+        return collection
+
+    def draw(self, rc, draw):
+        # TODO: additional properties, same as _LineString
+        shapes = self.coordinates
+        for points in shapes:
+            Shape(points).draw(rc, draw)
