@@ -122,6 +122,9 @@ def _wrap(obj):
             _MULTI_LINE: _MultiLineString,
             _POLYGON: _Polygon,
             _MULTI_POLYGON: _MultiPolygon,
+            _COLLECTION: _GeometryCollection,
+            _FEATURE: _Feature,
+            _FEATURE_COLLECTION: _FeatureCollection,
         }[t](obj)
     except KeyError:
         raise ValueError('Unsupported type %r' % t)
@@ -222,3 +225,39 @@ class _MultiPolygon(_Wrapper):
         shapes = self.coordinates
         for points in shapes:
             Shape(points).draw(rc, draw)
+
+
+class _GeometryCollection(_Wrapper):
+
+    @property
+    def geometries(self):
+        return [x for x in self._obj.get('geometries', [])]
+
+    def draw(self, rc, draw):
+        for geometry in self.geometries:
+            # raises error for unknown `type`
+            _wrap(geometry).draw(rc, draw)
+
+
+class _Feature(_Wrapper):
+
+    @property
+    def geometry(self):
+        return self._obj.get('geometry')
+
+    def draw(self, rc, draw):
+        # geometry can be `null`
+        if self.geometry:
+            # raises error for unknown `type`
+            _wrap(self.geometry).draw(rc, draw)
+
+
+class _FeatureCollection(_Wrapper):
+
+    @property
+    def coordinates(self):
+        return [_Feature(x) for x in self._obj.get('features', [])]
+
+    def draw(self, rc, draw):
+        for feature in self.features:
+            feature.draw(rc, draw)

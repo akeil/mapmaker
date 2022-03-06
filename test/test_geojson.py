@@ -113,6 +113,60 @@ class GeometriesTest(_GeoJSONTest):
         obj = geoj.load(jsonstr)
         self.assertIsGeoJSON(obj)
 
+    def test_geometry_collection(self):
+        jsonstr = '''{
+            "geometries": [
+                {
+                    "coordinates": [10.10, 20.20],
+                    "type": "Point"
+                },
+                {
+                    "coordinates": [15.15, 25.25],
+                    "type": "Point"
+                }
+            ],
+            "type": "GeometryCollection"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_feature(self):
+        jsonstr = '''{
+            "geometry": {
+                "coordinates": [15.15, 25.25],
+                "type": "Point"
+            },
+            "properties": null,
+            "type": "Feature"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
+    def test_feature_collection(self):
+        jsonstr = '''{
+            "features": [
+                {
+                    "geometry": {
+                        "coordinates": [15.15, 25.25],
+                        "type": "Point"
+                    },
+                    "properties": null,
+                    "type": "Feature"
+                },
+                {
+                    "geometry": {
+                        "coordinates": [15.15, 25.25],
+                        "type": "Point"
+                    },
+                    "properties": null,
+                    "type": "Feature"
+                }
+            ],
+            "type": "FeatureCollection"
+        }'''
+        obj = geoj.load(jsonstr)
+        self.assertIsGeoJSON(obj)
+
     def test_elevation(self):
         '''Test if we can handle an additional ``elevation`` value in
         coordinates.'''
