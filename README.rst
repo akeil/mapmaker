@@ -178,6 +178,52 @@ Examples:
     $ mapmaker --frame coordinates 45.83,6.88 100km
 
 
+GeoJSON
+-------
+The ``--geojson`` option can be used to draw `GeoJSON<https://geojson.org/>`_
+objects onto the map.
+
+The GeoJSON can contain additional attributes to control the color, line width,
+etc. The additional attributes can be part of a *Geometry* or part of the
+``properties`` attribute of a parent *Feature*.
+Have a look hat the module documentation to see which special attributes are
+supported.
+
+.. code:: json
+
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [12.594474, 55.691438]
+      },
+      "properties": {
+        "symbol": "square",
+        "color": [10, 147, 150],
+        "size": 12
+      }
+    }
+
+You can also use any *Geometry* object directly:
+
+.. code:: json
+
+    {
+      "type": "Polygon",
+      "coordinates": [
+        [8.612316, 47.680632],
+        [8.612316, 47.676327],
+        [8.617423, 47.676327],
+        [8.617423, 47.680632]
+      ]
+      "color": [60, 9, 108],
+      "fill": [60, 9, 108, 120]
+    }
+
+The ``--geojson`` option supports a path to a JSON file or a JSON formatted
+string.
+
+
 Create a Gallery
 ----------------
 Use the ``--gallery`` flag to render a set of maps, one for each available style.
