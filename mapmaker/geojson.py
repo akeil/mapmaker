@@ -100,7 +100,7 @@ _FEATURE = 'Feature'
 _FEATURE_COLLECTION = 'FeatureCollection'
 
 
-def load(arg):
+def read(arg):
     '''Load GeoJSON object from the given ``arg`` which is either
     a file-like object, a path or a JSON string.
 

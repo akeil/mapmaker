@@ -14,7 +14,7 @@ from . import __author__
 from . import __version__
 from .core import Map
 from .geo import distance
-from . import geoj
+from . import geojson
 from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
@@ -224,7 +224,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
         map.add_compass_rose()
 
     if args.geojson:
-        elem = geoj.load(args.geojson)
+        elem = geojson.read(args.geojson)
         map.add_element(elem)
 
     service = TileService(style, conf.urls[style], conf.keys)
