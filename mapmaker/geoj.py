@@ -10,14 +10,28 @@ which are additional attributes of an object.
 These can be used to control how an element is drawn (color, line width, etc.).
 
 
+Geometries
+==========
+
+
 Point, MultiPoint
 -----------------
 Draws a *Placemark* at the given location.
 
 Special attributes:
 
-:symbol: Controls how the placemark looks like (dot, square, ...)
-:label: Text displayed below the point(s)
+:symbol:        Controls how the placemark looks (dot, square, ...)
+:label:         Text displayed below the point(s)
+:color:         Main color for the symbol
+:fill:          Fill color for the symbol
+:border:        Border width for symbol
+:size:          Symbol size
+:font_name:     Font family to use for the label.
+:font_size:     Font size to use for the label.
+:label_color:   Text and border color for the label.
+:label_bg:      Background color for the label
+
+For *MultiPoint* objects, the additional attributes are shared amon all points.
 
 
 LineString, MultiLineString
@@ -50,8 +64,15 @@ Feature, FeatureCollection
 Draws the ``geometry`` member.
 
 
+Attribute Types
+===============
+The additional attributes have the following special types:
+
+:color: An array with 3(4) RGB(A) values, e.g. ``[220, 220, 220, 100]``.
+
+
 Ideas
------
+=====
 - Use separate *opacity* attribute?
 - Use a 'layer' attribute to order elements on z-axis?
 
@@ -59,6 +80,7 @@ Ideas
 from .draw import Placemark
 from .draw import Shape
 from .draw import Track
+from . import parse
 
 import geojson
 
@@ -149,6 +171,35 @@ class _Wrapper:
     def __init__(self, obj):
         self._obj = obj
 
+    def _int(self, key):
+        try:
+            return int(self._obj[key])
+        except (KeyError, ValueError, TypeError):
+            pass
+
+    def _str(self, key):
+        try:
+            return str(self._obj[key])
+        except KeyError:
+            pass
+
+    def _color(self, key):
+        val = self._obj.get(key)
+        if not val:
+            return
+
+        if isinstance(val, str):
+            return parse.color(val)
+
+        # assume array w/ RGB values
+        try:
+            r, g, b = int(val[0]), int(val[1]), int(val[2])
+            a = val[3] if len(val) == 4 else 255
+            # TODO: okay to silently accept array with len > 4?
+            return (r, g, b, a)
+        except (ValueError, TypeError, IndexError):
+            pass
+
     def draw(self, rc, draw):
         raise ValueError('not implemented')
 
@@ -160,10 +211,30 @@ class _Point(_Wrapper):
         coords = self._obj['coordinates']
         return coords[0], coords[1]
 
+    @property
+    def symbol(self):
+        symbol = self._obj.get('symbol')
+        if symbol in Placemark.SYMBOLS:
+            return symbol
+
+    def _placemark(self, lat, lon):
+        # also used by _PointList
+        return Placemark(lat,
+                         lon,
+                         symbol=self.symbol,
+                         label=self._obj.get('label'),
+                         color=self._color('color'),
+                         fill=self._color('fill'),
+                         border=self._int('border'),
+                         size=self._int('size'),
+                         font_name=self._str('font_name'),
+                         font_size=self._int('font_size'),
+                         label_color=self._color('label_color'),
+                         label_bg=self._color('label_bg'))
+
     def draw(self, rc, draw):
         lat, lon = self.coordinates
-        # TODO: more properties
-        Placemark(lat, lon).draw(rc, draw)
+        self._placemark(lat, lon).draw(rc, draw)
 
 
 class _MultiPoint(_Point):
@@ -175,8 +246,8 @@ class _MultiPoint(_Point):
 
     def draw(self, rc, draw):
         # TODO: additional properties, same as _Point
-        for lat, lon in self.positions:
-            Placemark(lat, lon).draw(rc, draw)
+        for lat, lon in self.coordinates:
+            self._placemark(lat, lon).draw(rc, draw)
 
 
 class _LineString(_Wrapper):

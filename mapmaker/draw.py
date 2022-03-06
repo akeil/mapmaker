@@ -75,6 +75,8 @@ class Placemark(DrawLayer):
     SQUARE = 'square'
     TRIANGLE = 'triangle'
 
+    SYMBOLS = ('dot', 'square', 'triangle')
+
     def __init__(self, lat, lon,
                  symbol='dot',
                  label=None,
