@@ -181,12 +181,10 @@ class _Wrapper:
         If the value is not set *and* if we have a parent feature, look up
         the value in the Feature's ``properties`` dict.
         '''
-        print('get', key)
         try:
             return self._obj[key]
         except KeyError:
             if self._feature:
-                print('get from feature', key, self._feature.get('properties', {}))
                 return self._feature.get('properties', {})[key]
 
     def _int(self, key):
@@ -196,9 +194,7 @@ class _Wrapper:
             pass
 
     def _str(self, key):
-        print('get str for', key)
         try:
-            print('Raw value:', self._get(key))
             return str(self._get(key))
         except KeyError:
             pass
@@ -233,12 +229,12 @@ class _Point(_Wrapper):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-        return coords[0], coords[1]
+        # lon,lat => lat,lon
+        return coords[1], coords[0]
 
     @property
     def symbol(self):
         symbol = self._str('symbol')
-        print('Symbol is', symbol)
         if symbol in Placemark.SYMBOLS:
             return symbol
 
@@ -269,11 +265,11 @@ class _MultiPoint(_Point):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-        return [(x[0], x[1]) for x in coords]
+        # lon,lat => lat,lon
+        return [(x[1], x[0]) for x in coords]
 
     def draw(self, rc, draw):
         for lat, lon in self.coordinates:
-            print('Draw', self._placemark(lat, lon))
             self._placemark(lat, lon).draw(rc, draw)
 
 
@@ -282,7 +278,8 @@ class _LineString(_Wrapper):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-        return [(x[0], x[1]) for x in coords]
+        # lon,lat => lat,lon
+        return [(x[1], x[0]) for x in coords]
 
     def _track(self, points):
         return Track(points,
@@ -301,7 +298,8 @@ class _MultiLineString(_LineString):
         coords = self._obj['coordinates']
         collection = []
         for points in coords:
-            collection.append([(x[0], x[1]) for x in points])
+            # lon,lat => lat,lon
+            collection.append([(x[1], x[0]) for x in points])
         return collection
 
     def draw(self, rc, draw):
@@ -314,7 +312,8 @@ class _Polygon(_Wrapper):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-        return [(x[0], x[1]) for x in coords]
+        # lon,lat => lat,lon
+        return [(x[1], x[0]) for x in coords]
 
     def _shape(self, points):
         return Shape(points,
@@ -333,7 +332,8 @@ class _MultiPolygon(_Polygon):
         coords = self._obj['coordinates']
         collection = []
         for points in coords:
-            collection.append([(x[0], x[1]) for x in points])
+            # lon,lat => lat,lon
+            collection.append([(x[1], x[0]) for x in points])
         return collection
 
     def draw(self, rc, draw):
