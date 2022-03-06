@@ -14,6 +14,7 @@ from . import __author__
 from . import __version__
 from .core import Map
 from .geo import distance
+from . import geoj
 from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
@@ -140,6 +141,10 @@ def main():
                         action='store_true',
                         help='Draw a compass rose on the map')
 
+    parser.add_argument('--geojson',
+                        help=('Draw GeoJSON elements on the map.'
+                              ' Path or JSON string'))
+
     parser.add_argument('--gallery',
                         action='store_true',
                         help=(
@@ -217,6 +222,10 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
 
     if args.compass:
         map.add_compass_rose()
+
+    if args.geojson:
+        elem = geoj.load(args.geojson)
+        map.add_element(elem)
 
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)

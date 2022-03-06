@@ -218,9 +218,8 @@ class _Polygon(_Wrapper):
 
     def draw(self, rc, draw):
         # TODO: additional properties, same as _LineString
-        tracks = self.coordinates
-        for track in tracks:
-            Track(waypoints).draw(rc, draw)
+        points = self.coordinates
+        Shape(points).draw(rc, draw)
 
 
 class _MultiPolygon(_Wrapper):
