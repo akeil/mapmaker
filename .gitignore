@@ -3,7 +3,7 @@ map.png
 samples/*
 todo
 run.py
-
+examples/out/*
 
 *.py[cod]
 

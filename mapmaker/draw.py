@@ -98,7 +98,7 @@ class Placemark(DrawLayer):
         self.color = color or _BLACK
         self.fill = fill
         # TODO: make sure border !=0 if "color" is set?
-        self.border = border
+        self.border = border or 0
         self.size = 4 if size is None else size
         # Label
         self.label = label
