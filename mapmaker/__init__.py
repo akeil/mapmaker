@@ -1,4 +1,4 @@
-__version__ = '1.4.1dev2'
+__version__ = '1.4.1dev3'
 __author__ = 'akeil'
 
 from .core import Map

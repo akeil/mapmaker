@@ -1,0 +1,29 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "MultiPoint",
+    "coordinates": [
+      [
+        12.594474,
+        55.691438
+      ],
+      [
+        12.572962,
+        55.687549
+      ],
+      [
+        12.589581,
+        55.684985
+      ]
+    ]
+  },
+  "properties": {
+    "symbol": "square",
+    "color": [
+      10,
+      147,
+      150
+    ],
+    "size": 12
+  }
+}
