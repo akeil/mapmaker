@@ -1,5 +1,4 @@
 from pathlib import Path
-import unittest
 from unittest import TestCase
 
 
@@ -51,9 +50,12 @@ class ReadTest(_GeoJSONTest):
         self.assertRaises(Exception, geojson.read, '/does/not/exists.json')
 
         # valid JSON, but invalid GeoJSON
-        self.assertRaises(Exception, geojson.read, '{"type": "INVALID", "coordinates": [12, 34]}')
-        # after loading with geojson, Point will have an empty coordinates array []
-        # self.assertRaises(Exception, geojson.read, '{"type": "Point"}')  # no coordinates
+        self.assertRaises(Exception,
+                          geojson.read,
+                          '{"type": "INVALID", "coordinates": [12, 34]}')
+
+        # TODO: validation currently not possible
+        # self.assertRaises(Exception, geojson.read, '{"type": "Point"}')
 
     def test_wrap_dict(self):
         '''Check if we can load dict data that was not obtained from the

@@ -124,19 +124,19 @@ def read(arg):
     try:
         obj = geojson.load(arg)
         return wrap(obj)
-    except Exception as err:
+    except Exception:
         pass
 
     # arg is a JSON string?
     try:
         obj = geojson.loads(arg)
         return wrap(obj)
-    except Exception as err:
+    except Exception:
         pass
 
     # arg is a path?
     # Note: open(<int>) would also attempt to read a file pointer.
-    if not isinstance (arg, int):
+    if not isinstance(arg, int):
         with open(arg) as f:
             obj = geojson.load(f)
             return wrap(obj)
@@ -204,7 +204,7 @@ class _Wrapper:
             val = self._get(key)
         except KeyError:
             return
-        
+
         if not val:
             return
 
