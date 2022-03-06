@@ -14,6 +14,9 @@ from .render import load_font
 from .render import contrast_color
 
 
+_BLACK = (0, 0, 0, 255)
+
+
 class DrawLayer:
     '''A DrawLayer is used to draw elements on the map
     using lat/lon coordinates.
@@ -34,10 +37,10 @@ class Track(DrawLayer):
     :width:     The thickness of the line.
     '''
 
-    def __init__(self, waypoints, color=(0, 0, 0, 255), width=1):
+    def __init__(self, waypoints, color=None, width=1):
         self.waypoints = waypoints
-        self.color = color
-        self.width = width
+        self.color = color or _BLACK
+        self.width = 1 if width is None else width
 
     def draw(self, rc, draw):
         xy = [rc.to_pixels(lat, lon) for lat, lon in self.waypoints]
@@ -80,28 +83,28 @@ class Placemark(DrawLayer):
     def __init__(self, lat, lon,
                  symbol='dot',
                  label=None,
-                 color=(0, 0, 0, 255),
+                 color=None,
                  fill=None,
                  border=0,
                  size=4,
                  font_name=None,
                  font_size=10,
-                 label_color=(0, 0, 0, 255),
+                 label_color=None,
                  label_bg=None):
         self.lat = lat
         self.lon = lon
         # Marker
         self.symbol = symbol
-        self.color = color
+        self.color = color or _BLACK
         self.fill = fill
         # TODO: make sure border !=0 if "color" is set?
         self.border = border
-        self.size = size
+        self.size = 4 if size is None else size
         # Label
         self.label = label
         self.font_name = font_name or 'DejaVuSans.ttf'
         self.font_size = font_size or 10
-        self.label_color = label_color
+        self.label_color = label_color or _BLACK
         self.label_bg = label_bg
         self.padding = (2, 4, 2, 4)  # padding between text and box
 
@@ -244,15 +247,15 @@ class Box(DrawLayer):
     BRACKET = 'bracket'
 
     def __init__(self, bbox,
-                 color=(0, 0, 0, 255),
+                 color=None,
                  fill=None,
                  width=1,
                  style=None):
         self.bbox = bbox
         self.style = style or Box.REGULAR
-        self.color = color
+        self.color = color or _BLACK
         self.fill = fill
-        self.width = width
+        self.width = 1 if width is None else width
 
     def draw(self, rc, draw):
         if self.style == Box.BRACKET:
@@ -343,16 +346,16 @@ class Circle(DrawLayer):
     '''
 
     def __init__(self, lat, lon, radius,
-                 color=(0, 0, 0, 255),
+                 color=None,
                  fill=None,
                  width=1,
                  marker=False):
         self.lat = lat
         self.lon = lon
         self.radius = radius
-        self.color = color
+        self.color = color or _BLACK
         self.fill = fill
-        self.width = width
+        self.width = 1 if width is None else width
         self.marker = marker
 
     def draw(self, rc, draw):
@@ -387,13 +390,13 @@ class Circle(DrawLayer):
 class Shape(DrawLayer):
     '''Draw a polygon defined by a list of lat/lon pairs.'''
 
-    def __init__(self, points, color=(0, 0, 0, 255), fill=None):
+    def __init__(self, points, color=None, fill=None):
         if len(points) < 3:
             raise ValueError(('points must be a list '
                               'with at least three entries'))
 
         self.points = points
-        self.color = color
+        self.color = color or _BLACK
         self.fill = fill
 
     def draw(self, rc, draw):
