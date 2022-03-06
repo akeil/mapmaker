@@ -31,7 +31,8 @@ Special attributes:
 :label_color:   Text and border color for the label.
 :label_bg:      Background color for the label
 
-For *MultiPoint* objects, the additional attributes are shared amon all points.
+For *MultiPoint* objects, the additional attributes are shared among all
+points.
 
 
 LineString, MultiLineString
@@ -40,8 +41,8 @@ Draws a line on the map
 
 Special attributes:
 
-:color: RGB value to control the color of the line
-:width: Controls the width of the line
+:color: RGB value to control the color of the line.
+:width: Controls the width of the line.
 
 
 Polygon, MultiPolygon
@@ -245,7 +246,6 @@ class _MultiPoint(_Point):
         return [(x[0], x[1]) for x in coords]
 
     def draw(self, rc, draw):
-        # TODO: additional properties, same as _Point
         for lat, lon in self.coordinates:
             self._placemark(lat, lon).draw(rc, draw)
 
@@ -257,10 +257,14 @@ class _LineString(_Wrapper):
         coords = self._obj['coordinates']
         return [(x[0], x[1]) for x in coords]
 
+    def _track(self, points):
+        return Track(points,
+                     color=self._color('color'),
+                     width=self._int('width'))
+
     def draw(self, rc, draw):
-        # TODO: additional properties
         waypoints = self.coordinates
-        Track(waypoints).draw(rc, draw)
+        self._track(waypoints).draw(rc, draw)
 
 
 class _MultiLineString(_LineString):
@@ -269,15 +273,13 @@ class _MultiLineString(_LineString):
     def coordinates(self):
         coords = self._obj['coordinates']
         collection = []
-        for points in coordinates:
+        for points in coords:
             collection.append([(x[0], x[1]) for x in points])
         return collection
 
     def draw(self, rc, draw):
-        # TODO: additional properties, same as _LineString
-        tracks = self.coordinates
-        for track in tracks:
-            Track(waypoints).draw(rc, draw)
+        for waypoints in self.coordinates:
+            self._track(waypoints).draw(rc, draw)
 
 
 class _Polygon(_Wrapper):
