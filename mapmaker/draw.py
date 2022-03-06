@@ -383,7 +383,7 @@ class Circle(DrawLayer):
 
 
 class Shape(DrawLayer):
-    '''Draw a polygon defines by a list oif lat/lon pairs.'''
+    '''Draw a polygon defined by a list of lat/lon pairs.'''
 
     def __init__(self, points, color=(0, 0, 0, 255), fill=None):
         if len(points) < 3:
