@@ -289,27 +289,29 @@ class _Polygon(_Wrapper):
         coords = self._obj['coordinates']
         return [(x[0], x[1]) for x in coords]
 
+    def _shape(self, points):
+        return Shape(points,
+                     color=self._color('color'),
+                     fill=self._color('fill'))
+
     def draw(self, rc, draw):
-        # TODO: additional properties, same as _LineString
         points = self.coordinates
-        Shape(points).draw(rc, draw)
+        self._shape(points).draw(rc, draw)
 
 
-class _MultiPolygon(_Wrapper):
+class _MultiPolygon(_Polygon):
 
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
         collection = []
-        for points in coordinates:
+        for points in coords:
             collection.append([(x[0], x[1]) for x in points])
         return collection
 
     def draw(self, rc, draw):
-        # TODO: additional properties, same as _LineString
-        shapes = self.coordinates
-        for points in shapes:
-            Shape(points).draw(rc, draw)
+        for points in self.coordinates:
+            self._shape(points).draw(rc, draw)
 
 
 class _GeometryCollection(_Wrapper):
