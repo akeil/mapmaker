@@ -6,6 +6,7 @@ They are typically placed using lat/lon coordinates.
 '''
 
 
+from functools import partial
 from math import radians
 from math import sin
 
@@ -113,11 +114,18 @@ class Placemark(DrawLayer):
 
         # draw the marker
         if self.size and self.symbol:
-            brush = {
+            brushes = {
                 Placemark.DOT: self._draw_dot,
                 Placemark.SQUARE: self._draw_square,
                 Placemark.TRIANGLE: self._draw_triangle,
-            }[self.symbol]
+            }
+            try:
+                # simple
+                brush = brushes[self.symbol]
+            except KeyError:
+                # icon image
+                brush = partial(self._draw_icon, self.symbol, rc)
+
             brush(draw, x, y)
 
         # draw the label
@@ -160,6 +168,17 @@ class Placemark(DrawLayer):
         draw.polygon([top, right, left],
                      fill=self.fill or self.color,
                      outline=self.color)
+
+    def _draw_icon(self, name, rc, draw, x, y):
+        '''Draw an icon from a RGBA bitmap resource'''
+        # icon is a PILImage
+        icon = rc.get_icon(name, width=self.size, height=self.size)
+
+        # Place the icon centered over location
+        offset = self.size // 2
+        pos = (x - offset, y - offset)
+
+        draw.bitmap(pos, icon, fill=self.fill or self.color)
 
     def _draw_label(self, draw, x, y):
         '''Draw the label.'''

@@ -80,8 +80,6 @@ Ideas
 - Use a 'layer' attribute to order elements on z-axis?
 
 '''
-from itertools import chain
-
 from .draw import Placemark
 from .draw import Shape
 from .draw import Track
@@ -188,6 +186,8 @@ class _Wrapper:
         except KeyError:
             if self._feature:
                 return self._feature.get('properties', {})[key]
+            else:
+                raise
 
     def _int(self, key):
         try:
@@ -236,11 +236,7 @@ class _Point(_Wrapper):
 
     @property
     def symbol(self):
-        symbol = self._str('symbol')
-        if symbol in Placemark.SYMBOLS:
-            return symbol
-
-        return Placemark.DOT
+        return self._str('symbol') or Placemark.DOT
 
     def _placemark(self, lat, lon):
         # also used by _PointList
@@ -347,7 +343,7 @@ class _MultiPolygon(_Polygon):
             # and CAN define 0..n interior rings ("hols" within the shape)
             # We cannot do holes, so we just select the exterior ring.
             try:
-            # lon,lat => lat,lon
+                # lon,lat => lat,lon
                 collection.append([(x[1], x[0]) for x in points[0]])
             except IndexError:
                 pass
