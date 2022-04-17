@@ -22,15 +22,19 @@ class MapBuilder:
     ``map`` is a ``TileMap`` which describes the mapped area.
 
     Optional ``overlay`` is a list of map elements.
+
+    ``icons`` is an _IconProvider_ from the ``icons`` module.
     '''
 
     def __init__(self, service, map,
                  overlays=None,
+                 icons=None,
                  parallel_downloads=None,
                  reporter=None):
         self._service = service
         self._map = map
         self._overlays = overlays or []
+        self._icons = icons
         self._parallel_downloads = parallel_downloads or 1
         self._report = reporter or _no_reporter
         # State that is created during `build()`
@@ -77,6 +81,22 @@ class MapBuilder:
             return int(ceil(v))
 
         return px(frac_x * w), px(frac_y * h)
+
+    def get_icon(self, name, width=None, height=None):
+        '''Returns a named icon (from the ``IconProvider``) as a PIL image.
+
+        The image is an RGBA that can be used as a mask to draw the icon.
+
+        Used by drawable elements or decorations to obtain an icon
+        by name.
+
+        If width and height is given, the icon is resized to that dimensions.
+        '''
+        if not self._icons:
+            raise LookupError('No icon provider set for this MapBuilder')
+
+        icon_data = self._icons.get(name, width=width, height=height)
+        return Image.open(io.BytesIO(icon_data))
 
     def build(self):
         '''Download tiles on the fly and render them into a PIL image.'''
@@ -154,7 +174,7 @@ class MapBuilder:
         box = (top, left)
         self._img.paste(tile_img, box)
 
-    def _repr__(self):
+    def __repr__(self):
         return '<MapBuilder>'
 
 

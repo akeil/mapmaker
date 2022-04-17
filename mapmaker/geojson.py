@@ -188,6 +188,8 @@ class _Wrapper:
         except KeyError:
             if self._feature:
                 return self._feature.get('properties', {})[key]
+            else:
+                raise
 
     def _int(self, key):
         try:
@@ -236,11 +238,7 @@ class _Point(_Wrapper):
 
     @property
     def symbol(self):
-        symbol = self._str('symbol')
-        if symbol in Placemark.SYMBOLS:
-            return symbol
-
-        return Placemark.DOT
+        return self._str('symbol') or Placemark.DOT
 
     def _placemark(self, lat, lon):
         # also used by _PointList
