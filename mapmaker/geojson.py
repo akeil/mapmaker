@@ -80,6 +80,8 @@ Ideas
 - Use a 'layer' attribute to order elements on z-axis?
 
 '''
+from itertools import chain
+
 from .draw import Placemark
 from .draw import Shape
 from .draw import Track
@@ -312,8 +314,16 @@ class _Polygon(_Wrapper):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-        # lon,lat => lat,lon
-        return [(x[1], x[0]) for x in coords]
+
+        # TODO
+        # GeoJSON polygon MUST define an exterior ring (the "outer" shape)
+        # and CAN define 0..n interior rings ("hols" within the shape)
+        # We cannot do holes, so we just select the exterior ring.
+        try:
+            # lon,lat => lat,lon
+            return [(x[1], x[0]) for x in coords[0]]
+        except IndexError:
+            return []
 
     def _shape(self, points):
         return Shape(points,
@@ -332,8 +342,16 @@ class _MultiPolygon(_Polygon):
         coords = self._obj['coordinates']
         collection = []
         for points in coords:
+            # TODO
+            # GeoJSON polygon MUST define an exterior ring (the "outer" shape)
+            # and CAN define 0..n interior rings ("hols" within the shape)
+            # We cannot do holes, so we just select the exterior ring.
+            try:
             # lon,lat => lat,lon
-            collection.append([(x[1], x[0]) for x in points])
+                collection.append([(x[1], x[0]) for x in points[0]])
+            except IndexError:
+                pass
+
         return collection
 
     def draw(self, rc, draw):
