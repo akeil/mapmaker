@@ -45,13 +45,14 @@ class IconProvider:
 
     def _discover(self):
         subdirs = [x for x in self._base.iterdir() if x.is_dir()]
+        subdirs.sort()
         for dir in subdirs:
             self._providers.append(_Provider(dir, '{name}.svg'))
 
     def get(self, name, width=None, height=None):
         '''Loads the image data for the given icon and size.
 
-        Raises LookupError if noicon is found.'''
+        Raises LookupError if no icon is found.'''
         if not self._providers:
             self._discover()
 
