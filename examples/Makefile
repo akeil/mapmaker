@@ -9,7 +9,7 @@ geojson: feature feature-collection geometry-collection
 geometry-collection: outdir
 	mapmaker 56.796893,-5.003376 1km\
 	 $(OUTDIR)/geometry-collection.png\
-	 --style topo\
+	 --style atlas\
 	 --zoom 15\
 	 --title Ben Nevis\
 	 --comment GeoJSON GeometryCollection\

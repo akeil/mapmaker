@@ -114,12 +114,31 @@ class MapBuilder:
 
     def _draw_overlays(self):
         '''Draw overlay layers on the map image.'''
+        drawables = []
+        for elem in self._overlays:
+            drawables += elem.drawables()
+
+        # sort by layer
+        # if an element does not specifiy a layer index, assume "0"
+        def layer(obj):
+            z = getattr(obj, 'layer', 0)
+            try:
+                z = int(z)
+            except TypeError:
+                z = 0
+
+            return z
+
+        drawables.sort(key=layer)
+
         # For transparent overlays, we cannot paint directly on the image.
         # Instead, paint on a separate overlay image and compose the results.
-        for layer in self._overlays:
+
+        # TODO: optimize? do not create a new Image for each element?
+        for drawable in drawables:
             overlay = Image.new('RGBA', self._img.size, color=(0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay, mode='RGBA')
-            layer.draw(self, draw)
+            drawable.draw(self, draw)
             self._img.alpha_composite(overlay)
 
     def _crop(self):

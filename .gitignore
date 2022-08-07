@@ -1,6 +1,6 @@
 # project specific stuff
 map.png
-samples/*
+_samples/*
 todo
 run.py
 examples/out/*

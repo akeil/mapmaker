@@ -222,7 +222,8 @@ class _Wrapper:
         except (ValueError, TypeError, IndexError):
             pass
 
-    def draw(self, rc, draw):
+    def drawables(self):
+        '''Get the *Drawable* elements defined by a geojson object.'''
         raise ValueError('not implemented')
 
 
@@ -253,9 +254,9 @@ class _Point(_Wrapper):
                          label_color=self._color('label_color'),
                          label_bg=self._color('label_bg'))
 
-    def draw(self, rc, draw):
+    def drawables(self):
         lat, lon = self.coordinates
-        self._placemark(lat, lon).draw(rc, draw)
+        return [self._placemark(lat, lon), ]
 
 
 class _MultiPoint(_Point):
@@ -266,9 +267,8 @@ class _MultiPoint(_Point):
         # lon,lat => lat,lon
         return [(x[1], x[0]) for x in coords]
 
-    def draw(self, rc, draw):
-        for lat, lon in self.coordinates:
-            self._placemark(lat, lon).draw(rc, draw)
+    def drawables(self):
+        return [self._placemark(lat, lon) for lat, lon in self.coordinates]
 
 
 class _LineString(_Wrapper):
@@ -284,9 +284,9 @@ class _LineString(_Wrapper):
                      color=self._color('color'),
                      width=self._int('width'))
 
-    def draw(self, rc, draw):
+    def drawables(self):
         waypoints = self.coordinates
-        self._track(waypoints).draw(rc, draw)
+        return [self._track(waypoints), ]
 
 
 class _MultiLineString(_LineString):
@@ -300,9 +300,8 @@ class _MultiLineString(_LineString):
             collection.append([(x[1], x[0]) for x in points])
         return collection
 
-    def draw(self, rc, draw):
-        for waypoints in self.coordinates:
-            self._track(waypoints).draw(rc, draw)
+    def drawables(self):
+        return [self._track(waypoints) for waypoints in self.coordinates]
 
 
 class _Polygon(_Wrapper):
@@ -310,10 +309,9 @@ class _Polygon(_Wrapper):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-
         # TODO
         # GeoJSON polygon MUST define an exterior ring (the "outer" shape)
-        # and CAN define 0..n interior rings ("hols" within the shape)
+        # and CAN define 0..n interior rings ("holes" within the shape)
         # We cannot do holes, so we just select the exterior ring.
         try:
             # lon,lat => lat,lon
@@ -326,9 +324,10 @@ class _Polygon(_Wrapper):
                      color=self._color('color'),
                      fill=self._color('fill'))
 
-    def draw(self, rc, draw):
+
+    def drawables(self):
         points = self.coordinates
-        self._shape(points).draw(rc, draw)
+        return [self._shape(points), ]
 
 
 class _MultiPolygon(_Polygon):
@@ -350,9 +349,8 @@ class _MultiPolygon(_Polygon):
 
         return collection
 
-    def draw(self, rc, draw):
-        for points in self.coordinates:
-            self._shape(points).draw(rc, draw)
+    def drawables(self):
+        return [self._shape(points) for points in self.coordinates]
 
 
 class _GeometryCollection(_Wrapper):
@@ -361,10 +359,11 @@ class _GeometryCollection(_Wrapper):
     def geometries(self):
         return [x for x in self._obj.get('geometries', [])]
 
-    def draw(self, rc, draw):
+    def drawables(self):
+        all = []
         for geometry in self.geometries:
-            # raises error for unknown `type`
-            wrap(geometry).draw(rc, draw)
+            all += wrap(geometry).drawables()
+        return all
 
 
 class _Feature(_Wrapper):
@@ -373,11 +372,11 @@ class _Feature(_Wrapper):
     def geometry(self):
         return self._obj.get('geometry')
 
-    def draw(self, rc, draw):
-        # geometry can be `null`
-        if self.geometry:
-            # raises error for unknown `type`
-            wrap(self.geometry, feature=self._obj).draw(rc, draw)
+    def drawables(self):
+        if not self.geometry:
+            return []
+
+        return wrap(self.geometry, feature=self._obj).drawables()
 
 
 class _FeatureCollection(_Wrapper):
@@ -386,6 +385,8 @@ class _FeatureCollection(_Wrapper):
     def features(self):
         return [_Feature(x) for x in self._obj.get('features', [])]
 
-    def draw(self, rc, draw):
+    def drawables(self):
+        all = []
         for feature in self.features:
-            feature.draw(rc, draw)
+            all += feature.drawables()
+        return all

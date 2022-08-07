@@ -12,7 +12,7 @@ class _GeoJSONTest(TestCase):
 
     def assertIsGeoJSON(self, obj):
         self.assertIsNotNone(obj)
-        self.assertTrue(hasattr(obj, 'draw'))
+        self.assertTrue(hasattr(obj, 'drawables'))
 
 
 class ReadTest(_GeoJSONTest):

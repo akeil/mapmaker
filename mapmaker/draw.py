@@ -17,15 +17,26 @@ from .render import contrast_color
 
 _BLACK = (0, 0, 0, 255)
 
+# Default layers (z-index) for drawing
+BASE_LAYER = 0
+TRACK_LAYER = 1
+SHAPE_LAYER = 2
+MARKER_LAYER = 3
+
 
 class DrawLayer:
     '''A DrawLayer is used to draw elements on the map
     using lat/lon coordinates.
     '''
 
+    layer = BASE_LAYER
+
     def draw(self, rc, draw):
         ''''Internal draw method, used by the rendering context.'''
         raise ValueError('Not implemented')
+
+    def drawables(self):
+        return [self, ]
 
 
 class Track(DrawLayer):
@@ -37,6 +48,8 @@ class Track(DrawLayer):
     :color:     An RGBA tuple for the color with which to draw the track.
     :width:     The thickness of the line.
     '''
+
+    layer = TRACK_LAYER
 
     def __init__(self, waypoints, color=None, width=1):
         self.waypoints = waypoints
@@ -80,6 +93,8 @@ class Placemark(DrawLayer):
     TRIANGLE = 'triangle'
 
     SYMBOLS = ('dot', 'square', 'triangle')
+
+    layer = MARKER_LAYER
 
     def __init__(self, lat, lon,
                  symbol='dot',
@@ -265,6 +280,8 @@ class Box(DrawLayer):
     REGULAR = 'regular'
     BRACKET = 'bracket'
 
+    layer = SHAPE_LAYER
+
     def __init__(self, bbox,
                  color=None,
                  fill=None,
@@ -364,6 +381,8 @@ class Circle(DrawLayer):
     :marker: If *True*, a small dot is drawn at the center.
     '''
 
+    layer = SHAPE_LAYER
+
     def __init__(self, lat, lon, radius,
                  color=None,
                  fill=None,
@@ -408,6 +427,8 @@ class Circle(DrawLayer):
 
 class Shape(DrawLayer):
     '''Draw a polygon defined by a list of lat/lon pairs.'''
+
+    layer = SHAPE_LAYER
 
     def __init__(self, points, color=None, fill=None):
         if len(points) < 3:
