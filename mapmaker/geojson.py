@@ -80,6 +80,8 @@ Ideas
 - Use a 'layer' attribute to order elements on z-axis?
 
 '''
+from itertools import chain
+
 from .draw import Placemark
 from .draw import Shape
 from .draw import Track
@@ -256,7 +258,7 @@ class _Point(_Wrapper):
 
     def drawables(self):
         lat, lon = self.coordinates
-        return [self._placemark(lat, lon), ]
+        return self._placemark(lat, lon).drawables()
 
 
 class _MultiPoint(_Point):
@@ -268,7 +270,9 @@ class _MultiPoint(_Point):
         return [(x[1], x[0]) for x in coords]
 
     def drawables(self):
-        return [self._placemark(lat, lon) for lat, lon in self.coordinates]
+        d = [self._placemark(lat, lon).drawables()
+             for lat, lon in self.coordinates]
+        return chain(*d)
 
 
 class _LineString(_Wrapper):
@@ -286,7 +290,7 @@ class _LineString(_Wrapper):
 
     def drawables(self):
         waypoints = self.coordinates
-        return [self._track(waypoints), ]
+        return self._track(waypoints).drawables()
 
 
 class _MultiLineString(_LineString):
@@ -301,7 +305,9 @@ class _MultiLineString(_LineString):
         return collection
 
     def drawables(self):
-        return [self._track(waypoints) for waypoints in self.coordinates]
+        d = [self._track(waypoints).drawables()
+             for waypoints in self.coordinates]
+        return chain(*d)
 
 
 class _Polygon(_Wrapper):
@@ -327,7 +333,7 @@ class _Polygon(_Wrapper):
 
     def drawables(self):
         points = self.coordinates
-        return [self._shape(points), ]
+        return self._shape(points).drawables()
 
 
 class _MultiPolygon(_Polygon):
@@ -350,7 +356,8 @@ class _MultiPolygon(_Polygon):
         return collection
 
     def drawables(self):
-        return [self._shape(points) for points in self.coordinates]
+        d = [self._shape(points).drawables() for points in self.coordinates]
+        return chain(*d)
 
 
 class _GeometryCollection(_Wrapper):
@@ -375,7 +382,6 @@ class _Feature(_Wrapper):
     def drawables(self):
         if not self.geometry:
             return []
-
         return wrap(self.geometry, feature=self._obj).drawables()
 
 

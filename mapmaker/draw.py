@@ -22,6 +22,7 @@ BASE_LAYER = 0
 TRACK_LAYER = 1
 SHAPE_LAYER = 2
 MARKER_LAYER = 3
+TEXT_LAYER = 4
 
 
 class DrawLayer:
@@ -124,28 +125,68 @@ class Placemark(DrawLayer):
         self.label_bg = label_bg
         self.padding = (2, 4, 2, 4)  # padding between text and box
 
+    def drawables(self):
+        all = []
+
+        if self.size and self.symbol:
+            symbol = Symbol(self.lat, self.lon, self.symbol,
+                            color=self.color,
+                            fill=self.fill,
+                            border=self.border,size=self.size)
+            all.append(symbol)
+
+        if self.label:
+            offset=(0, (self.size + self.border) // 2 + 2)  # draw label slightly below marker
+            label = Label(self.lat, self.lon, self.label,
+                          offset=offset,
+                          color=self.label_color,
+                          fill=self.label_bg,
+                          border=self.border,
+                          font_name=self.font_name,
+                          font_size=self.font_size)
+            all.append(label)
+
+        return all
+
+    def __repr__(self):
+        return '<Placemark lat=%s, lon=%s, symbol=%r, label=%r>' % (
+            self.lat, self.lon, self.symbol, self.label)
+
+
+class Symbol(DrawLayer):
+    '''Draw a symbol on the map.'''
+
+    layer = MARKER_LAYER
+
+    def __init__(self, lat, lon, symbol,
+                 color=None,
+                 fill=None,
+                 border=0,
+                 size=None):
+        self.lat = lat
+        self.lon = lon
+        self.symbol = symbol
+        self.color = color or _BLACK
+        self.fill = fill
+        self.border = border or 0
+        self.size = 4 if size is None else size
+
     def draw(self, rc, draw):
         x, y = rc.to_pixels(self.lat, self.lon)
 
-        # draw the marker
-        if self.size and self.symbol:
-            brushes = {
-                Placemark.DOT: self._draw_dot,
-                Placemark.SQUARE: self._draw_square,
-                Placemark.TRIANGLE: self._draw_triangle,
-            }
-            try:
-                # simple
-                brush = brushes[self.symbol]
-            except KeyError:
-                # icon image
-                brush = partial(self._draw_icon, self.symbol, rc)
+        brushes = {
+            Placemark.DOT: self._draw_dot,
+            Placemark.SQUARE: self._draw_square,
+            Placemark.TRIANGLE: self._draw_triangle,
+        }
+        try:
+            # simple
+            brush = brushes[self.symbol]
+        except KeyError:
+            # icon image
+            brush = partial(self._draw_icon, self.symbol, rc)
 
-            brush(draw, x, y)
-
-        # draw the label
-        if self.label:
-            self._draw_label(draw, x, y)
+        brush(draw, x, y)
 
     def _draw_dot(self, draw, x, y):
         '''Draw a circular symbol.'''
@@ -195,40 +236,81 @@ class Placemark(DrawLayer):
 
         draw.bitmap(pos, icon, fill=self.fill or self.color)
 
-    def _draw_label(self, draw, x, y):
-        '''Draw the label.'''
+    def __repr__(self):
+        return '<Symbol lat=%s, lon=%s, symbol=%r>' % (
+            self.lat, self.lon, self.symbol)
+
+
+class Label(DrawLayer):
+    '''Draw a text label on the map.
+
+    The label is drawn with its anchor at the specified location.
+    You can specify an ``offset`` in pixels to draw the label some distance
+    away from the lat/lon location.
+    '''
+
+    layer = TEXT_LAYER
+    anchor = 'ma'  # middle ascender
+
+    def __init__(self, lat, lon, text,
+                 offset=None,
+                 color=None,
+                 fill=None,
+                 border=0,
+                 font_name=None,
+                 font_size=10):
+        self.lat = lat
+        self.lon = lon
+        self.text = text
+        self.offset = offset or (0, 0)
+        self.color = color or _BLACK
+        self.fill = fill
+        self.border = border or 0
+        self.font_name = font_name or 'DejaVuSans.ttf'
+        self.font_size = font_size or 10
+        self.padding = (2, 4, 2, 4)  # padding between text and box
+
+    def draw(self, rc, draw):
+        x, y = rc.to_pixels(self.lat, self.lon)
+        # apply offset
+        offset = self.offset or (0, 0)
+        x += offset[0]
+        y += offset[1]
+        loc = (x, y)
+
+        text = self.text.strip()
         font = load_font(self.font_name, self.font_size)
-        # place label below marker
-        loc = (x, y + self.size / 2 + 2)
-        text = self.label.strip()
-        anchor = 'ma'  # middle ascender
-        text_color = self.label_color or (0, 0, 0, 255)
+
         stroke_width = 0  # do not use stroke_width w/o stroke_fill (looks bad)
         stroke_fill = None
 
-        # background box or outline around the text
-        if self.label_bg:
-            self._draw_label_bg(draw, loc, text, font, anchor,
-                                stroke_width, text_color)
+        if self.fill or self.border:
+            self._draw_background(draw, loc, text, font)
         else:
             stroke_width = 1
-            stroke_fill = contrast_color(text_color)
+            stroke_fill = contrast_color(self.color)
 
+        self._draw_text(draw, loc, text, font, stroke_width, stroke_fill)
+
+
+    def _draw_text(self, draw, loc, text, font, stroke_width, stroke_fill):
+        '''Draw the label.'''
         draw.text(loc, text,
                   font=font,
-                  anchor=anchor,
-                  fill=text_color,
+                  anchor=self.anchor,
+                  fill=self.color,
                   stroke_width=stroke_width,
                   stroke_fill=stroke_fill)
 
-    def _draw_label_bg(self, draw, loc, text, font, anchor,
-                       stroke_width, text_color):
+    def _draw_background(self, draw, loc, text, font):
         '''Draw a rectangle as the background for the label.'''
         px, py = loc
         box = None
 
         try:
-            box = font.getbbox(text, anchor=anchor, stroke_width=stroke_width)
+            box = font.getbbox(text,
+                               anchor=self.anchor,
+                               stroke_width=0)
             box = (px + box[0] - 1,
                    py + box[1] - 1,
                    px + box[2] - 1,
@@ -236,7 +318,7 @@ class Placemark(DrawLayer):
         except AttributeError:
             # the fallback font cannot calculate a bbox
             # fallback will not be rendered at "anchor"
-            tw, th = font.getsize(text, stroke_width=stroke_width)
+            tw, th = font.getsize(text, stroke_width=0)
             box = (px,
                    py,
                    px + tw,
@@ -251,13 +333,13 @@ class Placemark(DrawLayer):
                box[3] + pad_bottom)
 
         draw.rectangle(box,
-                       fill=self.label_bg,
-                       outline=text_color,
+                       fill=self.fill,
+                       outline=self.color,
                        width=1)
 
     def __repr__(self):
-        return '<Placemark lat=%s, lon=%s, symbol=%r, label=%r>' % (
-            self.lat, self.lon, self.symbol, self.label)
+        return '<Label lat=%s, lon=%s, label=%r>' % (
+            self.lat, self.lon, self.label)
 
 
 class Box(DrawLayer):
