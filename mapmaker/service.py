@@ -6,6 +6,7 @@ import threading
 
 import requests
 
+from mapmaker import __version__
 
 class TileService:
     '''A web service that fetches slippy map tiles in OSM format.'''
@@ -39,12 +40,13 @@ class TileService:
             api=self._api_key(),
         )
 
-        headers = None
+        headers = {
+            'User-Agent': 'mapmaker/%s' % __version__
+        }
         if etag:
-            headers = {
-                'If-None-Match': etag
-            }
+            headers['If-None-Match'] = etag
 
+        print(headers)
         res = requests.get(url, headers=headers)
         res.raise_for_status()
 
