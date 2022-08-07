@@ -226,9 +226,6 @@ class _Wrapper:
         '''Get the *Drawable* elements defined by a geojson object.'''
         raise ValueError('not implemented')
 
-    def draw(self, rc, draw):
-        raise ValueError('not implemented')
-
 
 class _Point(_Wrapper):
 
@@ -261,10 +258,6 @@ class _Point(_Wrapper):
         lat, lon = self.coordinates
         return [self._placemark(lat, lon), ]
 
-    def draw(self, rc, draw):
-        lat, lon = self.coordinates
-        self._placemark(lat, lon).draw(rc, draw)
-
 
 class _MultiPoint(_Point):
 
@@ -276,10 +269,6 @@ class _MultiPoint(_Point):
 
     def drawables(self):
         return [self._placemark(lat, lon) for lat, lon in self.coordinates]
-
-    def draw(self, rc, draw):
-        for lat, lon in self.coordinates:
-            self._placemark(lat, lon).draw(rc, draw)
 
 
 class _LineString(_Wrapper):
@@ -299,10 +288,6 @@ class _LineString(_Wrapper):
         waypoints = self.coordinates
         return [self._track(waypoints), ]
 
-    def draw(self, rc, draw):
-        waypoints = self.coordinates
-        self._track(waypoints).draw(rc, draw)
-
 
 class _MultiLineString(_LineString):
 
@@ -317,10 +302,6 @@ class _MultiLineString(_LineString):
 
     def drawables(self):
         return [self._track(waypoints) for waypoints in self.coordinates]
-
-    def draw(self, rc, draw):
-        for waypoints in self.coordinates:
-            self._track(waypoints).draw(rc, draw)
 
 
 class _Polygon(_Wrapper):
@@ -348,10 +329,6 @@ class _Polygon(_Wrapper):
         points = self.coordinates
         return [self._shape(points), ]
 
-    def draw(self, rc, draw):
-        points = self.coordinates
-        self._shape(points).draw(rc, draw)
-
 
 class _MultiPolygon(_Polygon):
 
@@ -375,10 +352,6 @@ class _MultiPolygon(_Polygon):
     def drawables(self):
         return [self._shape(points) for points in self.coordinates]
 
-    def draw(self, rc, draw):
-        for points in self.coordinates:
-            self._shape(points).draw(rc, draw)
-
 
 class _GeometryCollection(_Wrapper):
 
@@ -391,11 +364,6 @@ class _GeometryCollection(_Wrapper):
         for geometry in self.geometries:
             all += wrap(geometry).drawables()
         return all
-
-    def draw(self, rc, draw):
-        for geometry in self.geometries:
-            # raises error for unknown `type`
-            wrap(geometry).draw(rc, draw)
 
 
 class _Feature(_Wrapper):
@@ -410,12 +378,6 @@ class _Feature(_Wrapper):
 
         return wrap(self.geometry, feature=self._obj).drawables()
 
-    def draw(self, rc, draw):
-        # geometry can be `null`
-        if self.geometry:
-            # raises error for unknown `type`
-            wrap(self.geometry, feature=self._obj).draw(rc, draw)
-
 
 class _FeatureCollection(_Wrapper):
 
@@ -428,7 +390,3 @@ class _FeatureCollection(_Wrapper):
         for feature in self.features:
             all += feature.drawables()
         return all
-
-    def draw(self, rc, draw):
-        for feature in self.features:
-            feature.draw(rc, draw)
