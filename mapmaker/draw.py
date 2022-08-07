@@ -4,11 +4,13 @@ Map Elements are additional content such as *Placemarks* or *Tracks* that are
 painted over the map content.
 They are typically placed using lat/lon coordinates.
 '''
-
-
 from functools import partial
+from math import sqrt
+from math import floor
 from math import radians
 from math import sin
+
+from PIL import Image
 
 from .geo import BBox
 from .render import load_font
@@ -252,10 +254,10 @@ class Icon(DrawLayer):
 
     def draw(self, rc, draw):
         x, y = rc.to_pixels(self.lat, self.lon)
-
         # flat background "behind" the icon
         if self.fill:
-            self._draw_background(draw, x, y)
+            #self._draw_background(draw, x, y)
+            self._draw_glow(draw, x, y)
 
         # icon is a PILImage
         icon = rc.get_icon(self.name, width=self.size, height=self.size)
@@ -266,7 +268,52 @@ class Icon(DrawLayer):
 
         draw.bitmap(pos, icon, fill=self.color)
 
+    def _draw_glow(self, draw, x, y):
+        '''draw a radial gradient behind the icon.
+
+        The gradient is painted in the ``fill`` color with opacity from 1.0
+        at the center to 0.0 on the edges.
+        This creates a "glow" behind the icon.
+        '''
+        # Image.radial_gradient creates a gradient from black to white at 256x256
+        # where only the outermost pixel (at the corners) are completely white
+        # https://pillow.readthedocs.io/en/stable/reference/Image.html
+        #
+        # So this WILL NOT work
+        #
+        # grad = Image.radial_gradient('L')
+        # mask = ImageOps.invert(grad).resize(size)
+
+        # The "glow area" is a fair bit larger than the icon.
+        s = int(self.size * 1.8)
+        size = (s, s)
+
+        # Create a gradient mask from white (center) to black (edges)
+        mask = Image.new('L', size, color=0)
+        for x in range(s):
+            for y in range(s):
+                # get the distance from current pos to center
+                a = (s / 2) - x
+                b = (s / 2) - y
+                # a² + b² = c²
+                c = sqrt(a**2 + b**2)
+
+                # relative distance
+                distance = c / (s / 2)
+
+                # from 255/white at the center to 0/black at the edges
+                value = 255 - int(floor(255 * distance))
+                mask.putpixel((x, y), value)
+
+        # place centered over location
+        pos = (
+            x - (s // 2),
+            y - (s // 2)
+        )
+        draw.bitmap(pos, mask, fill=self.fill)
+
     def _draw_background(self, draw, x, y):
+        '''Draw a solid circular background behind the icon.'''
         s = (self.size // 2)
         s = int(s * 1.4)  # slightly larger than the icon
         box = [
@@ -281,8 +328,8 @@ class Icon(DrawLayer):
                      width=self.border)
 
     def __repr__(self):
-        return '<Icon lat=%s, lon=%s, symbol=%r>' % (
-            self.lat, self.lon, self.symbol)
+        return '<Icon lat=%s, lon=%s, name=%r>' % (
+            self.lat, self.lon, self.name)
 
 
 class Label(DrawLayer):
