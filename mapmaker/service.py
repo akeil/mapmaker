@@ -47,7 +47,6 @@ class TileService:
         if etag:
             headers['If-None-Match'] = etag
 
-        print(headers)
         res = requests.get(url, headers=headers)
         res.raise_for_status()
 
