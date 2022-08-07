@@ -268,7 +268,7 @@ class Icon(DrawLayer):
 
     def _draw_background(self, draw, x, y):
         s = (self.size // 2)
-        s = int(s * 1.3)  # slightly larger than the icon
+        s = int(s * 1.4)  # slightly larger than the icon
         box = [
             x - s,  # x0
             y - s,  # y0
