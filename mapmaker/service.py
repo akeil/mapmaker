@@ -8,6 +8,7 @@ import requests
 
 from mapmaker import __version__
 
+
 class TileService:
     '''A web service that fetches slippy map tiles in OSM format.'''
 
@@ -41,7 +42,7 @@ class TileService:
         )
 
         headers = {
-            'User-Agent': 'mapmaker/%s' % __version__
+            'User-Agent': 'mapmaker/%s +https://github.com/akeil/mapmaker' % __version__
         }
         if etag:
             headers['If-None-Match'] = etag
