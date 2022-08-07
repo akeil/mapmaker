@@ -144,6 +144,7 @@ def main():
                         help='Draw a compass rose on the map')
 
     parser.add_argument('--geojson',
+                        nargs='+',
                         help=('Draw GeoJSON elements on the map.'
                               ' Path or JSON string'))
 
@@ -226,8 +227,9 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
         map.add_compass_rose()
 
     if args.geojson:
-        elem = geojson.read(args.geojson)
-        map.add_element(elem)
+        for x in args.geojson:
+            elem = geojson.read(x)
+            map.add_element(elem)
 
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
