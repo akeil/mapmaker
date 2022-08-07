@@ -310,10 +310,9 @@ class _Polygon(_Wrapper):
     @property
     def coordinates(self):
         coords = self._obj['coordinates']
-
         # TODO
         # GeoJSON polygon MUST define an exterior ring (the "outer" shape)
-        # and CAN define 0..n interior rings ("hols" within the shape)
+        # and CAN define 0..n interior rings ("holes" within the shape)
         # We cannot do holes, so we just select the exterior ring.
         try:
             # lon,lat => lat,lon

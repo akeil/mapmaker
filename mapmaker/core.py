@@ -70,7 +70,7 @@ class Map:
     def render(self, service, zoom, icons=None, parallel_downloads=None, reporter=None):
         '''Render this map into a PIL image.
 
-        Uses the give *TileService* and zoom level to obtain map tiles.
+        Uses the given *TileService* and zoom level to obtain map tiles.
         '''
         tiles = TileMap.from_bbox(self.bbox, zoom)
 
