@@ -290,11 +290,11 @@ class Icon(DrawLayer):
 
         # Create a gradient mask from white (center) to black (edges)
         mask = Image.new('L', size, color=0)
-        for x in range(s):
-            for y in range(s):
+        for px in range(s):
+            for py in range(s):
                 # get the distance from current pos to center
-                a = (s / 2) - x
-                b = (s / 2) - y
+                a = (s / 2) - px
+                b = (s / 2) - py
                 # a² + b² = c²
                 c = sqrt(a**2 + b**2)
 
@@ -303,13 +303,15 @@ class Icon(DrawLayer):
 
                 # from 255/white at the center to 0/black at the edges
                 value = 255 - int(floor(255 * distance))
-                mask.putpixel((x, y), value)
+                mask.putpixel((px, py), value)
 
+        mask.save('mask.png')
         # place centered over location
         pos = (
             x - (s // 2),
             y - (s // 2)
         )
+        print('Draw glow at', pos, 'with color', self.fill)
         draw.bitmap(pos, mask, fill=self.fill)
 
     def _draw_background(self, draw, x, y):
