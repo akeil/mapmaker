@@ -222,6 +222,10 @@ class _Wrapper:
         except (ValueError, TypeError, IndexError):
             pass
 
+    def drawables(self):
+        '''Get the *Drawable* elements defined by a geojson object.'''
+        raise ValueError('not implemented')
+
     def draw(self, rc, draw):
         raise ValueError('not implemented')
 
@@ -253,6 +257,10 @@ class _Point(_Wrapper):
                          label_color=self._color('label_color'),
                          label_bg=self._color('label_bg'))
 
+    def drawables(self):
+        lat, lon = self.coordinates
+        return [self._placemark(lat, lon), ]
+
     def draw(self, rc, draw):
         lat, lon = self.coordinates
         self._placemark(lat, lon).draw(rc, draw)
@@ -265,6 +273,9 @@ class _MultiPoint(_Point):
         coords = self._obj['coordinates']
         # lon,lat => lat,lon
         return [(x[1], x[0]) for x in coords]
+
+    def drawables(self):
+        return [self._placemark(lat, lon) for lat, lon in self.coordinates]
 
     def draw(self, rc, draw):
         for lat, lon in self.coordinates:
@@ -284,6 +295,10 @@ class _LineString(_Wrapper):
                      color=self._color('color'),
                      width=self._int('width'))
 
+    def drawables(self):
+        waypoints = self.coordinates
+        return [self._track(waypoints), ]
+
     def draw(self, rc, draw):
         waypoints = self.coordinates
         self._track(waypoints).draw(rc, draw)
@@ -299,6 +314,9 @@ class _MultiLineString(_LineString):
             # lon,lat => lat,lon
             collection.append([(x[1], x[0]) for x in points])
         return collection
+
+    def drawables(self):
+        return [self._track(waypoints) for waypoints in self.coordinates]
 
     def draw(self, rc, draw):
         for waypoints in self.coordinates:
@@ -325,6 +343,11 @@ class _Polygon(_Wrapper):
                      color=self._color('color'),
                      fill=self._color('fill'))
 
+
+    def drawables(self):
+        points = self.coordinates
+        return [self._shape(points), ]
+
     def draw(self, rc, draw):
         points = self.coordinates
         self._shape(points).draw(rc, draw)
@@ -349,6 +372,9 @@ class _MultiPolygon(_Polygon):
 
         return collection
 
+    def drawables(self):
+        return [self._shape(points) for points in self.coordinates]
+
     def draw(self, rc, draw):
         for points in self.coordinates:
             self._shape(points).draw(rc, draw)
@@ -359,6 +385,12 @@ class _GeometryCollection(_Wrapper):
     @property
     def geometries(self):
         return [x for x in self._obj.get('geometries', [])]
+
+    def drawables(self):
+        all = []
+        for geometry in self.geometries:
+            all += wrap(geometry).drawables()
+        return all
 
     def draw(self, rc, draw):
         for geometry in self.geometries:
@@ -372,6 +404,12 @@ class _Feature(_Wrapper):
     def geometry(self):
         return self._obj.get('geometry')
 
+    def drawables(self):
+        if not self.geometry:
+            return []
+
+        return wrap(self.geometry, feature=self._obj).drawables()
+
     def draw(self, rc, draw):
         # geometry can be `null`
         if self.geometry:
@@ -384,6 +422,12 @@ class _FeatureCollection(_Wrapper):
     @property
     def features(self):
         return [_Feature(x) for x in self._obj.get('features', [])]
+
+    def drawables(self):
+        all = []
+        for feature in self.features:
+            all += feature.drawables()
+        return all
 
     def draw(self, rc, draw):
         for feature in self.features:

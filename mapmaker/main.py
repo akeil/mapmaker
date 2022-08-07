@@ -226,8 +226,9 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
         map.add_compass_rose()
 
     if args.geojson:
-        elem = geojson.read(args.geojson)
-        map.add_element(elem)
+        root = geojson.read(args.geojson)
+        for elem in root.drawables():
+            map.add_element(elem)
 
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)

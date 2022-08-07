@@ -125,7 +125,7 @@ class MapBuilder:
 
             return z
 
-        overlays = sorted(self._overlays, key=layer, reverse=True)
+        overlays = sorted(self._overlays, key=layer)
 
         # For transparent overlays, we cannot paint directly on the image.
         # Instead, paint on a separate overlay image and compose the results.
