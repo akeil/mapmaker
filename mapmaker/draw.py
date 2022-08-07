@@ -248,6 +248,7 @@ class Label(DrawLayer):
     You can specify an ``offset`` in pixels to draw the label some distance
     away from the lat/lon location.
     '''
+    _STROKE_WITH = 2
 
     layer = TEXT_LAYER
     anchor = 'ma'  # middle ascender
@@ -287,7 +288,7 @@ class Label(DrawLayer):
         if self.fill or self.border:
             self._draw_background(draw, loc, text, font)
         else:
-            stroke_width = 1
+            stroke_width = Label._STROKE_WITH
             stroke_fill = contrast_color(self.color)
 
         self._draw_text(draw, loc, text, font, stroke_width, stroke_fill)
