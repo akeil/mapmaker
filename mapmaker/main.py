@@ -15,6 +15,7 @@ from . import __version__
 from .core import Map
 from .geo import distance
 from . import geojson
+from . import icons
 from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
@@ -33,7 +34,8 @@ Config = namedtuple('Config', ('urls'
                                ' keys'
                                ' copyrights'
                                ' cache_limit'
-                               ' parallel_downloads'))
+                               ' parallel_downloads'
+                               ' icons_base'))
 
 
 def main():
@@ -142,6 +144,7 @@ def main():
                         help='Draw a compass rose on the map')
 
     parser.add_argument('--geojson',
+                        nargs='+',
                         help=('Draw GeoJSON elements on the map.'
                               ' Path or JSON string'))
 
@@ -224,8 +227,9 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
         map.add_compass_rose()
 
     if args.geojson:
-        elem = geojson.read(args.geojson)
-        map.add_element(elem)
+        for x in args.geojson:
+            elem = geojson.read(x)
+            map.add_element(elem)
 
     service = TileService(style, conf.urls[style], conf.keys)
     cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
@@ -238,7 +242,11 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
     if dry_run:
         return
 
-    img = map.render(service, zoom, parallel_downloads=8, reporter=report)
+    img = map.render(service,
+                     zoom,
+                     icons=icons.IconProvider(conf.icons_base),
+                     parallel_downloads=8,
+                     reporter=report)
     with open(dst, 'wb') as f:
         img.save(f, format='png')
 
@@ -290,11 +298,19 @@ def read_config(path):
 
     parallel = cfg.getint('mapmaker', 'parallel_downloads', fallback=1)
 
+    icons_base = cfg.get('icons', 'base', fallback=None)
+    if icons_base:
+        icons_base = Path(icons_base)
+        # TODO: check is_abs, only join if relative
+        data_dir = Path(appdirs.user_data_dir(appname=APP_NAME))
+        icons_base = data_dir.joinpath(icons_base)
+
     return Config(urls={k: v for k, v in cfg.items('services')},
                   keys={k: v for k, v in cfg.items('keys')},
                   copyrights={k: v for k, v in cfg.items('copyright')},
                   cache_limit=cfg.getint('cache', 'limit', fallback=None),
-                  parallel_downloads=parallel)
+                  parallel_downloads=parallel,
+                  icons_base=icons_base)
 
 
 if __name__ == '__main__':

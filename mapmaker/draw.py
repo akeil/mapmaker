@@ -4,10 +4,13 @@ Map Elements are additional content such as *Placemarks* or *Tracks* that are
 painted over the map content.
 They are typically placed using lat/lon coordinates.
 '''
-
-
+from functools import partial
+from math import sqrt
+from math import floor
 from math import radians
 from math import sin
+
+from PIL import Image
 
 from .geo import BBox
 from .render import load_font
@@ -16,15 +19,27 @@ from .render import contrast_color
 
 _BLACK = (0, 0, 0, 255)
 
+# Default layers (z-index) for drawing
+BASE_LAYER = 0
+TRACK_LAYER = 1
+SHAPE_LAYER = 2
+MARKER_LAYER = 3
+TEXT_LAYER = 4
+
 
 class DrawLayer:
     '''A DrawLayer is used to draw elements on the map
     using lat/lon coordinates.
     '''
 
+    layer = BASE_LAYER
+
     def draw(self, rc, draw):
         ''''Internal draw method, used by the rendering context.'''
         raise ValueError('Not implemented')
+
+    def drawables(self):
+        return [self, ]
 
 
 class Track(DrawLayer):
@@ -36,6 +51,8 @@ class Track(DrawLayer):
     :color:     An RGBA tuple for the color with which to draw the track.
     :width:     The thickness of the line.
     '''
+
+    layer = TRACK_LAYER
 
     def __init__(self, waypoints, color=None, width=1):
         self.waypoints = waypoints
@@ -80,6 +97,8 @@ class Placemark(DrawLayer):
 
     SYMBOLS = ('dot', 'square', 'triangle')
 
+    layer = MARKER_LAYER
+
     def __init__(self, lat, lon,
                  symbol='dot',
                  label=None,
@@ -108,21 +127,70 @@ class Placemark(DrawLayer):
         self.label_bg = label_bg
         self.padding = (2, 4, 2, 4)  # padding between text and box
 
+    def drawables(self):
+        all = []
+
+        if self.size and self.symbol:
+            if self.symbol in Placemark.SYMBOLS:
+                marker = Symbol(self.lat, self.lon, self.symbol,
+                                color=self.color,
+                                fill=self.fill,
+                                border=self.border,
+                                size=self.size)
+            else:
+                marker = Icon(self.lat, self.lon, self.symbol,
+                              color=self.color,
+                              fill=self.fill,
+                              border=self.border,
+                              size=self.size)
+            all.append(marker)
+
+        if self.label:
+            offset=(0, (self.size + self.border) // 2 + 2)  # draw label slightly below marker
+            label = Label(self.lat, self.lon, self.label,
+                          offset=offset,
+                          color=self.label_color,
+                          fill=self.label_bg,
+                          border=self.border,
+                          font_name=self.font_name,
+                          font_size=self.font_size)
+            all.append(label)
+
+        return all
+
+    def __repr__(self):
+        return '<Placemark lat=%s, lon=%s, symbol=%r, label=%r>' % (
+            self.lat, self.lon, self.symbol, self.label)
+
+
+class Symbol(DrawLayer):
+    '''Draw a symbol on the map.'''
+
+    layer = MARKER_LAYER
+
+    def __init__(self, lat, lon, symbol,
+                 color=None,
+                 fill=None,
+                 border=0,
+                 size=None):
+        self.lat = lat
+        self.lon = lon
+        self.symbol = symbol
+        self.color = color or _BLACK
+        self.fill = fill
+        self.border = border or 0
+        self.size = 4 if size is None else size
+
     def draw(self, rc, draw):
         x, y = rc.to_pixels(self.lat, self.lon)
 
-        # draw the marker
-        if self.size and self.symbol:
-            brush = {
-                Placemark.DOT: self._draw_dot,
-                Placemark.SQUARE: self._draw_square,
-                Placemark.TRIANGLE: self._draw_triangle,
-            }[self.symbol]
-            brush(draw, x, y)
-
-        # draw the label
-        if self.label:
-            self._draw_label(draw, x, y)
+        brushes = {
+            Placemark.DOT: self._draw_dot,
+            Placemark.SQUARE: self._draw_square,
+            Placemark.TRIANGLE: self._draw_triangle,
+        }
+        brush = brushes[self.symbol]
+        brush(draw, x, y)
 
     def _draw_dot(self, draw, x, y):
         '''Draw a circular symbol.'''
@@ -161,40 +229,180 @@ class Placemark(DrawLayer):
                      fill=self.fill or self.color,
                      outline=self.color)
 
-    def _draw_label(self, draw, x, y):
-        '''Draw the label.'''
+    def __repr__(self):
+        return '<Symbol lat=%s, lon=%s, symbol=%r>' % (
+            self.lat, self.lon, self.symbol)
+
+
+class Icon(DrawLayer):
+    '''Draw a named icon that can be loaded by an IconProivder.'''
+
+    layer = MARKER_LAYER
+
+    def __init__(self, lat, lon, name,
+                 color=None,
+                 fill=None,
+                 border=0,
+                 size=None):
+        self.lat = lat
+        self.lon = lon
+        self.name = name
+        self.color = color or _BLACK
+        self.fill = fill
+        self.border = border or 0
+        self.size = 4 if size is None else size
+
+    def draw(self, rc, draw):
+        x, y = rc.to_pixels(self.lat, self.lon)
+        # flat background "behind" the icon
+        if self.fill:
+            #self._draw_background(draw, x, y)
+            self._draw_glow(draw, x, y)
+
+        # icon is a PILImage
+        icon = rc.get_icon(self.name, width=self.size, height=self.size)
+
+        # Place the icon centered over location
+        offset = self.size // 2
+        pos = (x - offset, y - offset)
+
+        draw.bitmap(pos, icon, fill=self.color)
+
+    def _draw_glow(self, draw, x, y):
+        '''draw a radial gradient behind the icon.
+
+        The gradient is painted in the ``fill`` color with opacity from 1.0
+        at the center to 0.0 on the edges.
+        This creates a "glow" behind the icon.
+        '''
+        # Image.radial_gradient creates a gradient from black to white at 256x256
+        # where only the outermost pixel (at the corners) are completely white
+        # https://pillow.readthedocs.io/en/stable/reference/Image.html
+        #
+        # So this WILL NOT work
+        #
+        # grad = Image.radial_gradient('L')
+        # mask = ImageOps.invert(grad).resize(size)
+
+        # The "glow area" is a fair bit larger than the icon.
+        s = int(self.size * 1.8)
+        size = (s, s)
+
+        # Create a gradient mask from white (center) to black (edges)
+        mask = Image.new('L', size, color=0)
+        for x in range(s):
+            for y in range(s):
+                # get the distance from current pos to center
+                a = (s / 2) - x
+                b = (s / 2) - y
+                # a² + b² = c²
+                c = sqrt(a**2 + b**2)
+
+                # relative distance
+                distance = c / (s / 2)
+
+                # from 255/white at the center to 0/black at the edges
+                value = 255 - int(floor(255 * distance))
+                mask.putpixel((x, y), value)
+
+        # place centered over location
+        pos = (
+            x - (s // 2),
+            y - (s // 2)
+        )
+        draw.bitmap(pos, mask, fill=self.fill)
+
+    def _draw_background(self, draw, x, y):
+        '''Draw a solid circular background behind the icon.'''
+        s = (self.size // 2)
+        s = int(s * 1.4)  # slightly larger than the icon
+        box = [
+            x - s,  # x0
+            y - s,  # y0
+            x + s,  # x1
+            y + s,  # y1
+        ]
+        draw.ellipse(box,
+                     fill=self.fill,
+                     outline=self.color,
+                     width=self.border)
+
+    def __repr__(self):
+        return '<Icon lat=%s, lon=%s, name=%r>' % (
+            self.lat, self.lon, self.name)
+
+
+class Label(DrawLayer):
+    '''Draw a text label on the map.
+
+    The label is drawn with its anchor at the specified location.
+    You can specify an ``offset`` in pixels to draw the label some distance
+    away from the lat/lon location.
+    '''
+    _STROKE_WITH = 2
+
+    layer = TEXT_LAYER
+    anchor = 'ma'  # middle ascender
+
+    def __init__(self, lat, lon, text,
+                 offset=None,
+                 color=None,
+                 fill=None,
+                 border=0,
+                 font_name=None,
+                 font_size=10):
+        self.lat = lat
+        self.lon = lon
+        self.text = text
+        self.offset = offset or (0, 0)
+        self.color = color or _BLACK
+        self.fill = fill
+        self.border = border or 0
+        self.font_name = font_name or 'DejaVuSans.ttf'
+        self.font_size = font_size or 10
+        self.padding = (2, 4, 2, 4)  # padding between text and box
+
+    def draw(self, rc, draw):
+        x, y = rc.to_pixels(self.lat, self.lon)
+        # apply offset
+        offset = self.offset or (0, 0)
+        x += offset[0]
+        y += offset[1]
+        loc = (x, y)
+
+        text = self.text.strip()
         font = load_font(self.font_name, self.font_size)
-        # place label below marker
-        loc = (x, y + self.size / 2 + 2)
-        text = self.label.strip()
-        anchor = 'ma'  # middle ascender
-        text_color = self.label_color or (0, 0, 0, 255)
+
         stroke_width = 0  # do not use stroke_width w/o stroke_fill (looks bad)
         stroke_fill = None
 
-        # background box or outline around the text
-        if self.label_bg:
-            self._draw_label_bg(draw, loc, text, font, anchor,
-                                stroke_width, text_color)
+        if self.fill or self.border:
+            self._draw_background(draw, loc, text, font)
         else:
-            stroke_width = 1
-            stroke_fill = contrast_color(text_color)
+            stroke_width = Label._STROKE_WITH
+            stroke_fill = contrast_color(self.color)
 
+        self._draw_text(draw, loc, text, font, stroke_width, stroke_fill)
+
+
+    def _draw_text(self, draw, loc, text, font, stroke_width, stroke_fill):
+        '''Draw the label.'''
         draw.text(loc, text,
                   font=font,
-                  anchor=anchor,
-                  fill=text_color,
+                  anchor=self.anchor,
+                  fill=self.color,
                   stroke_width=stroke_width,
                   stroke_fill=stroke_fill)
 
-    def _draw_label_bg(self, draw, loc, text, font, anchor,
-                       stroke_width, text_color):
+    def _draw_background(self, draw, loc, text, font):
         '''Draw a rectangle as the background for the label.'''
         px, py = loc
         box = None
 
         try:
-            box = font.getbbox(text, anchor=anchor, stroke_width=stroke_width)
+            box = font.getbbox(text,
+                               anchor=self.anchor,
+                               stroke_width=0)
             box = (px + box[0] - 1,
                    py + box[1] - 1,
                    px + box[2] - 1,
@@ -202,7 +410,7 @@ class Placemark(DrawLayer):
         except AttributeError:
             # the fallback font cannot calculate a bbox
             # fallback will not be rendered at "anchor"
-            tw, th = font.getsize(text, stroke_width=stroke_width)
+            tw, th = font.getsize(text, stroke_width=0)
             box = (px,
                    py,
                    px + tw,
@@ -217,13 +425,13 @@ class Placemark(DrawLayer):
                box[3] + pad_bottom)
 
         draw.rectangle(box,
-                       fill=self.label_bg,
-                       outline=text_color,
+                       fill=self.fill,
+                       outline=self.color,
                        width=1)
 
     def __repr__(self):
-        return '<Placemark lat=%s, lon=%s, symbol=%r, label=%r>' % (
-            self.lat, self.lon, self.symbol, self.label)
+        return '<Label lat=%s, lon=%s, label=%r>' % (
+            self.lat, self.lon, self.label)
 
 
 class Box(DrawLayer):
@@ -245,6 +453,8 @@ class Box(DrawLayer):
 
     REGULAR = 'regular'
     BRACKET = 'bracket'
+
+    layer = SHAPE_LAYER
 
     def __init__(self, bbox,
                  color=None,
@@ -345,6 +555,8 @@ class Circle(DrawLayer):
     :marker: If *True*, a small dot is drawn at the center.
     '''
 
+    layer = SHAPE_LAYER
+
     def __init__(self, lat, lon, radius,
                  color=None,
                  fill=None,
@@ -389,6 +601,8 @@ class Circle(DrawLayer):
 
 class Shape(DrawLayer):
     '''Draw a polygon defined by a list of lat/lon pairs.'''
+
+    layer = SHAPE_LAYER
 
     def __init__(self, points, color=None, fill=None):
         if len(points) < 3:

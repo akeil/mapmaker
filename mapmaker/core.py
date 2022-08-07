@@ -67,15 +67,16 @@ class Map:
 
         return self._decorations or self._frame
 
-    def render(self, service, zoom, parallel_downloads=None, reporter=None):
+    def render(self, service, zoom, icons=None, parallel_downloads=None, reporter=None):
         '''Render this map into a PIL image.
 
-        Uses the give *TileService* and zoom level to obtain map tiles.
+        Uses the given *TileService* and zoom level to obtain map tiles.
         '''
         tiles = TileMap.from_bbox(self.bbox, zoom)
 
         builder = MapBuilder(service, tiles,
                              overlays=self.elements,
+                             icons=icons,
                              parallel_downloads=parallel_downloads,
                              reporter=reporter)
 

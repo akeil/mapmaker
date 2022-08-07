@@ -22,15 +22,19 @@ class MapBuilder:
     ``map`` is a ``TileMap`` which describes the mapped area.
 
     Optional ``overlay`` is a list of map elements.
+
+    ``icons`` is an _IconProvider_ from the ``icons`` module.
     '''
 
     def __init__(self, service, map,
                  overlays=None,
+                 icons=None,
                  parallel_downloads=None,
                  reporter=None):
         self._service = service
         self._map = map
         self._overlays = overlays or []
+        self._icons = icons
         self._parallel_downloads = parallel_downloads or 1
         self._report = reporter or _no_reporter
         # State that is created during `build()`
@@ -78,6 +82,22 @@ class MapBuilder:
 
         return px(frac_x * w), px(frac_y * h)
 
+    def get_icon(self, name, width=None, height=None):
+        '''Returns a named icon (from the ``IconProvider``) as a PIL image.
+
+        The image is an RGBA that can be used as a mask to draw the icon.
+
+        Used by drawable elements or decorations to obtain an icon
+        by name.
+
+        If width and height is given, the icon is resized to that dimensions.
+        '''
+        if not self._icons:
+            raise LookupError('No icon provider set for this MapBuilder')
+
+        icon_data = self._icons.get(name, width=width, height=height)
+        return Image.open(io.BytesIO(icon_data))
+
     def build(self):
         '''Download tiles on the fly and render them into a PIL image.'''
         # fill the task queue
@@ -94,12 +114,31 @@ class MapBuilder:
 
     def _draw_overlays(self):
         '''Draw overlay layers on the map image.'''
+        drawables = []
+        for elem in self._overlays:
+            drawables += elem.drawables()
+
+        # sort by layer
+        # if an element does not specifiy a layer index, assume "0"
+        def layer(obj):
+            z = getattr(obj, 'layer', 0)
+            try:
+                z = int(z)
+            except TypeError:
+                z = 0
+
+            return z
+
+        drawables.sort(key=layer)
+
         # For transparent overlays, we cannot paint directly on the image.
         # Instead, paint on a separate overlay image and compose the results.
-        for layer in self._overlays:
+
+        # TODO: optimize? do not create a new Image for each element?
+        for drawable in drawables:
             overlay = Image.new('RGBA', self._img.size, color=(0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay, mode='RGBA')
-            layer.draw(self, draw)
+            drawable.draw(self, draw)
             self._img.alpha_composite(overlay)
 
     def _crop(self):
@@ -154,7 +193,7 @@ class MapBuilder:
         box = (top, left)
         self._img.paste(tile_img, box)
 
-    def _repr__(self):
+    def __repr__(self):
         return '<MapBuilder>'
 
 
