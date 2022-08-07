@@ -18,12 +18,13 @@
     ]
   },
   "properties": {
-    "symbol": "square",
+    "symbol": "attraction",
     "color": [
       10,
       147,
       150
     ],
-    "size": 12
+    "fill": [237, 246, 249],
+    "size": 20
   }
 }

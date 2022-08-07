@@ -129,11 +129,19 @@ class Placemark(DrawLayer):
         all = []
 
         if self.size and self.symbol:
-            symbol = Symbol(self.lat, self.lon, self.symbol,
-                            color=self.color,
-                            fill=self.fill,
-                            border=self.border,size=self.size)
-            all.append(symbol)
+            if self.symbol in Placemark.SYMBOLS:
+                marker = Symbol(self.lat, self.lon, self.symbol,
+                                color=self.color,
+                                fill=self.fill,
+                                border=self.border,
+                                size=self.size)
+            else:
+                marker = Icon(self.lat, self.lon, self.symbol,
+                              color=self.color,
+                              fill=self.fill,
+                              border=self.border,
+                              size=self.size)
+            all.append(marker)
 
         if self.label:
             offset=(0, (self.size + self.border) // 2 + 2)  # draw label slightly below marker
@@ -179,13 +187,7 @@ class Symbol(DrawLayer):
             Placemark.SQUARE: self._draw_square,
             Placemark.TRIANGLE: self._draw_triangle,
         }
-        try:
-            # simple
-            brush = brushes[self.symbol]
-        except KeyError:
-            # icon image
-            brush = partial(self._draw_icon, self.symbol, rc)
-
+        brush = brushes[self.symbol]
         brush(draw, x, y)
 
     def _draw_dot(self, draw, x, y):
@@ -225,19 +227,61 @@ class Symbol(DrawLayer):
                      fill=self.fill or self.color,
                      outline=self.color)
 
-    def _draw_icon(self, name, rc, draw, x, y):
-        '''Draw an icon from a RGBA bitmap resource'''
+    def __repr__(self):
+        return '<Symbol lat=%s, lon=%s, symbol=%r>' % (
+            self.lat, self.lon, self.symbol)
+
+
+class Icon(DrawLayer):
+    '''Draw a named icon that can be loaded by an IconProivder.'''
+
+    layer = MARKER_LAYER
+
+    def __init__(self, lat, lon, name,
+                 color=None,
+                 fill=None,
+                 border=0,
+                 size=None):
+        self.lat = lat
+        self.lon = lon
+        self.name = name
+        self.color = color or _BLACK
+        self.fill = fill
+        self.border = border or 0
+        self.size = 4 if size is None else size
+
+    def draw(self, rc, draw):
+        x, y = rc.to_pixels(self.lat, self.lon)
+
+        # flat background "behind" the icon
+        if self.fill:
+            self._draw_background(draw, x, y)
+
         # icon is a PILImage
-        icon = rc.get_icon(name, width=self.size, height=self.size)
+        icon = rc.get_icon(self.name, width=self.size, height=self.size)
 
         # Place the icon centered over location
         offset = self.size // 2
         pos = (x - offset, y - offset)
 
-        draw.bitmap(pos, icon, fill=self.fill or self.color)
+        draw.bitmap(pos, icon, fill=self.color)
+
+    def _draw_background(self, draw, x, y):
+        s = (self.size // 2)
+        s = int(s * 1.3)  # slightly larger than the icon
+        box = [
+            x - s,  # x0
+            y - s,  # y0
+            x + s,  # x1
+            y + s,  # y1
+        ]
+        draw.ellipse(box,
+                     fill=self.fill,
+                     outline=self.color,
+                     width=self.border)
 
     def __repr__(self):
-        return '<Symbol lat=%s, lon=%s, symbol=%r>' % (
+        return '<Icon lat=%s, lon=%s, symbol=%r>' % (
             self.lat, self.lon, self.symbol)
 
 
