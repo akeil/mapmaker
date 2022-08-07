@@ -35,6 +35,9 @@ class DrawLayer:
         ''''Internal draw method, used by the rendering context.'''
         raise ValueError('Not implemented')
 
+    def drawables(self):
+        return [self, ]
+
 
 class Track(DrawLayer):
     '''Draw a path along the given list of coordinates (``waypoints``).
