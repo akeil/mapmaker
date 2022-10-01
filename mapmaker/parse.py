@@ -55,24 +55,7 @@ def bbox(values):
         )
     # bbox from point and radius
     else:
-        s = values[1].lower()
-        unit = None
-        value = None
-        allowed_units = ('km', 'm')
-        for u in allowed_units:
-            if s.endswith(u):
-                unit = u
-                value = float(s[:-len(u)])
-                break
-
-        if value is None:  # no unit specified
-            value = float(s)
-            unit = 'm'
-
-        # convert to meters,
-        if unit == 'km':
-            value *= 1000.0
-
+        value = distance(values[1])
         bbox = BBox.from_radius(lat0, lon0, value)
 
     # constrain to min/max values of slippy tile map
@@ -373,6 +356,39 @@ def coordinates(raw):
         raise ValueError('longitude must be in range -180.0..180.0')
 
     return lat, lon
+
+
+def distance(raw):
+    '''Parse a distance in meters from various formats:
+
+    - 123.45, integer or float
+    - 400 m, value and unit
+    - 1.5 km, value and unit in km
+
+    Always returns the distance in METERS.
+    '''
+    if not raw:
+        raise ValueError('missing distance value')
+
+    s = raw.lower()
+    unit = None
+    value = None
+    allowed_units = ('km', 'm')
+    for u in allowed_units:
+        if s.endswith(u):
+            unit = u
+            value = float(s[:-len(u)])
+            break
+
+    if value is None:  # no unit specified
+        value = float(s)
+        unit = 'm'
+
+    # convert to meters,
+    if unit == 'km':
+        value *= 1000.0
+
+    return value
 
 
 def color(raw):
