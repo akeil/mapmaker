@@ -22,11 +22,13 @@ You need to install them by placing them the SVG files under::
 TODO
 ----
 support other formats than SVG
-
 '''
 from pathlib import Path
 
+import appdirs
 import cairosvg
+
+from . import __name__ as APP_NAME
 
 
 class IconProvider:
@@ -46,8 +48,19 @@ class IconProvider:
     def _discover(self):
         subdirs = [x for x in self._base.iterdir() if x.is_dir()]
         subdirs.sort()
-        for dir in subdirs:
-            self._providers.append(_Provider(dir, '{name}.svg'))
+        for base in subdirs:
+            self._providers.append(_Provider(base))
+
+    def index(self):
+        '''List all available icon names for this provider.'''
+        if not self._providers:
+            self._discover()
+
+        result = []
+        for p in self._providers:
+            result += p.index()
+
+        return sorted(set(result))
 
     def get(self, name, width=None, height=None):
         '''Loads the image data for the given icon and size.
@@ -64,16 +77,51 @@ class IconProvider:
 
         raise LookupError('No icon found with name %r' % name)
 
+    def __repr__(self):
+        return '<IconProvider %s>' % self._base
+
+    @classmethod
+    def default(cls):
+        data_dir = Path(appdirs.user_data_dir(appname=APP_NAME))
+        base = data_dir.joinpath('icons')
+        return cls(base)
+
 
 class _Provider:
 
-    def __init__(self, path, pattern):
+    def __init__(self, path):
         self._base = Path(path)
-        self._pattern = pattern
+        self._prefix = None
+        self._suffix = None
+        self._ext = '.svg'
 
     def _icon_path(self, name):
-        filename = self._pattern.format(name=name)
+        #filename = self._pattern.format(name=name)
+        filename = '{prefix}{name}{suffix}{ext}'.format(
+            prefix = self._prefix or '',
+            name=name,
+            suffix=self._suffix or '',
+            ext=self._ext or '')
         return self._base.joinpath(filename)
+
+    def _icon_name(self, path):
+        name = path.name
+        if self._prefix:
+            name = name[len(self._prefix):]
+        if self._ext:
+            name = name[:-len(self._ext)]
+        if self._suffix:
+            name = name[:-len(self._suffix)]
+
+        return name
+
+    def index(self):
+        result = []
+        for entry in self._base.iterdir():
+            if entry.is_file():
+                result.append(self._icon_name(entry))
+
+        return result
 
     def get(self, name, width=None, height=None):
         surface = cairosvg.SURFACES['PNG']

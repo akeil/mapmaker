@@ -3,3 +3,5 @@ __author__ = 'akeil'
 
 from .core import Map
 from .geo import BBox
+
+from .icons import IconProvider
