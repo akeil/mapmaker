@@ -44,6 +44,11 @@ class IconProvider:
     def __init__(self, base):
         self._base = Path(base)
         self._providers = []
+        self._cache = _NoCache()
+
+    def cached(self):
+        self._cache = _MemoryCache()
+        return self
 
     def _discover(self):
         subdirs = [x for x in self._base.iterdir() if x.is_dir()]
@@ -66,12 +71,19 @@ class IconProvider:
         '''Loads the image data for the given icon and size.
 
         Raises LookupError if no icon is found.'''
+        try:
+            return self._cache.get(name, width, height)
+        except LookupError:
+            pass
+
         if not self._providers:
             self._discover()
 
         for provider in self._providers:
             try:
-                return provider.get(name, width=width, height=height)
+                data = provider.get(name, width=width, height=height)
+                self._cache.put(name, width, height, data)
+                return data
             except LookupError:
                 pass
 
@@ -137,3 +149,26 @@ class _Provider:
                                    output_heiht=height)
 
         return png_data
+
+
+class _NoCache:
+
+    def put(self, *args):
+        pass
+
+    def get(self, *args):
+        raise LookupError
+
+
+class _MemoryCache:
+
+    def __init__(self):
+        self._entries = {}
+
+    def put(self, name, width, height, data):
+        key = (name, width, height)
+        self._entries[key] = data
+
+    def get(self, name, width, height):
+        key = (name, width, height)
+        return self._entries[key]
