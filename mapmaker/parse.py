@@ -29,7 +29,7 @@ class BBoxAction(argparse.Action):
 
 def bbox(values):
     '''Parse a bounding box from a pair of coordinates or from a single
-    coordinate and a redius.
+    coordinate and a radius.
 
     1. two lat lon pairs::
 
@@ -42,11 +42,11 @@ def bbox(values):
     If successful, returns a ``BBox`` object.
     Raises *ValueError* on failure.
     '''
-    lat0, lon0 = _parse_coordinates(values[0])
+    lat0, lon0 = coordinates(values[0])
 
     # simple case, BBox from lat,lon pairs
     if ',' in values[1]:
-        lat1, lon1 = _parse_coordinates(values[1])
+        lat1, lon1 = coordinates(values[1])
         bbox = BBox(
             minlat=min(lat0, lat1),
             minlon=min(lon0, lon1),
@@ -55,24 +55,7 @@ def bbox(values):
         )
     # bbox from point and radius
     else:
-        s = values[1].lower()
-        unit = None
-        value = None
-        allowed_units = ('km', 'm')
-        for u in allowed_units:
-            if s.endswith(u):
-                unit = u
-                value = float(s[:-len(u)])
-                break
-
-        if value is None:  # no unit specified
-            value = float(s)
-            unit = 'm'
-
-        # convert to meters,
-        if unit == 'km':
-            value *= 1000.0
-
+        value = distance(values[1])
         bbox = BBox.from_radius(lat0, lon0, value)
 
     # constrain to min/max values of slippy tile map
@@ -299,7 +282,17 @@ class FrameAction(argparse.Action):
             style=style))
 
 
-def _parse_coordinates(raw):
+def coordinates(raw):
+    '''Parse a pair of lat/lon coordinates.
+
+    Supports the following format:
+
+    - DMS, e.g. 47°25'16'',10°59'07''
+    - Decimal, e.g. 47.42111,10.985278
+
+    Lat and Lon must be separated by a comma ",".
+    Whitespace is ignored.
+    '''
 
     def _parse_dms(dms):
         d, remainder = dms.split('°')
@@ -363,6 +356,39 @@ def _parse_coordinates(raw):
         raise ValueError('longitude must be in range -180.0..180.0')
 
     return lat, lon
+
+
+def distance(raw):
+    '''Parse a distance in meters from various formats:
+
+    - 123.45, integer or float
+    - 400 m, value and unit
+    - 1.5 km, value and unit in km
+
+    Always returns the distance in METERS.
+    '''
+    if not raw:
+        raise ValueError('missing distance value')
+
+    s = raw.lower()
+    unit = None
+    value = None
+    allowed_units = ('km', 'm')
+    for u in allowed_units:
+        if s.endswith(u):
+            unit = u
+            value = float(s[:-len(u)])
+            break
+
+    if value is None:  # no unit specified
+        value = float(s)
+        unit = 'm'
+
+    # convert to meters,
+    if unit == 'km':
+        value *= 1000.0
+
+    return value
 
 
 def color(raw):

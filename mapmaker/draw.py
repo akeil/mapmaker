@@ -311,7 +311,6 @@ class Icon(DrawLayer):
             x - (s // 2),
             y - (s // 2)
         )
-        print('Draw glow at', pos, 'with color', self.fill)
         draw.bitmap(pos, mask, fill=self.fill)
 
     def _draw_background(self, draw, x, y):
