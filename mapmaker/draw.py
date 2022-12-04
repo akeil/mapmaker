@@ -235,7 +235,7 @@ class Symbol(DrawLayer):
 
 
 class Icon(DrawLayer):
-    '''Draw a named icon that can be loaded by an IconProivder.'''
+    '''Draw a named icon that can be loaded by an IconProvider.'''
 
     layer = MARKER_LAYER
 
