@@ -13,6 +13,8 @@ from .geo import mercator_to_lat
 # supported lat bounds for slippy map
 MAX_LAT = 85.0511
 MIN_LAT = -85.0511
+MIN_LON = -180.0
+MAX_LON = 180.0
 
 
 class TileMap:
@@ -147,19 +149,18 @@ class Tile:
 def _tile_coordinates(lat, lon, zoom):
     '''Calculate the X and Y coordinates for the map tile that contains the
     given point at the given zoom level.'''
-    if lat <= MIN_LAT or lat >= MAX_LAT:
-        raise ValueError('latitude must be %s..%s' % (MIN_LAT, MAX_LAT))
+    if lat < MIN_LAT or lat > MAX_LAT:
+        raise ValueError('latitude must be %s..%s, got %s' % (MIN_LAT, MAX_LAT, lat))
+    if lon < MIN_LON or lon > MAX_LON:
+        raise ValueError('longitude must be %s..%s, got %s' % (MIN_LON, MAX_LON, lon))
 
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = pow(2.0, zoom)
 
     x = (lon + 180.0) / 360.0 * n
 
-    if lat == -90:
-        y = 0
-    else:
-        lat_rad = radians(lat)
-        a = asinh(tan(lat_rad))
-        y = (1.0 - a / PI) / 2.0 * n
+    lat_rad = radians(lat)
+    a = asinh(tan(lat_rad))
+    y = (1.0 - a / PI) / 2.0 * n
 
     return int(x), int(y)
