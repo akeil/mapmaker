@@ -28,15 +28,21 @@ class TileService:
         parts = urlparse(self.url_pattern)
         return parts.netloc
 
-    def fetch(self, tile, etag=None):
+    def fetch(self, x, y, z, etag=None):
         '''Fetch the given tile from the Map Tile Service.
 
-        If an etag is specified, it will be sent to the server. If the server
-        replies with a status "Not Modified", this method returns +None*.'''
+        ``x, y, z`` are the tile coordinates and zoom level.
+
+        If an ``etag`` is specified, it will be sent to the server.
+        If the server replies with a status "Not Modified", this method
+        returns *None* instead of the tile data.
+
+        Returns the response ``etag`` and the raw image data.
+        '''
         url = self.url_pattern.format(
-            x=tile.x,
-            y=tile.y,
-            z=tile.zoom,
+            x=x,
+            y=y,
+            z=z,
             s='a',  # TODO: abc
             api=self._api_key(),
         )
@@ -104,43 +110,43 @@ class Cache:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, tile, etag=None):
+    def fetch(self, x, y, z, etag=None):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
         from the backing service.
         On a successful service call, put the result into the cache.'''
         # etag is likely to be None
         if etag is None:
-            etag = self._find(tile)
+            etag = self._find(x, y, z)
 
-        recv_etag, data = self._service.fetch(tile, etag=etag)
+        recv_etag, data = self._service.fetch(x, y, z, etag=etag)
         if data is None:
             try:
-                cached = self._get(tile, etag)
+                cached = self._get(x, y, z, etag)
                 return etag, cached
             except LookupError:
                 pass
 
         if data is None:
             # cache lookup failed
-            recv_etag, data = self._service.fetch(tile)
+            recv_etag, data = self._service.fetch(x, y, z)
 
-        self._put(tile, recv_etag, data)
+        self._put(x, y, z, recv_etag, data)
         return recv_etag, data
 
-    def _get(self, tile, etag):
+    def _get(self, x, y, z, etag):
         if not etag:
             raise LookupError
 
         try:
-            return self._path(tile, etag).read_bytes()
+            return self._path(x, y, z, etag).read_bytes()
         except Exception:
             raise LookupError
 
-    def _find(self, tile):
+    def _find(self, x, y, z):
         # expects filename pattern:  Y.BASE64(ETAG).png
-        p = self._path(tile, '')
+        p = self._path(x, y, z, '')
         d = p.parent
-        match = '%06d.' % tile.y
+        match = '%06d.' % y
 
         try:
             for entry in d.iterdir():
@@ -157,15 +163,15 @@ class Cache:
         except FileNotFoundError:
             pass
 
-    def _put(self, tile, etag, data):
+    def _put(self, x, y, z, etag, data):
         if not etag:
             return
 
-        p = self._path(tile, etag)
+        p = self._path(x, y, z, etag)
         if p.is_file():
             return
 
-        self._clean(tile, etag)
+        self._clean(x, y, z, etag)
 
         d = p.parent
         d.mkdir(parents=True, exist_ok=True)
@@ -175,21 +181,21 @@ class Cache:
 
         self._vacuum()
 
-    def _clean(self, tile, current):
+    def _clean(self, x, y, z, current):
         '''Remove outdated cache entries for a given tile.'''
-        existing = self._find(tile)
+        existing = self._find(x, y, z)
         if existing and existing != current:
-            p = self._path(tile, existing)
+            p = self._path(x, y, z, existing)
             p.unlink(missing_ok=True)
 
-    def _path(self, tile, etag):
+    def _path(self, x, y, z, etag):
         safe_etag = base64.b64encode(etag.encode()).decode('ascii')
-        filename = '%06d.%s.png' % (tile.y, safe_etag)
+        filename = '%06d.%s.png' % (y, safe_etag)
 
         return self._base.joinpath(
             self._service.name,
-            '%02d' % tile.zoom,
-            '%06d' % tile.x,
+            '%02d' % z,
+            '%06d' % x,
             filename,
         )
 
