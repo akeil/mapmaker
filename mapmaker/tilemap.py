@@ -167,10 +167,10 @@ def tile_location(x, y, z):
 
 def tile_bounds(x, y, z):
     '''Calculates the bounding box of the given tile at the given zoom level.
-    Returns a BBox with ``minlat, minlon, maxlat, maxlon`` coordinates set to
+    Returns a BBox with ``maxlat, minlon, minlat, maxlon`` coordinates set to
     the top left (nortwestern) and bottom-right (southeastern) corner of the
     tile.
     '''
     maxlat, minlon = tile_location(x, y, z)  # top left
     minlat, maxlon = tile_location(x + 1, y + 1, z)  # bottom right
-    return BBox(minlat, minlon, maxlat, maxlon)
+    return BBox(maxlat, minlon, minlat, maxlon)
