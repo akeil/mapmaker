@@ -4,9 +4,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 import threading
 
+import appdirs
 import requests
 
 from mapmaker import __version__
+from mapmaker import __author__
+from mapmaker import __name__ as APP_NAME
 
 
 class TileService:
@@ -16,6 +19,17 @@ class TileService:
         self.name = name
         self.url_pattern = url_pattern
         self._api_keys = api_keys or {}
+
+    def cached(self, basedir=None, limit=None):
+        '''Wrap this tile service in a file system cache with default
+        parameters.
+
+        If ``basedir`` is set, this will be used as the base directory for
+        the cache. If *None*, the default directory will be used.
+
+        If ``limit`` is set, the cache sized is limited to that size.
+        '''
+        return Cache(self, basedir=basedir, limit=limit)
 
     @property
     def top_level_domain(self):
@@ -48,7 +62,7 @@ class TileService:
         )
 
         headers = {
-            'User-Agent': 'mapmaker/%s +https://github.com/akeil/mapmaker' % __version__
+            'User-Agent': '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
         }
         if etag:
             headers['If-None-Match'] = etag
@@ -86,13 +100,21 @@ class Cache:
     If available, the cache keeps the ``ETAG`` from the server response
     and uses the ``If-None-Match`` header when requesting tiles.
     So even with cache, a HTTP request is made for each requested tile.
+
+    The cache layout (below ``basedir``) includes the *name* of the serbice.
+    The same basedir can be used for different services as long as they
+    have unique names.
     '''
 
-    def __init__(self, service, basedir, limit=None):
+    def __init__(self, service, basedir=None, limit=None):
         self._service = service
-        self._base = Path(basedir)
         self._limit = limit
         self._lock = threading.Lock()
+
+        if not basedir:
+            basedir = appdirs.user_cache_dir(appname=APP_NAME,
+                                             appauthor=__author__)
+        self._base = Path(basedir)
 
     @property
     def name(self):
