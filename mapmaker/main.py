@@ -21,7 +21,6 @@ from .parse import BBoxAction
 from .parse import FrameAction
 from .parse import MarginAction
 from .parse import TextAction
-from .service import Cache
 from .service import TileService
 
 import appdirs
@@ -231,9 +230,8 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
             elem = geojson.read(x)
             map.add_element(elem)
 
-    service = TileService(style, conf.urls[style], conf.keys)
-    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-    service = Cache(service, cache_dir, limit=conf.cache_limit)
+    service = TileService(style, conf.urls[style], api_keys=conf.keys)
+    service = service.cached(limit=conf.cache_limit)
 
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)

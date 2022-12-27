@@ -167,7 +167,7 @@ class MapBuilder:
             try:
                 tile = self._queue.get(block=False)
                 try:
-                    _, data = self._service.fetch(tile)
+                    _, data = self._service.fetch(tile.x, tile.y, tile.zoom)
                     tile_img = Image.open(io.BytesIO(data))
                     with self._lock:
                         self._paste_tile(tile_img, tile.x, tile.y)

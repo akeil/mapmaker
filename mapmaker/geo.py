@@ -28,6 +28,13 @@ class BBox:
     maxlon: float = 180.0
 
     def __post_init(self):
+        # In case min/max values have been mixed up
+        if self.minlon > self.maxlon:
+            self.minlon, self.maxlon = self.maxlon, self.minlon
+
+        if self.minlat > self.maxlat:
+            self.minlat, self.maxlat = self.maxlat, self.minlat
+
         if self.minlat < -90.0:
             raise ValueError('minlat must not be < -90')
         if self.maxlat > 90.0:

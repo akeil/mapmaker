@@ -1,21 +1,38 @@
 import base64
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 import threading
 
+import appdirs
 import requests
 
 from mapmaker import __version__
+from mapmaker import __author__
+from mapmaker import __name__ as APP_NAME
 
 
 class TileService:
     '''A web service that fetches slippy map tiles in OSM format.'''
 
-    def __init__(self, name, url_pattern, api_keys):
+    def __init__(self, name, url_pattern, api_keys=None):
         self.name = name
         self.url_pattern = url_pattern
         self._api_keys = api_keys or {}
+
+    def cached(self, basedir=None, limit=None):
+        '''Wrap this tile service in a file system cache with default
+        parameters.
+
+        If ``basedir`` is set, this will be used as the base directory for
+        the cache. If *None*, the default directory will be used.
+
+        If ``limit`` is set, the cache sized is limited to that size.
+        '''
+        return Cache(self, basedir=basedir, limit=limit)
 
     @property
     def top_level_domain(self):
@@ -28,21 +45,27 @@ class TileService:
         parts = urlparse(self.url_pattern)
         return parts.netloc
 
-    def fetch(self, tile, etag=None):
+    def fetch(self, x, y, z, etag=None):
         '''Fetch the given tile from the Map Tile Service.
 
-        If an etag is specified, it will be sent to the server. If the server
-        replies with a status "Not Modified", this method returns +None*.'''
+        ``x, y, z`` are the tile coordinates and zoom level.
+
+        If an ``etag`` is specified, it will be sent to the server.
+        If the server replies with a status "Not Modified", this method
+        returns *None* instead of the tile data.
+
+        Returns the response ``etag`` and the raw image data.
+        '''
         url = self.url_pattern.format(
-            x=tile.x,
-            y=tile.y,
-            z=tile.zoom,
+            x=x,
+            y=y,
+            z=z,
             s='a',  # TODO: abc
             api=self._api_key(),
         )
 
         headers = {
-            'User-Agent': 'mapmaker/%s +https://github.com/akeil/mapmaker' % __version__
+            'User-Agent': '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
         }
         if etag:
             headers['If-None-Match'] = etag
@@ -63,6 +86,8 @@ class TileService:
         return '<TileService name=%r>' % self.name
 
 
+# TODO: use _lock() properly
+
 class Cache:
     '''File system cache that can be used as a wrapper around a *TileService*.
 
@@ -80,13 +105,27 @@ class Cache:
     If available, the cache keeps the ``ETAG`` from the server response
     and uses the ``If-None-Match`` header when requesting tiles.
     So even with cache, a HTTP request is made for each requested tile.
+
+    The cache layout (below ``basedir``) includes the *name* of the serbice.
+    The same basedir can be used for different services as long as they
+    have unique names.
+
+    ``min_hours`` controls how long we use the cached tile *without* checking
+    the ETAG. Since it is unlikely that tiles change frequently *and* it is
+    (assumed) likely that the same tiles are requested multiple times within
+    a short timespan, this saves the additional request.
     '''
 
-    def __init__(self, service, basedir, limit=None):
+    def __init__(self, service, basedir=None, limit=None, min_hours=24):
         self._service = service
-        self._base = Path(basedir)
         self._limit = limit
+        self._min_age = timedelta(hours=min_hours)
         self._lock = threading.Lock()
+
+        if not basedir:
+            basedir = appdirs.user_cache_dir(appname=APP_NAME,
+                                             appauthor=__author__)
+        self._base = Path(basedir)
 
     @property
     def name(self):
@@ -104,43 +143,60 @@ class Cache:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, tile, etag=None):
+    def fetch(self, x, y, z, etag=None):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
         from the backing service.
         On a successful service call, put the result into the cache.'''
         # etag is likely to be None
         if etag is None:
-            etag = self._find(tile)
+            etag, mtime = self._find(x, y, z)
 
-        recv_etag, data = self._service.fetch(tile, etag=etag)
+        # If the cached entry is not "too old", return it without checking
+        # the ETAG.
+        if mtime:
+            modified = datetime.fromtimestamp(mtime, tz=timezone.utc)
+            now = datetime.now(timezone.utc)
+            age = now - modified
+            if age < self._min_age:
+                cached = self._get(x, y, z, etag)
+                return etag, cached
+
+        recv_etag, data = self._service.fetch(x, y, z, etag=etag)
         if data is None:
             try:
-                cached = self._get(tile, etag)
+                cached = self._get(x, y, z, etag)
                 return etag, cached
             except LookupError:
                 pass
 
         if data is None:
             # cache lookup failed
-            recv_etag, data = self._service.fetch(tile)
+            recv_etag, data = self._service.fetch(x, y, z)
 
-        self._put(tile, recv_etag, data)
+        self._put(x, y, z, recv_etag, data)
         return recv_etag, data
 
-    def _get(self, tile, etag):
+    def _get(self, x, y, z, etag):
         if not etag:
             raise LookupError
 
         try:
-            return self._path(tile, etag).read_bytes()
+            return self._path(x, y, z, etag).read_bytes()
         except Exception:
             raise LookupError
 
-    def _find(self, tile):
+    def _find(self, x, y, z):
+        '''Finds the cache entry for tile x, y, z.
+
+        If found, returns the ``etag`` value and the ``mtime`` of the cached
+        tile.
+
+        If no cached tile is found, returns None, None.
+        '''
         # expects filename pattern:  Y.BASE64(ETAG).png
-        p = self._path(tile, '')
+        p = self._path(x, y, z, '')
         d = p.parent
-        match = '%06d.' % tile.y
+        match = '%06d.' % y
 
         try:
             for entry in d.iterdir():
@@ -149,7 +205,12 @@ class Cache:
                         try:
                             safe_etag = entry.name.split('.')[1]
                             etag_bytes = base64.b64decode(safe_etag)
-                            return etag_bytes.decode('ascii')
+                            etag = etag_bytes.decode('ascii')
+
+                            stat = entry.stat()
+                            mtime = stat.st_mtime
+
+                            return etag, mtime
                         except Exception:
                             # Errors if we encounter unexpected filenames
                             pass
@@ -157,15 +218,17 @@ class Cache:
         except FileNotFoundError:
             pass
 
-    def _put(self, tile, etag, data):
+        return None, None
+
+    def _put(self, x, y, z, etag, data):
         if not etag:
             return
 
-        p = self._path(tile, etag)
+        p = self._path(x, y, z, etag)
         if p.is_file():
             return
 
-        self._clean(tile, etag)
+        self._clean(x, y, z, etag)
 
         d = p.parent
         d.mkdir(parents=True, exist_ok=True)
@@ -175,21 +238,21 @@ class Cache:
 
         self._vacuum()
 
-    def _clean(self, tile, current):
+    def _clean(self, x, y, z, current):
         '''Remove outdated cache entries for a given tile.'''
-        existing = self._find(tile)
+        existing, _ = self._find(x, y, z)
         if existing and existing != current:
-            p = self._path(tile, existing)
+            p = self._path(x, y, z, existing)
             p.unlink(missing_ok=True)
 
-    def _path(self, tile, etag):
+    def _path(self, x, y, z, etag):
         safe_etag = base64.b64encode(etag.encode()).decode('ascii')
-        filename = '%06d.%s.png' % (tile.y, safe_etag)
+        filename = '%06d.%s.png' % (y, safe_etag)
 
         return self._base.joinpath(
             self._service.name,
-            '%02d' % tile.zoom,
-            '%06d' % tile.x,
+            '%02d' % z,
+            '%06d' % x,
             filename,
         )
 
