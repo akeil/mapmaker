@@ -5,3 +5,5 @@ from .core import Map
 from .geo import BBox
 
 from .icons import IconProvider
+
+from .service import TileService
