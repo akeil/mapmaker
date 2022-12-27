@@ -1,4 +1,7 @@
 import base64
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -106,11 +109,17 @@ class Cache:
     The cache layout (below ``basedir``) includes the *name* of the serbice.
     The same basedir can be used for different services as long as they
     have unique names.
+
+    ``min_hours`` controls how long we use the cached tile *without* checking
+    the ETAG. Since it is unlikely that tiles change frequently *and* it is
+    (assumed) likely that the same tiles are requested multiple times within
+    a short timespan, this saves the additional request.
     '''
 
-    def __init__(self, service, basedir=None, limit=None):
+    def __init__(self, service, basedir=None, limit=None, min_hours=24):
         self._service = service
         self._limit = limit
+        self._min_age = timedelta(hours=min_hours)
         self._lock = threading.Lock()
 
         if not basedir:
@@ -140,7 +149,17 @@ class Cache:
         On a successful service call, put the result into the cache.'''
         # etag is likely to be None
         if etag is None:
-            etag = self._find(x, y, z)
+            etag, mtime = self._find(x, y, z)
+
+        # If the cached entry is not "too old", return it without checking
+        # the ETAG.
+        if mtime:
+            modified = datetime.fromtimestamp(mtime, tz=timezone.utc)
+            now = datetime.now(timezone.utc)
+            age = now - modified
+            if age < self._min_age:
+                cached = self._get(x, y, z, etag)
+                return etag, cached
 
         recv_etag, data = self._service.fetch(x, y, z, etag=etag)
         if data is None:
@@ -167,6 +186,13 @@ class Cache:
             raise LookupError
 
     def _find(self, x, y, z):
+        '''Finds the cache entry for tile x, y, z.
+
+        If found, returns the ``etag`` value and the ``mtime`` of the cached
+        tile.
+
+        If no cached tile is found, returns None, None.
+        '''
         # expects filename pattern:  Y.BASE64(ETAG).png
         p = self._path(x, y, z, '')
         d = p.parent
@@ -179,13 +205,20 @@ class Cache:
                         try:
                             safe_etag = entry.name.split('.')[1]
                             etag_bytes = base64.b64decode(safe_etag)
-                            return etag_bytes.decode('ascii')
+                            etag = etag_bytes.decode('ascii')
+
+                            stat = entry.stat()
+                            mtime = stat.st_mtime
+
+                            return etag, mtime
                         except Exception:
                             # Errors if we encounter unexpected filenames
                             pass
 
         except FileNotFoundError:
             pass
+
+        return None, None
 
     def _put(self, x, y, z, etag, data):
         if not etag:
@@ -207,7 +240,7 @@ class Cache:
 
     def _clean(self, x, y, z, current):
         '''Remove outdated cache entries for a given tile.'''
-        existing = self._find(x, y, z)
+        existing, _ = self._find(x, y, z)
         if existing and existing != current:
             p = self._path(x, y, z, existing)
             p.unlink(missing_ok=True)
