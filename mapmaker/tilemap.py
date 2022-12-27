@@ -1,9 +1,12 @@
 from math import asinh
+from math import atan
+from math import degrees
 from math import log
 from math import pi as PI
 from math import pow
 from math import radians
 from math import sin
+from math import sinh
 from math import tan
 
 from .geo import BBox
@@ -89,8 +92,8 @@ class TileMap:
     def from_bbox(cls, bbox, zoom):
         '''Set up a map with tiles that will *contain* the given bounding box.
         The map may be larger than the bounding box.'''
-        ax, ay = _tile_coordinates(bbox.minlat, bbox.minlon, zoom)  # top left
-        bx, by = _tile_coordinates(bbox.maxlat, bbox.maxlon, zoom)  # btm right
+        ax, ay = tile_number(bbox.minlat, bbox.minlon, zoom)  # top left
+        bx, by = tile_number(bbox.maxlat, bbox.maxlon, zoom)  # btm right
         return cls(ax, ay, bx, by, zoom, bbox)
 
 
@@ -106,15 +109,7 @@ class Tile:
     @property
     def bbox(self):
         '''The bounding box coordinates of this tile.'''
-        north, south = self._lat_edges()
-        west, east = self._lon_edges()
-        # TODO having North/South and West/East as min/max is slightly wrong?
-        return BBox(
-            minlat=north,
-            minlon=west,
-            maxlat=south,
-            maxlon=east
-        )
+        return tile_bounds(self.x, self.y, self.zoom)
 
     def contains(self, point):
         '''Tell if the given Point is within the bounds of this tile.'''
@@ -126,29 +121,18 @@ class Tile:
 
         return True
 
-    def _lat_edges(self):
-        n = pow(2.0, self.zoom)
-        unit = 1.0 / n
-        relative_y0 = self.y * unit
-        relative_y1 = relative_y0 + unit
-        lat0 = mercator_to_lat(PI * (1 - 2 * relative_y0))
-        lat1 = mercator_to_lat(PI * (1 - 2 * relative_y1))
-        return(lat0, lat1)
-
-    def _lon_edges(self):
-        n = pow(2.0, self.zoom)
-        unit = 360 / n
-        lon0 = -180 + self.x * unit
-        lon1 = lon0 + unit
-        return lon0, lon1
-
     def __repr__(self):
         return '<Tile %s,%s>' % (self.x, self.y)
 
 
-def _tile_coordinates(lat, lon, zoom):
-    '''Calculate the X and Y coordinates for the map tile that contains the
-    given point at the given zoom level.'''
+def tile_number(lat, lon, zoom):
+    '''Calculate the X and Y coordinate for the map tile that contains the
+    given point at the given zoom level.
+
+    Returns a tuple (x, y).
+
+    Raises *ValueError* if lat or lon are outside the allowed range.
+    '''
     if lat < MIN_LAT or lat > MAX_LAT:
         raise ValueError('latitude must be %s..%s, got %s' % (MIN_LAT, MAX_LAT, lat))
     if lon < MIN_LON or lon > MAX_LON:
@@ -164,3 +148,29 @@ def _tile_coordinates(lat, lon, zoom):
     y = (1.0 - a / PI) / 2.0 * n
 
     return int(x), int(y)
+
+
+def tile_location(x, y, z):
+    '''Determines the lat/lon location of the top-left corner of the given
+    tile at the given zoom level.
+    '''
+    # from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+    n = 2.0 ** z
+
+    lon = x / n * 360.0 - 180.0
+
+    lat_rad = atan(sinh(PI * (1 - 2 * y / n)))
+    lat = degrees(lat_rad)
+
+    return lat, lon
+
+
+def tile_bounds(x, y, z):
+    '''Calculates the bounding box of the given tile at the given zoom level.
+    Returns a BBox with ``minlat, minlon, maxlat, maxlon`` coordinates set to
+    the top left (nortwestern) and bottom-right (southeastern) corner of the
+    tile.
+    '''
+    maxlat, minlon = tile_location(x, y, z)  # top left
+    minlat, maxlon = tile_location(x + 1, y + 1, z)  # bottom right
+    return BBox(minlat, minlon, maxlat, maxlon)
