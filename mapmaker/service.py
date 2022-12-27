@@ -15,7 +15,7 @@ from mapmaker import __name__ as APP_NAME
 class TileService:
     '''A web service that fetches slippy map tiles in OSM format.'''
 
-    def __init__(self, name, url_pattern, api_keys):
+    def __init__(self, name, url_pattern, api_keys=None):
         self.name = name
         self.url_pattern = url_pattern
         self._api_keys = api_keys or {}
@@ -82,6 +82,8 @@ class TileService:
     def __repr__(self):
         return '<TileService name=%r>' % self.name
 
+
+# TODO: use _lock() properly
 
 class Cache:
     '''File system cache that can be used as a wrapper around a *TileService*.

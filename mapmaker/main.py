@@ -230,7 +230,7 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
             elem = geojson.read(x)
             map.add_element(elem)
 
-    service = TileService(style, conf.urls[style], conf.keys)
+    service = TileService(style, conf.urls[style], api_keys=conf.keys)
     service = service.cached(limit=conf.cache_limit)
 
     if args.copyright:
