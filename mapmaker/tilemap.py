@@ -173,4 +173,7 @@ def tile_bounds(x, y, z):
     '''
     maxlat, minlon = tile_location(x, y, z)  # top left
     minlat, maxlon = tile_location(x + 1, y + 1, z)  # bottom right
-    return BBox(maxlat, minlon, minlat, maxlon)
+    return BBox(maxlat=maxlat,
+                minlon=minlon,
+                minlat=minlat,
+                maxlon=maxlon)

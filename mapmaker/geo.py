@@ -18,16 +18,16 @@ BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
 
-@dataclass(frozen=True)
+@dataclass
 class BBox:
     '''An axis-aligned Bounding box defined by two coordinates.'''
 
-    minlat: float = -90.0
-    minlon: float = -180.0
     maxlat: float = 90.0
+    minlon: float = -180.0
+    minlat: float = -90.0
     maxlon: float = 180.0
 
-    def __post_init(self):
+    def __post_init__(self):
         # In case min/max values have been mixed up
         if self.minlon > self.maxlon:
             self.minlon, self.maxlon = self.maxlon, self.minlon
