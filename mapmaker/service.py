@@ -96,7 +96,7 @@ class TileService:
         parts = urlparse(self.url_pattern)
         return parts.netloc
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         '''Fetch the given tile from the Map Tile Service.
 
         ``x, y, z`` are the tile coordinates and zoom level.
@@ -105,8 +105,17 @@ class TileService:
         If the server replies with a status "Not Modified", this method
         returns *None* instead of the tile data.
 
+        If ``cached_only`` is *True*, a ``LookupError`` is raised if the
+        requested tile needs to be fetched from the service.
+        The ``cached_only`` flag only makes sense if the service is wrapped
+        into a cache. For a TileService without a cache, this will raise an
+        error for every request.
+
         Returns the response ``etag`` and the raw image data.
         '''
+        if cached_only:
+            raise LookupError('No cached tile for %s,%s,%s', x, y, z)
+
         s = self._server()
         api = self._api_key()
         url = self.url_pattern.format(
@@ -230,10 +239,15 @@ class Cache:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
         from the backing service.
-        On a successful service call, put the result into the cache.'''
+        On a successful service call, put the result into the cache.
+
+        When ``cached_only`` is *True*, the cache entry is only returned
+        if it can be done so without checking the ETAG against the server.
+        That is, if the cache entry is younger than ``min_hours``.
+        '''
         # etag is likely to be None
         if etag is None:
             etag, mtime = self._find(x, y, z)
@@ -248,7 +262,9 @@ class Cache:
                 cached = self._get(x, y, z, etag)
                 return etag, cached
 
-        recv_etag, data = self._service.fetch(x, y, z, etag=etag)
+        recv_etag, data = self._service.fetch(x, y, z,
+                                              etag=etag,
+                                              cached_only=cached_only)
         if data is None:
             try:
                 cached = self._get(x, y, z, etag)
@@ -409,7 +425,7 @@ class MemoryCache:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         result = None
         k = (x, y, z)
         try:
@@ -423,7 +439,9 @@ class MemoryCache:
             pass
 
         # Cache miss, request from service
-        result = self._service.fetch(x, y, z, etag=etag)
+        result = self._service.fetch(x, y, z,
+                                     etag=etag,
+                                     cached_only=cached_only)
 
         # If the cache is full, remove one item (the last)
         with self._lock:
@@ -470,17 +488,23 @@ class Fallback:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         try:
-            return self._service.fetch(x, y, z, etag=etag)
+            return self._service.fetch(x, y, z,
+                                       etag=etag,
+                                       cached_only=cached_only)
         except Exception:
-            return self._fallback(x, y, z)
+            return self._fallback(x, y, z, cached_only=cached_only)
 
-    def _fallback(self, x, y, z):
+    def _fallback(self, x, y, z, cached_only=False):
         tile = Tile(x, y, z)
         parent, offset = tile.parent()
         _LOG.info('Use fallback %s => %s', tile, parent)
-        _, data = self.fetch(parent.x, parent.y, parent.z)
+        _, data = self.fetch(parent.x,
+                             parent.y,
+                             parent.z,
+                             cached_only=cached_only)
+
         return None, self._subimage(data, offset)
 
     def _subimage(self, data, offset):
