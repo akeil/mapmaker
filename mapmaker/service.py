@@ -455,6 +455,9 @@ class MemoryCache:
         return result
 
 
+# TODO: Fallback changes the semantics of fetch() - rethink
+
+
 class Fallback:
     '''Wraps a TileService (or cache) to fall back on a lower zoom level if the
     requested zoom level is not available.
@@ -489,15 +492,16 @@ class Fallback:
         return self._service.domain
 
     def fetch(self, x, y, z, etag=None, cached_only=False):
+        tile = Tile(x, y, z)
         try:
-            return self._service.fetch(x, y, z,
+            _, data = self._service.fetch(tile.x, tile.y, tile.z,
                                        etag=etag,
                                        cached_only=cached_only)
+            return tile, data
         except Exception:
-            return self._fallback(x, y, z, cached_only=cached_only)
+            return self._fallback(tile, cached_only=cached_only)
 
-    def _fallback(self, x, y, z, cached_only=False):
-        tile = Tile(x, y, z)
+    def _fallback(self, tile, cached_only=False):
         parent, offset = tile.parent()
         _LOG.info('Use fallback %s => %s', tile, parent)
         _, data = self.fetch(parent.x,
@@ -505,7 +509,7 @@ class Fallback:
                              parent.z,
                              cached_only=cached_only)
 
-        return None, self._subimage(data, offset)
+        return parent, self._subimage(data, offset)
 
     def _subimage(self, data, offset):
         img = Image.open(io.BytesIO(data))
