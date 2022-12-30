@@ -36,13 +36,13 @@ class BBox:
             self.minlat, self.maxlat = self.maxlat, self.minlat
 
         if self.minlat < -90.0:
-            raise ValueError('minlat must not be < -90')
+            raise ValueError('minlat must not be < -90, got %s' % self.minlat)
         if self.maxlat > 90.0:
-            raise ValueError('maxlat must not be >90')
+            raise ValueError('maxlat must not be >90, got %s' % self.maxlat)
         if self.minlon < -180.0:
-            raise ValueError('minlon must not be < -180')
+            raise ValueError('minlon must not be < -180, got %s' % self.minlon)
         if self.maxlon > 180.0:
-            raise ValueError('maxlon must not be > 180.0')
+            raise ValueError('maxlon must not be > 180.0, got %s' % self.maxlon)
 
     def with_aspect(self, aspect):
         '''Extend the given bounding box so that it adheres to the given aspect
