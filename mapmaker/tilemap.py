@@ -3,6 +3,7 @@ from functools import cached_property
 from math import asinh
 from math import atan
 from math import degrees
+from math import floor
 from math import log
 from math import pi as PI
 from math import pow
@@ -20,6 +21,10 @@ MAX_LAT = 85.0511
 MIN_LAT = -85.0511
 MIN_LON = -180.0
 MAX_LON = 180.0
+
+# https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Zoom_levels
+MIN_ZOOM = 0
+MAX_ZOOM = 19
 
 
 class TileMap:
@@ -128,6 +133,53 @@ class Tile:
             return False
 
         return True
+
+    def parent(self):
+        '''Get the parent tile, i.e. the tile at the next lower zoom level
+        which contains this tile.
+
+        Returns a tuple ``(tile, pos)``.
+
+        ``pos`` is position of this tile within its parent::
+
+            0,0 | 1,0
+            ----+----
+            0,1 | 1,1
+
+        *ValueError* is raised if there is no parent tile (if this tile is
+        already at zoom level 0).
+        '''
+        if self.z == MIN_ZOOM:
+            raise ValueError('Minimum zoom level reached')
+
+        x = floor(self.x / 2)
+        y = floor(self.y / 2)
+        z = self.z - 1
+
+        # Quadrant of this tile within its parent
+        a = int(self.x % 2)
+        b = int(self.y % 2)
+
+        return Tile(x, y, z), (a, b)
+
+    def subtiles(self):
+        '''Get the four tiles which represent this tile in the next higher zoom
+        level.
+
+        *ValueError* is raised if this tile is already at the maximum zoom
+        level.
+        '''
+        if self.z == MAX_ZOOM:
+            raise ValueError('Maximim zoom level reached')
+
+        x = self.x * 2
+        y = self.y * 2
+        z = self.z + 1
+
+        return (Tile(x, y, z),
+                Tile(x + 1, y, z),
+                Tile(x, y + 1, z),
+                Tile(x + 1, y + 1, z))
 
 
 def tile_number(lat, lon, zoom):
