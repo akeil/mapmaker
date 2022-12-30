@@ -120,7 +120,7 @@ class TileService:
         Returns the response ``etag`` and the raw image data.
         '''
         if cached_only:
-            raise LookupError('No cached tile for %s,%s,%s', x, y, z)
+            raise LookupError('No cached tile for x=%s, y=%s, z=%s' % (x, y, z))
 
         s = self._server()
         api = self._api_key()
@@ -513,8 +513,8 @@ class Fallback:
         tile = Tile(x, y, z)
         try:
             _, data = self._service.fetch(tile.x, tile.y, tile.z,
-                                       etag=etag,
-                                       cached_only=cached_only)
+                                          etag=etag,
+                                          cached_only=cached_only)
             return tile, data
         except Exception:
             return self._fallback(tile, cached_only=cached_only)
@@ -522,12 +522,12 @@ class Fallback:
     def _fallback(self, tile, cached_only=False):
         parent, offset = tile.parent()
         _LOG.info('Use fallback %s => %s', tile, parent)
-        _, data = self.fetch(parent.x,
+        tile, data = self.fetch(parent.x,
                              parent.y,
                              parent.z,
                              cached_only=cached_only)
 
-        return parent, self._subimage(data, offset)
+        return tile, self._subimage(data, offset)
 
     def _subimage(self, data, offset):
         img = Image.open(io.BytesIO(data))
@@ -537,7 +537,7 @@ class Fallback:
                h // 2 * dy,
                w // 2 * (dx + 1),
                h // 2 * (dy + 1))
-        # Take a quarter of the source image and resoize it to required size
+        # Take a quarter of the source image and resize it to required size
         sub = img.resize(img.size, box=box)
 
         buf = io.BytesIO()
