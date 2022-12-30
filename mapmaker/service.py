@@ -24,6 +24,10 @@ class TileService:
         self.url_pattern = url_pattern
         self._api_keys = api_keys or {}
 
+        self._session = requests.Session()
+        ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
+        self._session.headers['User-Agent'] = ua
+
     def cached(self, basedir=None, limit=None):
         '''Wrap this tile service in a file system cache with default
         parameters.
@@ -73,13 +77,11 @@ class TileService:
             api=self._api_key(),
         )
 
-        headers = {
-            'User-Agent': '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
-        }
+        headers = {}
         if etag:
             headers['If-None-Match'] = etag
 
-        res = requests.get(url, headers=headers)
+        res = self._session.get(url, headers=headers)
         res.raise_for_status()
 
         if res.status_code == 304:
