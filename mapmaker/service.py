@@ -3,6 +3,7 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+import io
 import logging
 import os
 from pathlib import Path
@@ -11,11 +12,13 @@ from urllib.parse import urlparse
 import threading
 
 import appdirs
+from PIL import Image
 import requests
 
 from mapmaker import __version__
 from mapmaker import __author__
 from mapmaker import __name__ as APP_NAME
+from mapmaker.tilemap import Tile
 
 
 _LOG = logging.getLogger(APP_NAME)
@@ -82,6 +85,12 @@ class TileService:
         '''
         return MemoryCache(self, size=size)
 
+    def with_fallback(self):
+        '''Use lower resolution tiles as fallback if the requested zoom level
+        is not available.
+        '''
+        return Fallback(self)
+
     @property
     def top_level_domain(self):
         parts = self.domain.split('.')
@@ -93,7 +102,7 @@ class TileService:
         parts = urlparse(self.url_pattern)
         return parts.netloc
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         '''Fetch the given tile from the Map Tile Service.
 
         ``x, y, z`` are the tile coordinates and zoom level.
@@ -102,8 +111,17 @@ class TileService:
         If the server replies with a status "Not Modified", this method
         returns *None* instead of the tile data.
 
+        If ``cached_only`` is *True*, a ``LookupError`` is raised if the
+        requested tile needs to be fetched from the service.
+        The ``cached_only`` flag only makes sense if the service is wrapped
+        into a cache. For a TileService without a cache, this will raise an
+        error for every request.
+
         Returns the response ``etag`` and the raw image data.
         '''
+        if cached_only:
+            raise LookupError('No cached tile for %s,%s,%s', x, y, z)
+
         s = self._server()
         api = self._api_key()
         url = self.url_pattern.format(
@@ -211,6 +229,12 @@ class Cache:
         '''Wrap this cache into a *MemoryCache*.'''
         return MemoryCache(self, size=size)
 
+    def with_fallback(self):
+        '''Use lower resolution tiles as fallback if the requested zoom level
+        is not available.
+        '''
+        return Fallback(self)
+
     @property
     def name(self):
         return self._service.name
@@ -227,10 +251,15 @@ class Cache:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         '''Attempt to serve the tile from the cache, if that fails, fetch it
         from the backing service.
-        On a successful service call, put the result into the cache.'''
+        On a successful service call, put the result into the cache.
+
+        When ``cached_only`` is *True*, the cache entry is only returned
+        if it can be done so without checking the ETAG against the server.
+        That is, if the cache entry is younger than ``min_hours``.
+        '''
         # etag is likely to be None
         if etag is None:
             etag, mtime = self._find(x, y, z)
@@ -245,7 +274,9 @@ class Cache:
                 cached = self._get(x, y, z, etag)
                 return etag, cached
 
-        recv_etag, data = self._service.fetch(x, y, z, etag=etag)
+        recv_etag, data = self._service.fetch(x, y, z,
+                                              etag=etag,
+                                              cached_only=cached_only)
         if data is None:
             try:
                 cached = self._get(x, y, z, etag)
@@ -390,6 +421,12 @@ class MemoryCache:
         self._lock = threading.Lock()
         self._values = OrderedDict()
 
+    def with_fallback(self):
+        '''Use lower resolution tiles as fallback if the requested zoom level
+        is not available.
+        '''
+        return Fallback(self)
+
     @property
     def name(self):
         return self._service.name
@@ -406,7 +443,7 @@ class MemoryCache:
     def domain(self):
         return self._service.domain
 
-    def fetch(self, x, y, z, etag=None):
+    def fetch(self, x, y, z, etag=None, cached_only=False):
         result = None
         k = (x, y, z)
         try:
@@ -420,7 +457,9 @@ class MemoryCache:
             pass
 
         # Cache miss, request from service
-        result = self._service.fetch(x, y, z, etag=etag)
+        result = self._service.fetch(x, y, z,
+                                     etag=etag,
+                                     cached_only=cached_only)
 
         # If the cache is full, remove one item (the last)
         with self._lock:
@@ -432,3 +471,75 @@ class MemoryCache:
             self._values.move_to_end(k, last=False)
 
         return result
+
+
+# TODO: Fallback changes the semantics of fetch() - rethink
+
+
+class Fallback:
+    '''Wraps a TileService (or cache) to fall back on a lower zoom level if the
+    requested zoom level is not available.
+
+    When the fallback tile is used, it is scaled up to match the expected pixel
+    dimensions.
+
+    This is done recursively, i.e. if zoom level 10 is requested, but only 8 is
+    available, the fallback tile will be taken from zoom level 8 and scaled x2.
+
+    The appropriate subimage is taken from the fallback tile so that the
+    returned image fits in place of the originally requested tile.
+    '''
+
+    def __init__(self, service):
+        self._service = service
+
+    @property
+    def name(self):
+        return self._service.name
+
+    @property
+    def url_pattern(self):
+        return self._service.url_pattern
+
+    @property
+    def top_level_domain(self):
+        return self._service.top_level_domain
+
+    @property
+    def domain(self):
+        return self._service.domain
+
+    def fetch(self, x, y, z, etag=None, cached_only=False):
+        tile = Tile(x, y, z)
+        try:
+            _, data = self._service.fetch(tile.x, tile.y, tile.z,
+                                       etag=etag,
+                                       cached_only=cached_only)
+            return tile, data
+        except Exception:
+            return self._fallback(tile, cached_only=cached_only)
+
+    def _fallback(self, tile, cached_only=False):
+        parent, offset = tile.parent()
+        _LOG.info('Use fallback %s => %s', tile, parent)
+        _, data = self.fetch(parent.x,
+                             parent.y,
+                             parent.z,
+                             cached_only=cached_only)
+
+        return parent, self._subimage(data, offset)
+
+    def _subimage(self, data, offset):
+        img = Image.open(io.BytesIO(data))
+        w, h = img.size
+        dx, dy = offset
+        box = (w // 2 * dx,
+               h // 2 * dy,
+               w // 2 * (dx + 1),
+               h // 2 * (dy + 1))
+        # Take a quarter of the source image and resoize it to required size
+        sub = img.resize(img.size, box=box)
+
+        buf = io.BytesIO()
+        sub.save(buf, format='png')
+        return buf.getvalue()
