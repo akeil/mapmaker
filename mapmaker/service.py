@@ -3,6 +3,7 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+import io
 import logging
 import os
 from pathlib import Path
@@ -11,11 +12,13 @@ from urllib.parse import urlparse
 import threading
 
 import appdirs
+from PIL import Image
 import requests
 
 from mapmaker import __version__
 from mapmaker import __author__
 from mapmaker import __name__ as APP_NAME
+from mapmaker.tilemap import Tile
 
 
 _LOG = logging.getLogger(APP_NAME)
@@ -432,3 +435,65 @@ class MemoryCache:
             self._values.move_to_end(k, last=False)
 
         return result
+
+
+class Fallback:
+    '''Wraps a TileService (or cache) to fall back on a lower zoom level if the
+    requested zoom level is not available.
+
+    When the fallback tile is used, it is scaled up to match the expected pixel
+    dimensions.
+
+    This is done recursively, i.e. if zoom level 10 is requested, but only 8 is
+    available, the fallback tile will be taken from zoom level 8 and scaled x2.
+
+    The appropriate subimage is taken from the fallback tile so that the
+    returned image fits in place of the originally requested tile.
+    '''
+
+    def __init__(self, service):
+        self._service = service
+
+    @property
+    def name(self):
+        return self._service.name
+
+    @property
+    def url_pattern(self):
+        return self._service.url_pattern
+
+    @property
+    def top_level_domain(self):
+        return self._service.top_level_domain
+
+    @property
+    def domain(self):
+        return self._service.domain
+
+    def fetch(self, x, y, z, etag=None):
+        try:
+            return self._service.fetch(x, y, z, etag=etag)
+        except Exception:
+            return self._fallback(x, y, z)
+
+    def _fallback(self, x, y, z):
+        tile = Tile(x, y, z)
+        parent, offset = tile.parent()
+        _LOG.info('Use fallback %s => %s', tile, parent)
+        _, data = self.fetch(parent.x, parent.y, parent.z)
+        return None, self._subimage(data, offset)
+
+    def _subimage(self, data, offset):
+        img = Image.open(io.BytesIO(data))
+        w, h = img.size
+        dx, dy = offset
+        box = (w // 2 * dx,
+               h // 2 * dy,
+               w // 2 * (dx + 1),
+               h // 2 * (dy + 1))
+        # Take a quarter of the source image and resoize it to required size
+        sub = img.resize(img.size, box=box)
+
+        buf = io.BytesIO()
+        sub.save(buf, format='png')
+        return buf.getvalue()
