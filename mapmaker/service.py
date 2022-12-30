@@ -85,6 +85,12 @@ class TileService:
         '''
         return MemoryCache(self, size=size)
 
+    def with_fallback(self):
+        '''Use lower resolution tiles as fallback if the requested zoom level
+        is not available.
+        '''
+        return Fallback(self)
+
     @property
     def top_level_domain(self):
         parts = self.domain.split('.')
@@ -222,6 +228,12 @@ class Cache:
     def memory_cache(self, size=100):
         '''Wrap this cache into a *MemoryCache*.'''
         return MemoryCache(self, size=size)
+
+    def with_fallback(self):
+        '''Use lower resolution tiles as fallback if the requested zoom level
+        is not available.
+        '''
+        return Fallback(self)
 
     @property
     def name(self):
@@ -408,6 +420,12 @@ class MemoryCache:
         self._size = size
         self._lock = threading.Lock()
         self._values = OrderedDict()
+
+    def with_fallback(self):
+        '''Use lower resolution tiles as fallback if the requested zoom level
+        is not available.
+        '''
+        return Fallback(self)
 
     @property
     def name(self):
