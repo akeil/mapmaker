@@ -63,7 +63,7 @@ class TileService:
         s.headers['User-Agent'] = ua
         self._session = s
 
-    def cached(self, basedir=None, limit=None):
+    def cached(self, basedir=None, limit=None, min_hours=24):
         '''Wrap this tile service in a file system cache with default
         parameters.
 
@@ -72,7 +72,7 @@ class TileService:
 
         If ``limit`` is set, the cache sized is limited to that size.
         '''
-        return Cache(self, basedir=basedir, limit=limit)
+        return Cache(self, basedir=basedir, limit=limit, min_hours=min_hours)
 
     def memory_cache(self, size=100):
         '''Wrap this cache into a *MemoryCache*.
