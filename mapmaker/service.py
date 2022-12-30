@@ -1,4 +1,5 @@
 import base64
+from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -33,6 +34,14 @@ class TileService:
         If ``limit`` is set, the cache sized is limited to that size.
         '''
         return Cache(self, basedir=basedir, limit=limit)
+
+    def memory_cache(self, size=100):
+        '''Wrap this cache into a *MemoryCache*.
+
+        Note that if you also want a file system cahce (recommended), then
+        wrap the service in an FS-cache first, then with a memory cache.
+        '''
+        return MemoryCache(self, size=size)
 
     @property
     def top_level_domain(self):
@@ -126,6 +135,10 @@ class Cache:
             basedir = appdirs.user_cache_dir(appname=APP_NAME,
                                              appauthor=__author__)
         self._base = Path(basedir)
+
+    def memory_cache(self, size=100):
+        '''Wrap this cache into a *MemoryCache*.'''
+        return MemoryCache(self, size=size)
 
     @property
     def name(self):
@@ -288,3 +301,63 @@ class Cache:
 
     def __repr__(self):
         return '<Cache %r>' % str(self._base)
+
+
+class MemoryCache:
+    '''Wraps a tile service in a memory cache.
+
+    Up to ``size`` recently requested tiles are kept in memory.
+
+    This cache does not make an effort to check the ``ETAG`` for a tile.
+    If a tile cached tile is found for the given x, y, z coordinates, it is
+    returned without checking for a more recent version.
+    '''
+
+    def __init__(self, service, size=100):
+        self._service = service
+        self._size = size
+        self._lock = threading.Lock()
+        self._values = OrderedDict()
+
+    @property
+    def name(self):
+        return self._service.name
+
+    @property
+    def url_pattern(self):
+        return self._service.url_pattern
+
+    @property
+    def top_level_domain(self):
+        return self._service.top_level_domain
+
+    @property
+    def domain(self):
+        return self._service.domain
+
+    def fetch(self, x, y, z, etag=None):
+        result = None
+        k = (x, y, z)
+        try:
+            with self._lock:
+                result = self._values[k]
+                # Move recently requested to the top
+                self._values.move_to_end(k, last=False)
+
+            return result
+        except KeyError:
+            pass
+
+        # Cache miss, request from service
+        result = self._service.fetch(x, y, z, etag=etag)
+
+        # If the cache is full, remove one item (the last)
+        with self._lock:
+            if len(self._values) >= self._size:
+                self._values.popitem(last=True)
+
+            # Cache the result as the first (most recent) entry
+            self._values[k] = result
+            self._values.move_to_end(k, last=False)
+
+        return result
