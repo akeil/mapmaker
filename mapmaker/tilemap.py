@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cached_property
 from math import asinh
 from math import atan
 from math import degrees
@@ -98,7 +99,7 @@ class TileMap:
         return cls(ax, ay, bx, by, zoom, bbox)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Tile:
     '''Represents a single slippy map tile for a given zoom level.'''
 
@@ -106,10 +107,17 @@ class Tile:
     y: int
     z: int
 
-    @property
+    @cached_property
     def bbox(self):
         '''The bounding box coordinates of this tile.'''
         return tile_bounds(self.x, self.y, self.z)
+
+    @cached_property
+    def anchor(self):
+        '''Returns the lat/lon coordinates for the top-left corner of this
+        tile.
+        '''
+        return tile_location(self.x, self.y, self.z)
 
     def contains(self, point):
         '''Tell if the given Point is within the bounds of this tile.'''
