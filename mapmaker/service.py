@@ -3,8 +3,10 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+import logging
 import os
 from pathlib import Path
+import random
 from urllib.parse import urlparse
 import threading
 
@@ -16,15 +18,52 @@ from mapmaker import __author__
 from mapmaker import __name__ as APP_NAME
 
 
-class TileService:
-    '''A web service that fetches slippy map tiles in OSM format.'''
+_LOG = logging.getLogger(APP_NAME)
 
-    def __init__(self, name, url_pattern, api_keys=None):
+
+class TileService:
+    '''A web service that fetches slippy map tiles in OSM format.
+
+    ``name`` is the unique name for this service. It is for example used as
+    the directory name for the cache (if a cache is used).
+
+    ``url_pattern`` if a format string with the URL for a specific tile,
+    e.g. "https://tile.openstreetmap.org/{z}/{x}/{y}.png".
+    It must contain the ``{x}, {y}, {z}`` placeholders.
+
+    The URL pattern may contain an ``{s}`` parameter, which allows to use
+    different servers (subdomains, usually).
+    By default, it will be set to the value ``a``.
+
+    If the ``abc`` parameter is given, it should be a list of values suitable
+    for the ``{s}`` placeholder. A random value will be chosen with each
+    request.
+
+    ``max_retries`` controls how often failed requests should be repeated
+    before raising an error. Retries are only made for failed connections
+    (including timeouts).
+    If the server responds with an error code (e.g. 403 or 404), the request
+    is *not* attempted again.
+    '''
+
+    def __init__(self,
+                 name,
+                 url_pattern,
+                 abc=None,
+                 api_keys=None,
+                 max_retries=3):
         self.name = name
         self.url_pattern = url_pattern
+        self._abc = abc
         self._api_keys = api_keys or {}
+        self._max_retries = max_retries
 
-    def cached(self, basedir=None, limit=None):
+        s = requests.Session()
+        ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
+        s.headers['User-Agent'] = ua
+        self._session = s
+
+    def cached(self, basedir=None, limit=None, min_hours=24):
         '''Wrap this tile service in a file system cache with default
         parameters.
 
@@ -33,7 +72,7 @@ class TileService:
 
         If ``limit`` is set, the cache sized is limited to that size.
         '''
-        return Cache(self, basedir=basedir, limit=limit)
+        return Cache(self, basedir=basedir, limit=limit, min_hours=min_hours)
 
     def memory_cache(self, size=100):
         '''Wrap this cache into a *MemoryCache*.
@@ -65,28 +104,60 @@ class TileService:
 
         Returns the response ``etag`` and the raw image data.
         '''
+        s = self._server()
+        api = self._api_key()
         url = self.url_pattern.format(
             x=x,
             y=y,
             z=z,
-            s='a',  # TODO: abc
-            api=self._api_key(),
+            s=s,
+            api=api,
         )
 
-        headers = {
-            'User-Agent': '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
-        }
+        headers = {}
         if etag:
             headers['If-None-Match'] = etag
 
-        res = requests.get(url, headers=headers)
-        res.raise_for_status()
+        try:
+            #res = self._session.get(url, headers=headers)
+            #res.raise_for_status()
+            res = self._request(url, headers)
+        except Exception as err:
+            log_api = '<API_KEY>' if api else '<NO_API_KEY>'
+            log_url = self.url_pattern.format(x=x, y=y, z=z, s=s, api=log_api)
+            _LOG.warning('Request for %r failed with %s', log_url, err)
+            _LOG.debug(err, exc_info=True)
+            raise err
 
         if res.status_code == 304:
             return etag, None
 
         recv_etag = res.headers.get('etag')
         return recv_etag, res.content
+
+    def _request(self, url, headers, retry_count=1):
+        try:
+            res = self._session.get(url, headers=headers)
+            res.raise_for_status()
+            return res
+        except (requests.Timeout, requests.ConnectionError) as err:
+            # Any error type we would like to retry goes here.
+            # Raise only if retries are exhausted.
+            if retry_count > self._max_retries:
+                _LOG.warning('Request failed after %d retries', retry_count)
+                raise err
+
+            _LOG.info('Retry (%d) request after %s', retry_count, err)
+
+        retry_count += 1
+        return self._request(url, headers, retry_count=retry_count)
+
+    def _server(self):
+        if not self._abc:
+            return 'a'
+
+        i = random.randint(0, len(self._abc) - 1)
+        return self._abc[i]
 
     def _api_key(self):
         return self._api_keys.get(self.domain, '')
