@@ -104,12 +104,12 @@ class Tile:
 
     x: int
     y: int
-    zoom: int
+    z: int
 
     @property
     def bbox(self):
         '''The bounding box coordinates of this tile.'''
-        return tile_bounds(self.x, self.y, self.zoom)
+        return tile_bounds(self.x, self.y, self.z)
 
     def contains(self, point):
         '''Tell if the given Point is within the bounds of this tile.'''
