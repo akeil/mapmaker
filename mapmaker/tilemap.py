@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from math import asinh
 from math import atan
 from math import degrees
@@ -97,14 +98,13 @@ class TileMap:
         return cls(ax, ay, bx, by, zoom, bbox)
 
 
-# TODO: private?
+@dataclass
 class Tile:
     '''Represents a single slippy map tile for a given zoom level.'''
 
-    def __init__(self, x, y, zoom):
-        self.x = x
-        self.y = y
-        self.zoom = zoom
+    x: int
+    y: int
+    zoom: int
 
     @property
     def bbox(self):
@@ -120,9 +120,6 @@ class Tile:
             return False
 
         return True
-
-    def __repr__(self):
-        return '<Tile %s,%s>' % (self.x, self.y)
 
 
 def tile_number(lat, lon, zoom):
