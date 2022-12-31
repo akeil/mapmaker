@@ -104,7 +104,7 @@ class TileMap:
         return cls(ax, ay, bx, by, zoom, bbox)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class Tile:
     '''Represents a single slippy map tile for a given zoom level.'''
 

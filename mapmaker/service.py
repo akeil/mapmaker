@@ -64,6 +64,7 @@ class TileService:
         s = requests.Session()
         ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
         s.headers['User-Agent'] = ua
+        # TODO: should we use a custom HTTPAdapter with increased pool size?
         self._session = s
 
     def cached(self, basedir=None, limit=None, min_hours=24):

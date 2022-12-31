@@ -6,6 +6,6 @@ from .geo import BBox
 
 from .icons import IconProvider
 
-from .tilemap import tile_bounds, tile_location, tile_number
+from .tilemap import Tile, tile_bounds, tile_location, tile_number
 
 from .service import TileService
