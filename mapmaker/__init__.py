@@ -8,4 +8,4 @@ from .icons import IconProvider
 
 from .tilemap import Tile, tile_bounds, tile_location, tile_number
 
-from .service import TileService
+from .service import TileRegistry, TileService
