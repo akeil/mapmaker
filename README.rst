@@ -261,10 +261,12 @@ Each section may contain the following reserved entries:
 .. code:: ini
 
     [service.example]
+    tile_size  = 512
     api_key    = my-secret-api-key
     subdomains = abcdef
 
 Any other entries are expected to be key/value pairs with URL patterns.
+If no ``tile_size`` is configured, the default size (``256px``) is used.
 
 The URL pattern **must** contain three variables:
 
@@ -274,7 +276,7 @@ The URL pattern **must** contain three variables:
 
 See for example https://wiki.openstreetmap.org/wiki/Tiles.
 
-The URL may contain an additional placeholders for an API Key (see below)
+The URL may contain additional placeholders for an API Key (see below)
 and a subdomain::
 
     topo        = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png

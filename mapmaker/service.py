@@ -36,10 +36,11 @@ class ServiceRegistry:
 
     def get(self, style):
         '''Setup a *TileService* for the given map style.'''
-        url_pattern, subdomains, api_key = self._services[style]
+        url_pattern, subdomains, tile_size, api_key = self._services[style]
         return TileService(style,
                            url_pattern,
                            subdomains=subdomains,
+                           tile_size=tile_size,
                            api_key=api_key)
 
     def list(self):
@@ -52,10 +53,11 @@ class ServiceRegistry:
     def from_config(cls, cfg):
         d = {}
         sections = [s for s in cfg.sections() if s.startswith('service.')]
-        reserved = ('api_key', 'subdomains')
+        reserved = ('api_key', 'subdomains', 'tile_size')
         for s in sections:
             styles = [o for o in cfg.options(s) if o not in reserved]
             api_key = cfg.get(s, 'api_key', fallback=None)
+            tile_size = cfg.getint(s, 'tile_size', fallback=256)
             subdomains = cfg.get(s, 'subdomains', fallback='')
             for style in styles:
                 if style in d:
@@ -63,7 +65,7 @@ class ServiceRegistry:
                     continue
 
                 url_pattern = cfg[s][style]
-                d[style] = (url_pattern, subdomains, api_key)
+                d[style] = (url_pattern, subdomains, tile_size, api_key)
 
         return cls(d)
 
@@ -113,9 +115,11 @@ class TileService:
                  name,
                  url_pattern,
                  subdomains=None,
+                 tile_size=256,
                  api_key=None,
                  max_retries=3):
         self.name = name
+        self.tile_size = tile_size or 256
         self.url_pattern = url_pattern
         self._subdomains = subdomains
         self._api_key = api_key
@@ -299,6 +303,10 @@ class Cache:
     @property
     def url_pattern(self):
         return self._service.url_pattern
+
+    @property
+    def tile_size(self):
+        return self._service.tile_size
 
     @property
     def top_level_domain(self):
@@ -493,6 +501,10 @@ class MemoryCache:
         return self._service.url_pattern
 
     @property
+    def tile_size(self):
+        return self._service.tile_size
+
+    @property
     def top_level_domain(self):
         return self._service.top_level_domain
 
@@ -557,6 +569,10 @@ class Fallback:
     @property
     def url_pattern(self):
         return self._service.url_pattern
+
+    @property
+    def tile_size(self):
+        return self._service.tile_size
 
     @property
     def top_level_domain(self):
