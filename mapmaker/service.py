@@ -235,7 +235,7 @@ class TileService:
             return 'a'
 
         i = random.randint(0, len(self._subdomains) - 1)
-        return self.subdomains[i]
+        return self._subdomains[i]
 
     def __repr__(self):
         return '<TileService name=%r>' % self.name
