@@ -245,14 +245,28 @@ You can specify additional map styles like this:
 
     # ~/.config/mapmaker/config.ini
 
-    [services]
+    [service.osm]
     osm   = https://tile.openstreetmap.org/{z}/{x}/{y}.png
-    topo  = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
 
-Where ``osm`` is the name of the style (as used in the ``--style`` flag) and
-the URL is the URL pattern for downloading tiles.
+    [service.opentopo]
+    subdomains = abc
+    topo       = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
 
-The URL pattern contains three variables:
+Where ``osm`` or ``topo`` are the names of the style (as used in the
+``--style`` flag) and the URL is the URL pattern for downloading tiles.
+
+Section names can be chosen freely but have to start with ``service.``.
+Each section may contain the following reserved entries:
+
+.. code:: ini
+
+    [service.example]
+    api_key    = my-secret-api-key
+    subdomains = abcdef
+
+Any other entries are expected to be key/value pairs with URL patterns.
+
+The URL pattern **must** contain three variables:
 
 :z: zoom level
 :x: X-coordinate of the tile
@@ -260,8 +274,11 @@ The URL pattern contains three variables:
 
 See for example https://wiki.openstreetmap.org/wiki/Tiles.
 
-The URL may contain an additional placeholder for an API Key (see below)::
+The URL may contain an additional placeholders for an API Key (see below)
+and a subdomain::
 
+    topo        = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
+                          ^^^
     atlas = https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey={api}
                                                                          ^^^
 
@@ -287,10 +304,14 @@ Once you have registered, place your API Keys in a config file like this:
 
     # ~/.config/mapmaker/config.ini
 
-    [keys]
-    tile.thunderforest.com  = YOUR_API_KEY
-    maps.geoapify.com       = YOUR_API_KEY
-    api.mapbox.com          = YOUR_API_KEY
+    [service.thunderforest]
+    api_key = YOUR_API_KEY
 
-Where ``tile.thunderforest.com`` is the domain from which the image tiles are
-requested.
+    [service.geoapify]
+    api_key = YOUR_API_KEY
+
+    [service.mapbox]
+    api_key = YOUR_API_KEY
+
+Where ``[service.xxx]`` is the config section which defines the URLs for this
+service.
