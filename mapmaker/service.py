@@ -1,5 +1,6 @@
 import base64
 from collections import OrderedDict
+import configparser
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -7,6 +8,7 @@ import io
 import logging
 import os
 from pathlib import Path
+from pkg_resources import resource_stream
 import random
 from urllib.parse import urlparse
 import threading
@@ -22,6 +24,64 @@ from mapmaker.tilemap import Tile
 
 
 _LOG = logging.getLogger(APP_NAME)
+
+
+class ServiceRegistry:
+    '''Holds definitions for different tile sources with URL parttern,
+    available subdomains and API key.
+    '''
+
+    def __init__(self, services):
+        self._services = services
+
+    def get(self, style):
+        '''Setup a *TileService* for the given map style.'''
+        url_pattern, subdomains, api_key = self._services[style]
+        return TileService(style,
+                           url_pattern,
+                           subdomains=subdomains,
+                           api_key=api_key)
+
+    def list(self):
+        '''List the names of all registered styles.'''
+        l = [k for k in self._services]
+        l.sort()
+        return l
+
+    @classmethod
+    def from_config(cls, cfg):
+        d = {}
+        sections = [s for s in cfg.sections() if s.startswith('service.')]
+        reserved = ('api_key', 'subdomains')
+        for s in sections:
+            styles = [o for o in cfg.options(s) if o not in reserved]
+            api_key = cfg.get(s, 'api_key', fallback=None)
+            subdomains = cfg.get(s, 'subdomains', fallback='')
+            for style in styles:
+                if style in d:
+                    _LOG.warning('Ignore duplicate service definition for %r in [%s]', style, s)
+                    continue
+
+                url_pattern = cfg[s][style]
+                d[style] = (url_pattern, subdomains, api_key)
+
+        return cls(d)
+
+    @classmethod
+    def from_file(cls, path):
+        cfg = configparser.ConfigParser()
+        # built-in defaults
+        cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker', 'default.ini')))
+        # user settings
+        cfg.read([path, ])
+        return cls.from_config(cfg)
+
+    @classmethod
+    def default(cls):
+        # TODO: include built in config
+        conf_dir = appdirs.user_config_dir(appname=APP_NAME)
+        conf_file = Path(conf_dir).joinpath('config.ini')
+        return cls.from_file(conf_file)
 
 
 class TileService:
@@ -52,14 +112,14 @@ class TileService:
     def __init__(self,
                  name,
                  url_pattern,
-                 abc=None,
-                 api_keys=None,
+                 subdomains=None,
+                 api_key=None,
                  max_retries=3):
         self.name = name
         self.url_pattern = url_pattern
-        self._abc = abc
-        self._api_keys = api_keys or {}
-        self._max_retries = max_retries
+        self._subdomains = subdomains
+        self._api_key = api_key
+        self.max_retries = max_retries
 
         s = requests.Session()
         ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
@@ -123,14 +183,13 @@ class TileService:
         if cached_only:
             raise LookupError('No cached tile for x=%s, y=%s, z=%s' % (x, y, z))
 
-        s = self._server()
-        api = self._api_key()
+        s = self._subdomain()
         url = self.url_pattern.format(
             x=x,
             y=y,
             z=z,
             s=s,
-            api=api,
+            api=self._api_key or '',
         )
 
         headers = {}
@@ -142,7 +201,7 @@ class TileService:
             #res.raise_for_status()
             res = self._request(url, headers)
         except Exception as err:
-            log_api = '<API_KEY>' if api else '<NO_API_KEY>'
+            log_api = '<API_KEY>' if self._api_key else '<NO_API_KEY>'
             log_url = self.url_pattern.format(x=x, y=y, z=z, s=s, api=log_api)
             _LOG.warning('Request for %r failed with %s', log_url, err)
             _LOG.debug(err, exc_info=True)
@@ -162,7 +221,7 @@ class TileService:
         except (requests.Timeout, requests.ConnectionError) as err:
             # Any error type we would like to retry goes here.
             # Raise only if retries are exhausted.
-            if retry_count > self._max_retries:
+            if retry_count > self.max_retries:
                 _LOG.warning('Request failed after %d retries', retry_count)
                 raise err
 
@@ -171,15 +230,12 @@ class TileService:
         retry_count += 1
         return self._request(url, headers, retry_count=retry_count)
 
-    def _server(self):
-        if not self._abc:
+    def _subdomain(self):
+        if not self._subdomains:
             return 'a'
 
-        i = random.randint(0, len(self._abc) - 1)
-        return self._abc[i]
-
-    def _api_key(self):
-        return self._api_keys.get(self.domain, '')
+        i = random.randint(0, len(self._subdomains) - 1)
+        return self.subdomains[i]
 
     def __repr__(self):
         return '<TileService name=%r>' % self.name
