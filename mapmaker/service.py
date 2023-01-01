@@ -595,11 +595,11 @@ class Fallback:
     def _fallback(self, tile, cached_only=False):
         parent, offset = tile.parent()
         _LOG.info('Use fallback %s => %s', tile, parent)
+        # TODO: this will decode and re-encode the image for every zoom-level
         tile, data = self.fetch(parent.x,
-                             parent.y,
-                             parent.z,
-                             cached_only=cached_only)
-
+                                parent.y,
+                                parent.z,
+                                cached_only=cached_only)
         return tile, self._subimage(data, offset)
 
     def _subimage(self, data, offset):
