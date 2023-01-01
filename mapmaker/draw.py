@@ -305,7 +305,6 @@ class Icon(DrawLayer):
                 value = 255 - int(floor(255 * distance))
                 mask.putpixel((px, py), value)
 
-        mask.save('mask.png')
         # place centered over location
         pos = (
             x - (s // 2),
