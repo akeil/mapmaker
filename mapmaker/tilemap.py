@@ -62,7 +62,7 @@ class TileMap:
         Pixel fractions need to be multiplied with the tile size
         to get the actual pixel coordinates.'''
         nw = (self.ax, self.ay)
-        lat_off = self.tiles[nw].bbox.minlat
+        lat_off = self.tiles[nw].bbox.maxlat
         lon_off = self.tiles[nw].bbox.minlon
         offset_x, offset_y = self._project(lat_off, lon_off)
 
