@@ -38,7 +38,7 @@ clean:
 	rm dist/* || true
 
 dev-install:
-	pip install --editable .
+	pip install --no-deps --break-system-packages --editable .
 
 samples:
 	mapmaker --zoom 10 --gallery 63.0695,-151.0074 30km ./samples
