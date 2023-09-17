@@ -125,6 +125,16 @@ class BBox:
                     minlon=max(self.minlon, minlon),
                     maxlon=min(self.maxlon, maxlon))
 
+    def combine(self, other):
+        '''Combine this BBox with another bbox. The result will contain both
+        bounding boxes.'''
+        return BBox(
+            minlat=min(self.minlat, other.minlat),
+            maxlat=max(self.maxlat, other.maxlat),
+            minlon=min(self.minlon, other.minlon),
+            maxlon=max(self.maxlon, other.maxlon)
+        )
+
     def __repr__(self):
         return '<BBox minlat=%s, minlon=%s, maxlat=%s, maxlon=%s>' % (
             self.minlat, self.minlon, self.maxlat, self.maxlon)
