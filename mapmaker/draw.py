@@ -39,6 +39,7 @@ class DrawLayer:
         raise ValueError('Not implemented')
 
     def drawables(self):
+        '''Return a list with this object an all child drawables.'''
         return [self, ]
 
 
@@ -164,7 +165,19 @@ class Placemark(DrawLayer):
 
 
 class Symbol(DrawLayer):
-    '''Draw a symbol on the map.'''
+    '''Draw a symbol on the map.
+
+    :lat:       The latitude position of the symbol.
+    :lon:       The longitude  position of the symbol.
+    :symbol:    The type of symbol (dot, square or trangle).
+                Use predefined constants ``Placemark.DOT``,
+                ``Placemark.SQUARE``, ...
+    :color:     The outline color for the symbol, RGBA tuple.
+    :fill:      The fill color for the symbol, RGBA tuple.
+    :border:    Border widthin pixels.
+    :size:      The overall size for the symbol (single int value to specify
+                (height and width).
+    '''
 
     layer = MARKER_LAYER
 
@@ -235,7 +248,18 @@ class Symbol(DrawLayer):
 
 
 class Icon(DrawLayer):
-    '''Draw a named icon that can be loaded by an IconProivder.'''
+    '''Draw a named icon that can be loaded by an ``IconProvider``.
+
+    :lat:       The latitude position of the symbol.
+    :lon:       The longitude  position of the symbol.
+    :name:      The icon name.
+    :color:     The icon color as an RGBA tuple.
+    :fill:      Background color as an RGBA tuple. If not *None*, a circular
+                background is drawn below the icon.
+    :border:    Border width in pixels for the ``fill`` background.
+    :size:      The overall icon size.  (single int value to specify
+                (height and width).
+    '''
 
     layer = MARKER_LAYER
 
@@ -305,7 +329,6 @@ class Icon(DrawLayer):
                 value = 255 - int(floor(255 * distance))
                 mask.putpixel((px, py), value)
 
-        mask.save('mask.png')
         # place centered over location
         pos = (
             x - (s // 2),
@@ -339,6 +362,20 @@ class Label(DrawLayer):
     The label is drawn with its anchor at the specified location.
     You can specify an ``offset`` in pixels to draw the label some distance
     away from the lat/lon location.
+
+    :lat:       The latitude position of the symbol.
+    :lon:       The longitude  position of the symbol.
+    :text:      The text to be used as the label.
+    :offset:    ?
+    :color:     The text color as an RGBA tuple
+    :fill:      The background color for the textbox as an RGBA tuple.
+                If not *None* a flat rectangular background is drawn below the
+                text.
+    :border:    Border idth for the textbox in pixels.
+    :font_name: Name of the font in which the text should be drawn.
+    :font_size: Size of the label text.
+    :padding:   Controls padding between the text and the text box. Tuple with
+                pixel values ``(top, right, bottom, left)``.
     '''
     _STROKE_WITH = 2
 
@@ -601,7 +638,14 @@ class Circle(DrawLayer):
 
 
 class Shape(DrawLayer):
-    '''Draw a polygon defined by a list of lat/lon pairs.'''
+    '''Draw a polygon defined by a list of lat/lon pairs.
+
+    :points:    A list of coordnate tuples, e.g.
+                ``[(lat0, lon0), (lat1, lon1), ...]``
+    :color:     The stroke color as an RGBA tuple.
+    :fill:      If not *None*, the area encircled by the polygon ist filled
+                with that color. An RGBA tuple.
+    '''
 
     layer = SHAPE_LAYER
 

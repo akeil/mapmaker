@@ -11,6 +11,7 @@ from PIL import ImageFont
 
 
 # Most (all?) services will return tiles this size
+# TODO: some tiles are 512x512, depends on service
 DEFAULT_TILESIZE = (256, 256)
 
 
@@ -23,7 +24,7 @@ class MapBuilder:
 
     Optional ``overlay`` is a list of map elements.
 
-    ``icons`` is an _IconProvider_ from the ``icons`` module.
+    ``icons`` is an *IconProvider* from the ``icons`` module.
     '''
 
     def __init__(self, service, map,
@@ -167,7 +168,7 @@ class MapBuilder:
             try:
                 tile = self._queue.get(block=False)
                 try:
-                    _, data = self._service.fetch(tile)
+                    _, data = self._service.fetch(tile.x, tile.y, tile.z)
                     tile_img = Image.open(io.BytesIO(data))
                     with self._lock:
                         self._paste_tile(tile_img, tile.x, tile.y)
@@ -286,9 +287,10 @@ class Composer:
             base.alpha_composite(frame_img, dest=(left, top))
 
         # add decorations for different areas
+        rc = self._map_builder
         for area in ('MAP', 'MARGIN'):
             for deco in self._decorations[area]:
-                deco_size = deco.calc_size((map_w, map_h))
+                deco_size = deco.calc_size(rc, (map_w, map_h))
                 deco_pos = None
                 if area == 'MAP':
                     deco_pos = self._calc_map_pos(deco.placement,
@@ -302,7 +304,7 @@ class Composer:
 
                 deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
                 draw = ImageDraw.Draw(deco_img, mode='RGBA')
-                deco.draw(draw, deco_size)
+                deco.draw(draw, rc, deco_size)
 
                 base.alpha_composite(deco_img, dest=deco_pos)
 
@@ -315,8 +317,9 @@ class Composer:
 
         top, right, bottom, left = 0, 0, 0, 0
 
+        rc = self._map_builder
         for deco in self._decorations['MARGIN']:
-            w, h = deco.calc_size(map_size)
+            w, h = deco.calc_size(rc, map_size)
             if deco.placement in _NORTHERN:
                 top = max(h, top)
             elif deco.placement in _SOUTHERN:
@@ -428,7 +431,7 @@ def load_font(font_name, font_size):
     '''Load the given true type font, return fallback on failure.'''
     try:
         return ImageFont.truetype(font=font_name, size=font_size)
-    except OSError:
+    except OSError as e:
         return ImageFont.load_default()
 
 
@@ -443,6 +446,9 @@ def is_dark(color):
 
 
 def contrast_color(color):
+    '''Get a color that contrasts with the given color.
+
+    ``color`` is a tuple with ``(r, g, b)`` or ``(r, g, b, a)``.'''
     alpha = 255
     if len(color) == 4:
         alpha = color[3]

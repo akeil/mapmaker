@@ -177,6 +177,28 @@ Examples:
     $ mapmaker --frame 12 255,0,0 0,0,255 coordinates 45.83,6.88 100km
     $ mapmaker --frame coordinates 45.83,6.88 100km
 
+Use ``--scale`` to show a scale bar on the map.
+Optional arguments for scale are:
+
+:``PLACEMENT``: Where to place the scale, must be one of the map areas
+                (e.g "SW").
+:``WIDTH``:     The width of the scale bar in pixels (e.g. "2").
+:``COLOR``:     The color to use for the scale bar an label, e.g. "0,0,0".
+:``LABEL``:     The label style, either ``default`` or ``nolabel``.
+
+The label shows the size of the scale in meters or kilometers.
+
+Examples:
+
+.. code:: shell-session
+
+    $ mapmaker --scale -- 45.83,6.88 100km
+    $ mapmaker --scale SE -- 45.83,6.88 100km
+    $ mapmaker --scale 1 -- 45.83,6.88 100km
+    $ mapmaker --scale 120,120,120 -- 45.83,6.88 100km
+    $ mapmaker --scale nolabel -- 45.83,6.88 100km
+    $ mapmaker --scale SE 1 120,120,120 nolabel -- 45.83,6.88 100km
+
 
 GeoJSON
 -------
@@ -245,14 +267,30 @@ You can specify additional map styles like this:
 
     # ~/.config/mapmaker/config.ini
 
-    [services]
+    [service.osm]
     osm   = https://tile.openstreetmap.org/{z}/{x}/{y}.png
-    topo  = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
 
-Where ``osm`` is the name of the style (as used in the ``--style`` flag) and
-the URL is the URL pattern for downloading tiles.
+    [service.opentopo]
+    subdomains = abc
+    topo       = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
 
-The URL pattern contains three variables:
+Where ``osm`` or ``topo`` are the names of the style (as used in the
+``--style`` flag) and the URL is the URL pattern for downloading tiles.
+
+Section names can be chosen freely but have to start with ``service.``.
+Each section may contain the following reserved entries:
+
+.. code:: ini
+
+    [service.example]
+    tile_size  = 512
+    api_key    = my-secret-api-key
+    subdomains = abcdef
+
+Any other entries are expected to be key/value pairs with URL patterns.
+If no ``tile_size`` is configured, the default size (``256px``) is used.
+
+The URL pattern **must** contain three variables:
 
 :z: zoom level
 :x: X-coordinate of the tile
@@ -260,8 +298,11 @@ The URL pattern contains three variables:
 
 See for example https://wiki.openstreetmap.org/wiki/Tiles.
 
-The URL may contain an additional placeholder for an API Key (see below)::
+The URL may contain additional placeholders for an API Key (see below)
+and a subdomain::
 
+    topo        = https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png
+                          ^^^
     atlas = https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey={api}
                                                                          ^^^
 
@@ -287,10 +328,14 @@ Once you have registered, place your API Keys in a config file like this:
 
     # ~/.config/mapmaker/config.ini
 
-    [keys]
-    tile.thunderforest.com  = YOUR_API_KEY
-    maps.geoapify.com       = YOUR_API_KEY
-    api.mapbox.com          = YOUR_API_KEY
+    [service.thunderforest]
+    api_key = YOUR_API_KEY
 
-Where ``tile.thunderforest.com`` is the domain from which the image tiles are
-requested.
+    [service.geoapify]
+    api_key = YOUR_API_KEY
+
+    [service.mapbox]
+    api_key = YOUR_API_KEY
+
+Where ``[service.xxx]`` is the config section which defines the URLs for this
+service.

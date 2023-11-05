@@ -23,10 +23,12 @@ TODO
 ----
 support other formats than SVG
 '''
+import io
 from pathlib import Path
 
 import appdirs
 import cairosvg
+from PIL import Image
 
 from . import __name__ as APP_NAME
 
@@ -47,6 +49,7 @@ class IconProvider:
         self._cache = _NoCache()
 
     def cached(self):
+        '''Wrap this *IconProvider* in a memory cache.'''
         self._cache = _MemoryCache()
         return self
 
@@ -67,12 +70,16 @@ class IconProvider:
 
         return sorted(set(result))
 
-    def get(self, name, width=None, height=None):
+    def get(self, name, width=None, height=None, color=None):
         '''Loads the image data for the given icon and size.
 
+        The icon is tinted in the given color or black, if no color is given.
+        Color must be an RGB(A) tuple or a hex string (e.g. ``#5000ac``).
+
         Raises LookupError if no icon is found.'''
+        color = _rgba(color)
         try:
-            return self._cache.get(name, width, height)
+            return self._cache.get(name, width, height, color)
         except LookupError:
             pass
 
@@ -82,7 +89,9 @@ class IconProvider:
         for provider in self._providers:
             try:
                 data = provider.get(name, width=width, height=height)
-                self._cache.put(name, width, height, data)
+                if color:
+                    data = _colorize(data, color)
+                self._cache.put(name, width, height, color, data)
                 return data
             except LookupError:
                 pass
@@ -94,6 +103,9 @@ class IconProvider:
 
     @classmethod
     def default(cls):
+        '''Set up an *IconProvider* with the default ``DATA_DIR`` as the
+        base directory.
+        '''
         data_dir = Path(appdirs.user_data_dir(appname=APP_NAME))
         base = data_dir.joinpath('icons')
         return cls(base)
@@ -165,10 +177,63 @@ class _MemoryCache:
     def __init__(self):
         self._entries = {}
 
-    def put(self, name, width, height, data):
-        key = (name, width, height)
+    def put(self, name, width, height, color, data):
+        key = (name, width, height, color)
         self._entries[key] = data
 
-    def get(self, name, width, height):
-        key = (name, width, height)
+    def get(self, name, width, height, color):
+        key = (name, width, height, color)
         return self._entries[key]
+
+
+def _colorize(icon_data, color):
+    '''Paint the given icon in the given color.
+    Expects the base color of the icon to be black, so that it can be used as
+    a mask.
+
+    ``color`` must be an RGB(A) tuple, e.g. ``(50, 160, 255)``.
+    '''
+    # Paint new color on otherwise empty/transparent canves, using the icon
+    # as mask.
+    mask = Image.open(io.BytesIO(icon_data))
+    fill = Image.new('RGBA', mask.size, color=color)
+    canvas = Image.new('RGBA', mask.size, color=(0, 0, 0, 0))
+    canvas.paste(fill, mask=mask)
+
+    # Return PNG encoded images as bytes.
+    buf = io.BytesIO()
+    canvas.save(buf, format='png')
+    return buf.getvalue()
+
+
+def _rgba(raw):
+    '''Make sure color is an RGBA tuple.
+
+    ``raw`` is either already a tuple with RGB or RGBA values
+    or it is a hexstring which will then be converted to a tuple.
+
+    If the alpha channel is missing, it will be set to 255.
+    '''
+    if not raw:
+        return None
+
+    # Hex str, e.g. #aabbcc
+    if isinstance(raw, str):
+        if raw.startswith('#'):
+            raw = raw[1:]
+        if len(raw) < 6 or len(raw) > 10:
+            raise ValueError('invalid color %r' % raw)
+
+        r, g, b = int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+        if raw[6:8]:
+            a = int(raw[6:8], 1)
+        else:
+            a = 255
+
+        return r, g, b, a
+
+    # assume already a tuple
+    if len(raw) == 3:
+        return raw[0], raw[1], raw[2], 255
+
+    return raw

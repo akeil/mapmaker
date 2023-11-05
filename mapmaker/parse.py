@@ -1,3 +1,8 @@
+'''Helpers for parsing various information from strings.
+Intended to be used in conjunction with the Python ``argparse`` module.
+'''
+
+
 import argparse
 from argparse import ArgumentError
 from collections import namedtuple
@@ -7,9 +12,11 @@ from .geo import decimal
 from .tilemap import MIN_LAT, MAX_LAT
 from .decorations import PLACEMENTS
 from .decorations import Frame
+from .decorations import Scale
 
 
 class BBoxAction(argparse.Action):
+    '''Parse a bounding box (see ``bbox()``).'''
 
     def __call__(self, parser, namespace, values, option_string=None):
         # expect one of;
@@ -40,6 +47,7 @@ def bbox(values):
         ["47.437,10.953", "2km"]
 
     If successful, returns a ``BBox`` object.
+
     Raises *ValueError* on failure.
     '''
     lat0, lon0 = coordinates(values[0])
@@ -75,6 +83,8 @@ def bbox(values):
 
 
 class MarginAction(argparse.Action):
+    '''Parse the settings for the map margin.
+    See ``margin()``.'''
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -91,6 +101,20 @@ class MarginAction(argparse.Action):
 
 
 def margin(raw):
+    '''Parse the settings for the margin (the whitespace around the map
+    content).
+
+    Expect either a list of integers or a comma-separated string (of integers).
+    The list can contain
+
+    - a single value with the margin for all four sides
+    - two values with the margins for top/bottom and left/right
+    - four values with margins for top, left, bottom, right (clockwise)
+
+    Returns a tuple with margins ``(top, left bottom, right)``.
+
+    Raises *ValueError* for invalid input.
+    '''
     if isinstance(raw, str):
         if ',' in raw:
             values = raw.split(',')
@@ -99,7 +123,7 @@ def margin(raw):
     else:  # assume list of ints
         values = raw
 
-    # handle different variatnes vor "values"
+    # handle different variants vor "values"
     if len(values) == 1:
         v = int(values[0])
         margins = v, v, v, v
@@ -213,7 +237,7 @@ class FrameAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
-            raise ValueError("nargs must None")
+            raise ValueError("nargs must be None")
 
         super().__init__(option_strings, dest, nargs='*', **kwargs)
 
@@ -282,6 +306,91 @@ class FrameAction(argparse.Action):
             style=style))
 
 
+ScaleParams = namedtuple('ScaleParams', 'place width color label')
+
+
+class ScaleAction(argparse.Action):
+    '''Parse various parameters for the map's scale bar
+
+    - placement (SW, SE, ...)
+    - border width (single integer)
+    - color (rgba)
+    - label ('label' or 'nolabel')
+    '''
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs must be None")
+
+        super().__init__(option_strings, dest, nargs='*', **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) > 4:
+            msg = ('invalid number of arguments (%s) for frame, expected up to'
+                   ' four: PLACEMENT, BORDER, COLOR, LABEL') % len(values)
+            raise ArgumentError(self, msg)
+
+        place, width, fg_color, label = None, None, None, None
+
+        # accept values for BORDER, COLOR and STYLE in any order
+        # accept each param only once
+        # make sure all values are consumed
+        unrecognized = []
+        for value in values:
+            if place is None:
+                try:
+                    place = _parse_placement(value)
+                    continue
+                except ValueError:
+                    pass
+
+            if width is None:
+                try:
+                    width = int(value)
+                    if width < 0:
+                        msg = ('invalid width %r,'
+                               ' must not be negative') % value
+                        raise ArgumentError(self, msg)
+                    continue
+                except ValueError:
+                    # assume this was not the value for width
+                    pass
+
+            if fg_color is None:
+                try:
+                    fg_color = color(value)
+                    continue
+                except ValueError:
+                    # assume it was not the value for color
+                    pass
+
+            if label is None:
+                if value.lower() in Scale.LABEL_STYLES:
+                    label = value.lower()
+                    continue
+
+            # did not understand "value"
+            unrecognized.append(value)
+
+        if unrecognized:
+            msg = 'unrecognized scale parameters: %r' % ', '.join(unrecognized)
+            raise ArgumentError(self, msg)
+
+        # apply defaults
+        if self.default:
+            d_place, d_width, d_color, d_label = self.default
+            place = d_place if place is None else place
+            width = d_width if width is None else width
+            fg_color = d_color if fg_color is None else fg_color
+            label = d_label if label is None else label
+
+        setattr(namespace, self.dest, ScaleParams(
+            place=place,
+            width=width,
+            color=fg_color,
+            label=label))
+
+
 def coordinates(raw):
     '''Parse a pair of lat/lon coordinates.
 
@@ -292,6 +401,8 @@ def coordinates(raw):
 
     Lat and Lon must be separated by a comma ",".
     Whitespace is ignored.
+
+    Raises *ValueError* for invalid input.
     '''
 
     def _parse_dms(dms):
@@ -398,6 +509,10 @@ def color(raw):
     - R,G,B,A   / 255,255,255,255
     - RRGGBB    / #aa20ff
     - #RRGGBBAA / #0120ab90
+
+    Returns a tuple of integers with ``(r, g, b, a)``.
+
+    Raises *ValueError* for invalid input.
     '''
     if not raw or not raw.strip():
         raise ValueError('invalid color %r' % raw)
@@ -442,7 +557,10 @@ def _parse_placement(raw):
 
 
 def aspect(raw):
-    '''Parse an aspect ratio given in the form of "19:9" into a float.'''
+    '''Parse an aspect ratio given in the form of "16:9" into a float.
+
+    Raises *ValueError* for invalid input.
+    '''
     if not raw:
         raise ValueError('Invalid argument (empty)')
 

@@ -3,7 +3,7 @@ from collections import defaultdict
 from .tilemap import TileMap
 from .render import MapBuilder
 from .render import Composer
-from .decorations import Cartouche, CompassRose, Frame
+from .decorations import Cartouche, CompassRose, Frame, Scale
 
 
 class Map:
@@ -90,6 +90,12 @@ class Map:
         return builder.build()
 
     def add_element(self, element):
+        '''Add a drawable element to the map.
+
+        Drawable elements are considered part of the map contents. Their
+        position is defined by lat/lon coordinates and they are drawn over the
+        map image but blow decorations.
+        '''
         self.elements.append(element)
 
     def add_decoration(self, area, decoration):
@@ -118,9 +124,11 @@ class Map:
                   background=None,
                   border_width=0,
                   border_color=None):
-        '''Add a title to the map.
+        '''Add a title decoration to the map.
 
         The title can be surrounded by a box with border and background.
+
+        See ``Cartouche``.
         '''
         self.add_decoration(area, Cartouche(text,
                                             placement=placement,
@@ -140,7 +148,9 @@ class Map:
                     font_name=None,
                     border_width=0,
                     border_color=None):
-        '''Add a comment to the map.'''
+        '''Add a comment decoration to the map.
+        See ``Cartouche``.
+        '''
         self.add_decoration(area, Cartouche(text,
                             placement=placement,
                             color=color,
@@ -150,10 +160,23 @@ class Map:
                             font_size=font_size,
                             font_name=font_name))
 
-    def add_scale(self):
-        pass
-        # TODO: implement
-        # deco = Scale()
+    def add_scale(self,
+                  area='MAP',
+                  placement='SW',
+                  color=(0, 0, 0, 255),
+                  border_width=2,
+                  label_style='default',
+                  font_size=10,
+                  font_name=None):
+        '''Add a scale bar to the map.
+
+        See ``Scale``.'''
+        self.add_decoration(area, Scale(placement=placement,
+                                        color=color,
+                                        border_width=border_width,
+                                        label_style=label_style,
+                                        font_size=font_size,
+                                        font_name=font_name))
 
     def add_compass_rose(self,
                          area='MAP',
@@ -161,7 +184,9 @@ class Map:
                          color=(0, 0, 0, 255),
                          outline=None,
                          marker=False):
-        '''Add a compass rose to the map.'''
+        '''Add a compass rose to the map.
+
+        See ``CompassRose``.'''
         self.add_decoration(area, CompassRose(placement=placement,
                                               color=color,
                                               outline=outline,
@@ -170,8 +195,16 @@ class Map:
     def set_margin(self, *args):
         '''Set the size of the margin, that is the white space around the
         mapped content.
-        Note that the margin will be extended automatically if a decoration is
-        placed on the MARGIN area.
+        Note that the margin will be **extended** automatically if a decoration
+        is placed on the MARGIN area.
+
+        Accepts a list of integers:
+
+        - single value (same margin on all sides)
+        - pair of values (``top/bottom``, ``left/right``)
+        - four values with margins for (``top, right, bottom, left)``
+
+        Raises *ValueError* for invalid number of arguments or invalid margin.
         '''
         if len(args) == 1 and args[0] is None:
             self._margin = None
@@ -226,6 +259,8 @@ class Map:
         (between MAP area and MARGIN).
 
         Set the width to ``0`` to remove the frame.
+
+        See ``Frame``.
         '''
         # coordinate markers
         # coordinate labels

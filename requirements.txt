@@ -2,3 +2,5 @@ appdirs
 Pillow
 requests
 geojson
+# icons
+cairosvg

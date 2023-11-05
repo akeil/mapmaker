@@ -20,8 +20,9 @@ from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
 from .parse import MarginAction
+from .parse import ScaleAction, ScaleParams
 from .parse import TextAction
-from .service import Cache
+from .service import ServiceRegistry
 from .service import TileService
 
 import appdirs
@@ -30,9 +31,7 @@ import appdirs
 APP_NAME = 'mapmaker'
 APP_DESC = 'Create map images from tile servers.'
 
-Config = namedtuple('Config', ('urls'
-                               ' keys'
-                               ' copyrights'
+Config = namedtuple('Config', ('copyrights'
                                ' cache_limit'
                                ' parallel_downloads'
                                ' icons_base'))
@@ -43,7 +42,7 @@ def main():
     conf_dir = appdirs.user_config_dir(appname=APP_NAME)
     conf_file = Path(conf_dir).joinpath('config.ini')
     conf = read_config(conf_file)
-    styles = sorted(x for x in conf.urls.keys())
+    registry = ServiceRegistry.default()
 
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
@@ -92,7 +91,7 @@ def main():
 
     default_style = 'osm'
     parser.add_argument('-s', '--style',
-                        choices=styles,
+                        choices=registry.list(),
                         default=default_style,
                         help='Map style (default: %r)' % default_style)
 
@@ -138,6 +137,12 @@ def main():
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR and STYLE)'))
 
+    parser.add_argument('--scale',
+                        action=ScaleAction,
+                        metavar='ARGS',
+                        help=('Draw a scale bar into the map'
+                              ' (any of: PLACEMENT, WIDTH, COLOR, LABEL)'))
+
     # TODO: placement, color, marker "N"
     parser.add_argument('--compass',
                         action='store_true',
@@ -173,17 +178,17 @@ def main():
         if args.gallery:
             base = Path(args.dst)
             base.mkdir(exist_ok=True)
-            for style in styles:
+            for style in registry.list():
                 dst = base.joinpath(style + '.png')
                 try:
-                    _run(bbox, args.zoom, dst, style, reporter, conf, args,
-                         dry_run=args.dry_run)
+                    _run(bbox, args.zoom, dst, style, reporter, registry, conf,
+                         args, dry_run=args.dry_run)
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            _run(bbox, args.zoom, args.dst, args.style, reporter, conf, args,
-                 dry_run=args.dry_run)
+            _run(bbox, args.zoom, args.dst, args.style, reporter, registry,
+                 conf, args, dry_run=args.dry_run)
     except Exception as err:
         reporter('ERROR: %s', err)
         raise
@@ -192,7 +197,7 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
+def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
     map = Map(bbox)
     map.set_background(args.background)
@@ -226,14 +231,22 @@ def _run(bbox, zoom, dst, style, report, conf, args, dry_run=False):
     if args.compass:
         map.add_compass_rose()
 
+    if args.scale:
+        map.add_scale(area='MAP',
+                      placement=args.scale.place or 'SW',
+                      color=args.scale.color or (0, 0, 0, 255),
+                      border_width=args.scale.width or 2,
+                      label_style=args.scale.label or 'default',
+                      font_size=10,
+                      font_name='DejaVuSans')
+
     if args.geojson:
         for x in args.geojson:
             elem = geojson.read(x)
             map.add_element(elem)
 
-    service = TileService(style, conf.urls[style], conf.keys)
-    cache_dir = appdirs.user_cache_dir(appname=APP_NAME, appauthor=__author__)
-    service = Cache(service, cache_dir, limit=conf.cache_limit)
+    service = registry.get(style)
+    service = service.cached(limit=conf.cache_limit)
 
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)
@@ -305,9 +318,7 @@ def read_config(path):
         data_dir = Path(appdirs.user_data_dir(appname=APP_NAME))
         icons_base = data_dir.joinpath(icons_base)
 
-    return Config(urls={k: v for k, v in cfg.items('services')},
-                  keys={k: v for k, v in cfg.items('keys')},
-                  copyrights={k: v for k, v in cfg.items('copyright')},
+    return Config(copyrights={k: v for k, v in cfg.items('copyright')},
                   cache_limit=cfg.getint('cache', 'limit', fallback=None),
                   parallel_downloads=parallel,
                   icons_base=icons_base)

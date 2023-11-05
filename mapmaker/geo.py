@@ -18,24 +18,31 @@ BRG_WEST = 270
 EARTH_RADIUS = 6371.0 * 1000.0
 
 
-@dataclass(frozen=True)
+@dataclass
 class BBox:
     '''An axis-aligned Bounding box defined by two coordinates.'''
 
-    minlat: float = -90.0
-    minlon: float = -180.0
     maxlat: float = 90.0
+    minlon: float = -180.0
+    minlat: float = -90.0
     maxlon: float = 180.0
 
-    def __post_init(self):
+    def __post_init__(self):
+        # In case min/max values have been mixed up
+        if self.minlon > self.maxlon:
+            self.minlon, self.maxlon = self.maxlon, self.minlon
+
+        if self.minlat > self.maxlat:
+            self.minlat, self.maxlat = self.maxlat, self.minlat
+
         if self.minlat < -90.0:
-            raise ValueError('minlat must not be < -90')
+            raise ValueError('minlat must not be < -90, got %s' % self.minlat)
         if self.maxlat > 90.0:
-            raise ValueError('maxlat must not be >90')
+            raise ValueError('maxlat must not be >90, got %s' % self.maxlat)
         if self.minlon < -180.0:
-            raise ValueError('minlon must not be < -180')
+            raise ValueError('minlon must not be < -180, got %s' % self.minlon)
         if self.maxlon > 180.0:
-            raise ValueError('maxlon must not be > 180.0')
+            raise ValueError('maxlon must not be > 180.0, got %s' % self.maxlon)
 
     def with_aspect(self, aspect):
         '''Extend the given bounding box so that it adheres to the given aspect
@@ -117,6 +124,16 @@ class BBox:
                     maxlat=min(self.maxlat, maxlat),
                     minlon=max(self.minlon, minlon),
                     maxlon=min(self.maxlon, maxlon))
+
+    def combine(self, other):
+        '''Combine this BBox with another bbox. The result will contain both
+        bounding boxes.'''
+        return BBox(
+            minlat=min(self.minlat, other.minlat),
+            maxlat=max(self.maxlat, other.maxlat),
+            minlon=min(self.minlon, other.minlon),
+            maxlon=max(self.maxlon, other.maxlon)
+        )
 
     def __repr__(self):
         return '<BBox minlat=%s, minlon=%s, maxlat=%s, maxlon=%s>' % (
