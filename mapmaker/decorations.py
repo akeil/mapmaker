@@ -646,10 +646,6 @@ class Frame:
         d, m, s = dms(span)
         m_half = m * 2
 
-        print('DMS for ticks', d, m, m_half, s)
-        print('N-Ticks:', n)
-        print('Span', span)
-
         steps = []
         if d >= n:
             per_tick = d // n
@@ -661,9 +657,7 @@ class Frame:
             steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
         elif m_half >= n:
             per_tick = (m_half // n) / 2
-            print('Per Tick', per_tick)
             n_ticks = floor(span / decimal(m=per_tick))
-            print('N Ticks', n_ticks)
             steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
         else:
             per_tick = s // n
