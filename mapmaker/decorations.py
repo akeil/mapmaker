@@ -239,46 +239,80 @@ class Scale(Decoration):
     '''
 
     def __init__(self,
-                 placement='SW'):
+                 placement='SW',
+                 font_name=None,
+                 font_size=10):
         super().__init__(placement)
+        self.color = (255, 0, 0, 255)
+        self.font_name = font_name or 'DejaVuSans'
+        self.font_size = font_size or 10
+        self.draw_label = True
+
+        # TODO :might depend on placement?
+        self._label_anchor = 'mt'  # centered, align-top
 
     def calc_size(self, rc, map_size):
         tick_size, tick_width, num_ticks = self._determine_tick(rc)
 
-        print('Scale ticks: %s meters, %s pixels, %s ticks' % (tick_size, tick_width, num_ticks))
-
+        # Size of the scale bar w/ ticks
         w = tick_width * num_ticks
-        h = 10
+        h = 10 # TODO tick_height
 
         m_top, m_right, m_bottom, m_left = self.margin
         w += m_left + m_right
         h += m_top + m_bottom
 
+        # Size of the label
+        if self.draw_label:
+            font = load_font(self.font_name, self.font_size)
+            label = self._label(tick_size, num_ticks)
+            left, top, right, bottom = font.getbbox(label,
+                                                    anchor=self._label_anchor)
+            label_h = bottom - top
+            h += label_h + self._label_margin
+
         return (w, h)
 
     def draw(self, draw, rc, map_size):
         tick_size, tick_width, num_ticks = self._determine_tick(rc)
-        tick_height = 10
-
         w = tick_width * num_ticks
 
+        self._draw_bar(draw, w, tick_width, num_ticks)
+
+        if self.draw_label:
+            self._draw_label(draw, w, tick_size, num_ticks)
+
+    def _draw_bar(self, draw, bar_width, tick_width, num_ticks):
+        '''Draw the scale bar including ticks.'''
+        tick_height = 10  # TODO
         m_top, m_right, m_bottom, m_left = self.margin
 
-        # The base line
+        # Base line
         start = (m_left, tick_height)
-        end = (w + m_right ,tick_height)
+        end = (bar_width + m_right, tick_height)
         draw.line([start, end], fill=(255, 0, 0, 255), width=2)
 
         # Ticks
-        #y0 = 0
         y1 = tick_height
         for i in range(num_ticks + 1):
             major = (i == 0 or i == num_ticks)
             y0 = 0 if major else ceil(tick_height * 0.5)
-            print('Draw tick', i, major)
             x = tick_width * i
             x += m_left
             draw.line([x, y0, x, y1], fill=(0, 255, 0, 255), width=2)
+
+    def _draw_label(self, draw, bar_width, tick_size, num_ticks):
+        '''Draw the label below the scale bar.'''
+        m_top, _, _, m_left = self.margin
+        x = bar_width // 2 + m_left
+        y = m_top + tick_height + self._label_margin
+
+        font = load_font(self.font_name, self.font_size)
+        draw.text((x, y),
+                  self._label(tick_size, num_ticks),
+                  font=font,
+                  anchor=self._label_anchor,
+                  fill=self.color)
 
     def _determine_tick(self, rc):
         '''Determine the tick details:
@@ -327,6 +361,17 @@ class Scale(Decoration):
         tick_width = x1 - x0
 
         return tick_size, tick_width, num_ticks
+
+    def _label(self, tick_size, num_ticks):
+        scale_width = tick_size * num_ticks
+        unit = 'km' if scale_width >= 1_000 else 'm'
+        value = scale_width / 1_000 if scale_width >= 1_000 else scale_width
+        return '{0:,.0f} {1}'.format(value, unit)
+
+    @property
+    def _label_margin(self):
+        '''Margin between label and scale bar.'''
+        return min(self.font_size // 8, 2)
 
 
 class CompassRose(Decoration):
