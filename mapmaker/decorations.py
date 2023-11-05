@@ -124,7 +124,7 @@ class Cartouche(Decoration):
         'WNW': 'ra',
     }
 
-    # TODO: renamve background => fill (see fill params in draw.py)
+    # TODO: rename background => fill (see fill params in draw.py)
     # TODO: params for padding
 
     def __init__(self, title,
@@ -154,8 +154,11 @@ class Cartouche(Decoration):
 
         font = load_font(self.font_name, self.font_size)
 
-        # TODO: use ImageDraw.textbox() instead?
-        w, h = font.getsize(self.title)
+        left, top, right, bottom = font.getbbox(self.title,
+                                                anchor=self._anchor)
+        w = right - left
+        h = bottom - top
+
         m_top, m_right, m_bottom, m_left = self.margin
         p_top, p_right, p_bottom, p_left = self.padding
 
@@ -187,13 +190,12 @@ class Cartouche(Decoration):
                        outline=self.border_color or self.color,
                        width=self.border_width)
         # text
-        anchor = self._TEXT_ANCHOR[self.placement]
         x = {
             'l': 0 + p_left + m_left,
             'm': w // 2,
             's': w // 2,
             'r': w - p_right - m_right,
-        }[anchor[0]]
+        }[self._anchor[0]]
         y = {
             't': 0 + p_top + m_top,
             'a': 0 + p_top + m_top,
@@ -201,11 +203,15 @@ class Cartouche(Decoration):
             's': h // 2,
             'b': h - p_bottom - m_bottom,
             'd': h - p_bottom - m_bottom,
-        }[anchor[1]]
+        }[self._anchor[1]]
         draw.text((x, y), self.title,
                   font=font,
-                  anchor=anchor,
+                  anchor=self._anchor,
                   fill=self.color)
+
+    @property
+    def _anchor(self):
+        return self._TEXT_ANCHOR[self.placement]
 
     def __repr__(self):
         return '<Cartouche placement=%r, title=%r>' % (self.placement,
