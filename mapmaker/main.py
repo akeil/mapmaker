@@ -164,6 +164,10 @@ def main():
                         action='store_true',
                         help='Show map info, do not download tiles')
 
+    parser.add_argument('--no-cache',
+                        action='store_true',
+                        help='Do not use cached map tiles')
+
     parser.add_argument('--silent',
                         action='store_true',
                         help='Do not output messages to the console')
@@ -248,7 +252,8 @@ def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
             map.add_element(elem)
 
     service = registry.get(style)
-    service = service.cached(limit=conf.cache_limit)
+    if not args.no_cache:
+        service = service.cached(limit=conf.cache_limit)
 
     if args.copyright:
         copyright = conf.copyrights.get(service.top_level_domain)
