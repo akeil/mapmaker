@@ -325,9 +325,10 @@ class ScaleAction(argparse.Action):
         super().__init__(option_strings, dest, nargs='*', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if len(values) > 4:
+        if len(values) > 5:
             msg = ('invalid number of arguments (%s) for frame, expected up to'
-                   ' four: PLACEMENT, BORDER, COLOR, LABEL') % len(values)
+                   ' five: PLACEMENT, BORDER, COLOR, LABEL,'
+                   ' UNDERLINE') % len(values)
             raise ArgumentError(self, msg)
 
         place, width, fg_color, label, underlay = None, None, None, None, None
