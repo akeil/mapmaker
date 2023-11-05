@@ -135,7 +135,8 @@ def main():
                         action=FrameAction,
                         metavar='ARGS',
                         help=('Draw a frame around the map area'
-                              ' (any of: WIDTH, COLOR, ALT_COLOR and STYLE)'))
+                              ' (any of: WIDTH, COLOR, ALT_COLOR, STYLE and'
+                              ' UNDERLAY)'))
 
     parser.add_argument('--scale',
                         action=ScaleAction,
@@ -236,6 +237,7 @@ def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
                       placement=args.scale.place or 'SW',
                       color=args.scale.color or (0, 0, 0, 255),
                       border_width=args.scale.width or 2,
+                      underlay=args.scale.underlay or 'compact',
                       label_style=args.scale.label or 'default',
                       font_size=10,
                       font_name='DejaVuSans')

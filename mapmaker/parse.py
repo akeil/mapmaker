@@ -306,7 +306,7 @@ class FrameAction(argparse.Action):
             style=style))
 
 
-ScaleParams = namedtuple('ScaleParams', 'place width color label')
+ScaleParams = namedtuple('ScaleParams', 'place width color label underlay')
 
 
 class ScaleAction(argparse.Action):
@@ -330,7 +330,7 @@ class ScaleAction(argparse.Action):
                    ' four: PLACEMENT, BORDER, COLOR, LABEL') % len(values)
             raise ArgumentError(self, msg)
 
-        place, width, fg_color, label = None, None, None, None
+        place, width, fg_color, label, underlay = None, None, None, None, None
 
         # accept values for BORDER, COLOR and STYLE in any order
         # accept each param only once
@@ -369,6 +369,11 @@ class ScaleAction(argparse.Action):
                     label = value.lower()
                     continue
 
+            if underlay is None:
+                if value.lower() in Scale.UNDERLAY_STYLES:
+                    underlay = value.lower()
+                    continue
+
             # did not understand "value"
             unrecognized.append(value)
 
@@ -378,17 +383,19 @@ class ScaleAction(argparse.Action):
 
         # apply defaults
         if self.default:
-            d_place, d_width, d_color, d_label = self.default
+            d_place, d_width, d_color, d_label, d_underlay = self.default
             place = d_place if place is None else place
             width = d_width if width is None else width
             fg_color = d_color if fg_color is None else fg_color
             label = d_label if label is None else label
+            underlay = d_underlay if underlay is None else underlay
 
         setattr(namespace, self.dest, ScaleParams(
             place=place,
             width=width,
             color=fg_color,
-            label=label))
+            label=label,
+            underlay=underlay))
 
 
 def coordinates(raw):
