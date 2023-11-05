@@ -137,15 +137,9 @@ def main():
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR and STYLE)'))
 
-    # TODO if we set a default, we alwys draw a scale
-    default_scale = ScaleParams(place='SW',
-                                width=2,
-                                color=(0, 0, 0, 255),
-                                label='default')
     parser.add_argument('--scale',
                         action=ScaleAction,
                         metavar='ARGS',
-                        default=default_scale,
                         help=('Draw a scale bar into the map'
                               ' (any of: PLACEMENT, WIDTH, COLOR, LABEL)'))
 
@@ -239,10 +233,10 @@ def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
 
     if args.scale:
         map.add_scale(area='MAP',
-                      placement=args.scale.place,
+                      placement=args.scale.place or 'SW',
                       color=args.scale.color or (0, 0, 0, 255),
                       border_width=args.scale.width or 2,
-                      label_style=args.scale.label,
+                      label_style=args.scale.label or 'default',
                       font_size=10,
                       font_name='DejaVuSans')
 
