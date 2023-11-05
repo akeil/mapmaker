@@ -224,6 +224,10 @@ def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
     if args.compass:
         map.add_compass_rose()
 
+    # TODO args.scale
+    if True:
+        map.add_scale()
+
     if args.geojson:
         for x in args.geojson:
             elem = geojson.read(x)

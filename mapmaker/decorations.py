@@ -5,8 +5,9 @@ Decorations are placed using pixel coordinates.
 '''
 
 
-from math import floor
+from math import ceil, floor
 
+from . import geo
 from .geo import decimal
 from .geo import dms
 from .render import load_font
@@ -25,17 +26,30 @@ PLACEMENTS = (
 class Decoration:
     '''Base class for decorations.
 
-    Subclasses must implement the ``calc_size`` and ``draw`` methods.
+    Subclasses must implement the ``calc_size()`` and ``draw()`` methods.
     '''
 
     def __init__(self, placement):
         self.placement = placement
         self.margin = (4, 4, 4, 4)
 
-    def calc_size(self, map_size):
+    def calc_size(self, rc, map_size):
+        '''Calculate the size of this decoration in pixels.
+        ``rc`` is the "rendering context" which allows us to project lat/lon
+        coordinates into pixel positions within the map.
+
+        ``map_size`` is the size of the map content.
+        '''
         raise ValueError('Not implemented')
 
-    def draw(self, draw, size):
+    def draw(self, draw, rc, map_size):
+        '''Draw this decoration using the given drawing context.
+
+        ``draw`` is the drawing context.
+        ``rc`` is the "rendering context" which allows us to project lat/lon
+        coordinates into pixel positions within the map.
+        ``map_size`` is the size of the map content.
+        '''
         raise ValueError('Not implemented')
 
 
@@ -148,7 +162,7 @@ class Cartouche(Decoration):
 
         # TODO: when placed at the edge, add 1px padding towards edge
 
-    def calc_size(self, map_size):
+    def calc_size(self, rc, map_size):
         if not self.title or not self.title.strip():
             return 0, 0
 
@@ -170,7 +184,7 @@ class Cartouche(Decoration):
 
         return w, h
 
-    def draw(self, draw, size):
+    def draw(self, draw, rc, size):
         if not self.title or not self.title.strip():
             return
 
@@ -217,15 +231,83 @@ class Cartouche(Decoration):
         return '<Cartouche placement=%r, title=%r>' % (self.placement,
                                                        self.title)
 
+class Scale(Decoration):
+    '''A scale bar that shows the size of the area on the map in meters or
+    kilometers.
 
-class Scale:
 
-    def __init__(self):
-        self.placement = 'SW'
-        self.anchor = 'bottom left'
+    '''
 
-    def draw(self):
-        pass
+    def __init__(self,
+                 placement='SW'):
+        super().__init__(placement)
+
+    def calc_size(self, rc, map_size):
+        tick_size, tick_width, num_ticks = self._determine_tick(rc)
+
+        print('Scale ticks: %s meters, %s pixels, %s ticks' % (tick_size, tick_width, num_ticks))
+
+        w = tick_width * num_ticks
+        h = 10
+
+        return (w, h)
+
+    def draw(self, draw, rc, map_size):
+        tick_size, tick_width, num_ticks = self._determine_tick(rc)
+
+        w = tick_width * num_ticks
+
+        start = (0, 0)
+        end = (w ,0)
+        draw.line([start, end], fill=(255, 0, 0, 255), width=2)
+
+    def _determine_tick(self, rc):
+        '''Determine the tick details:
+
+        :tick_size: size of one tick in meters
+        :tick_width: width of one tick mark in pixels
+        :num_ticks: number of ticks that fit into the map
+        '''
+        # latitude at which distances are measured
+        bbox = rc.bbox
+        ref_lat = bbox.minlat
+        # width of the map area in meters
+        map_width = geo.distance(bbox.minlon,
+                                 ref_lat,
+                                 bbox.maxlon,
+                                 ref_lat)
+
+        tick_size = None    # in meters
+        tick_count = None
+        tick_area = 5 # "5" to use ca. 1/5 of the map
+        max_tick_count = 5 * tick_area
+
+        # if a tick was "s" meters wide, how many would fit on the map?
+        # "s" from 10,000 to 0.5
+        for e in range(14, 0, -1):
+            s = 10 ** e / 2
+            c = floor(map_width / s)
+            if c > max_tick_count:
+                break
+            tick_size = s
+            tick_count = c
+
+        if not (tick_size and tick_count):
+            return (0, 0, 0)
+
+        # tick_count tells how many full ticks fit into the complete map width
+        # but we only want to fill part of the view.
+        num_ticks = ceil(tick_count / tick_area)
+
+        # How wide is a tick in pixels?
+        lon0 = bbox.minlon
+        _, lon1 = geo.destination_point(ref_lat, lon0, geo.BRG_EAST, tick_size)
+
+        x0, _ = rc.to_pixels(ref_lat, lon0)
+        x1, _ = rc.to_pixels(ref_lat, lon1)
+        tick_width = x1 - x0
+
+        return tick_size, tick_width, num_ticks
 
 
 class CompassRose(Decoration):
@@ -253,7 +335,7 @@ class CompassRose(Decoration):
         self.font = 'DejaVuSans.ttf'  # for Marker ("N")
         self.margin = (12, 12, 12, 12)
 
-    def calc_size(self, map_size):
+    def calc_size(self, rc, map_size):
         map_w, map_h = map_size
         w = int(map_w * 0.05)
         h = int(map_h * 0.1)
@@ -264,7 +346,7 @@ class CompassRose(Decoration):
 
         return w, h
 
-    def draw(self, draw, size):
+    def draw(self, draw, rc, size):
         # basic arrow
         #        a
         #       /\

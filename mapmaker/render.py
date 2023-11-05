@@ -287,9 +287,10 @@ class Composer:
             base.alpha_composite(frame_img, dest=(left, top))
 
         # add decorations for different areas
+        rc = self._map_builder
         for area in ('MAP', 'MARGIN'):
             for deco in self._decorations[area]:
-                deco_size = deco.calc_size((map_w, map_h))
+                deco_size = deco.calc_size(rc, (map_w, map_h))
                 deco_pos = None
                 if area == 'MAP':
                     deco_pos = self._calc_map_pos(deco.placement,
@@ -303,7 +304,7 @@ class Composer:
 
                 deco_img = Image.new('RGBA', deco_size, color=(0, 0, 0, 0))
                 draw = ImageDraw.Draw(deco_img, mode='RGBA')
-                deco.draw(draw, deco_size)
+                deco.draw(draw, rc, deco_size)
 
                 base.alpha_composite(deco_img, dest=deco_pos)
 
@@ -316,8 +317,9 @@ class Composer:
 
         top, right, bottom, left = 0, 0, 0, 0
 
+        rc = self._map_builder
         for deco in self._decorations['MARGIN']:
-            w, h = deco.calc_size(map_size)
+            w, h = deco.calc_size(rc, map_size)
             if deco.placement in _NORTHERN:
                 top = max(h, top)
             elif deco.placement in _SOUTHERN:
