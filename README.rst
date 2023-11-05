@@ -177,6 +177,28 @@ Examples:
     $ mapmaker --frame 12 255,0,0 0,0,255 coordinates 45.83,6.88 100km
     $ mapmaker --frame coordinates 45.83,6.88 100km
 
+Use ``--scale`` to show a scale bar on the map.
+Optional arguments for scale are:
+
+:``PLACEMENT``: Where to place the scale, must be one of the map areas
+                (e.g "SW").
+:``WIDTH``:     The width of the scale bar in pixels (e.g. "2").
+:``COLOR``:     The color to use for the scale bar an label, e.g. "0,0,0".
+:``LABEL``:     The label style, either ``default`` or ``nolabel``.
+
+The label shows the size of the scale in meters or kilometers.
+
+Examples:
+
+.. code:: shell-session
+
+    $ mapmaker --scale -- 45.83,6.88 100km
+    $ mapmaker --scale SE -- 45.83,6.88 100km
+    $ mapmaker --scale 1 -- 45.83,6.88 100km
+    $ mapmaker --scale 120,120,120 -- 45.83,6.88 100km
+    $ mapmaker --scale nolabel -- 45.83,6.88 100km
+    $ mapmaker --scale SE 1 120,120,120 nolabel -- 45.83,6.88 100km
+
 
 GeoJSON
 -------
