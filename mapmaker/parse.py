@@ -1,3 +1,8 @@
+'''Helpers for parsing various information from strings.
+Intended to be used in conjunction with the Python ``argparse`` module.
+'''
+
+
 import argparse
 from argparse import ArgumentError
 from collections import namedtuple
@@ -10,6 +15,7 @@ from .decorations import Frame
 
 
 class BBoxAction(argparse.Action):
+    '''Parse a bounding box (see ``bbox()``).'''
 
     def __call__(self, parser, namespace, values, option_string=None):
         # expect one of;
@@ -40,6 +46,7 @@ def bbox(values):
         ["47.437,10.953", "2km"]
 
     If successful, returns a ``BBox`` object.
+
     Raises *ValueError* on failure.
     '''
     lat0, lon0 = coordinates(values[0])
@@ -75,6 +82,8 @@ def bbox(values):
 
 
 class MarginAction(argparse.Action):
+    '''Parse the settings for the map margin.
+    See ``margin()``.'''
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -91,6 +100,20 @@ class MarginAction(argparse.Action):
 
 
 def margin(raw):
+    '''Parse the settings for the margin (the whitespace around the map
+    content).
+
+    Expect either a list of integers or a comma-separated string (of integers).
+    The list can contain
+
+    - a single value with the margin for all four sides
+    - two values with the margins for top/bottom and left/right
+    - four values with margins for top, left, bottom, right (clockwise)
+
+    Returns a tuple with margins ``(top, left bottom, right)``.
+
+    Raises *ValueError* for invalid input.
+    '''
     if isinstance(raw, str):
         if ',' in raw:
             values = raw.split(',')
@@ -99,7 +122,7 @@ def margin(raw):
     else:  # assume list of ints
         values = raw
 
-    # handle different variatnes vor "values"
+    # handle different variants vor "values"
     if len(values) == 1:
         v = int(values[0])
         margins = v, v, v, v
@@ -292,6 +315,8 @@ def coordinates(raw):
 
     Lat and Lon must be separated by a comma ",".
     Whitespace is ignored.
+
+    Raises *ValueError* for invalid input.
     '''
 
     def _parse_dms(dms):
@@ -398,6 +423,10 @@ def color(raw):
     - R,G,B,A   / 255,255,255,255
     - RRGGBB    / #aa20ff
     - #RRGGBBAA / #0120ab90
+
+    Returns a tuple of integers with ``(r, g, b, a)``.
+
+    Raises *ValueError* for invalid input.
     '''
     if not raw or not raw.strip():
         raise ValueError('invalid color %r' % raw)
@@ -442,7 +471,10 @@ def _parse_placement(raw):
 
 
 def aspect(raw):
-    '''Parse an aspect ratio given in the form of "19:9" into a float.'''
+    '''Parse an aspect ratio given in the form of "16:9" into a float.
+
+    Raises *ValueError* for invalid input.
+    '''
     if not raw:
         raise ValueError('Invalid argument (empty)')
 
