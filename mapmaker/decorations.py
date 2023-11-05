@@ -43,6 +43,17 @@ class Cartouche(Decoration):
     '''Draws a text area either on the map or on the margin.
 
     The text can have a box with an optional border or background color.
+
+    :title:         The text content to be shown.
+    :placement:     Where to place this decoration.
+    :color:         The Text color as an RGBA tuple.
+    :background:    The fill color for the text box as an RGBA tuple. Can be
+                    *None* to omit the background.
+    :border_width:  Width in pixels of the border line around the text box.
+                    Can be ``0`` for no border.
+    :border_color:  Color of the border line as an RGBA tuple.
+    :font_name:     Name of the font in which the text should be drawn.
+    :font_size:     Size of the label text.
     '''
 
     _MARGIN_MASK = {
@@ -112,6 +123,9 @@ class Cartouche(Decoration):
         'W': 'rm',
         'WNW': 'ra',
     }
+
+    # TODO: renamve background => fill (see fill params in draw.py)
+    # TODO: params for padding
 
     def __init__(self, title,
                  placement='N',
@@ -213,6 +227,11 @@ class CompassRose(Decoration):
 
     The "compass" consists of an error pointing north
     and an optional "N" marker at the top of the arrow.
+
+    :placement: Where to place the compass rose (usually in the map area).
+    :color:     Main (fill) color for the compass rose. RGBA tuple.
+    :outline:   Optional outline for the shape.
+    :marker:    Whether to include a "N" marker at the northern tip (boolean).
     '''
 
     def __init__(self,
@@ -333,6 +352,11 @@ class Frame:
     coordinates.
 
     The frame width adds to the total size of the map image.
+
+    :width:         The width in pxiels.
+    :color:         The primary color of the frame. RGBA tuple.
+    :alt_color:     The secondary ("alternating") color for two-colored style.
+    :style:         Either ``solid`` or ``coordinates``.
     '''
 
     STYLES = ('coordinates', 'solid')

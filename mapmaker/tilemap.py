@@ -16,7 +16,7 @@ from .geo import BBox
 from .geo import mercator_to_lat
 
 
-# supported lat bounds for slippy map
+# supported lat/lon bounds for slippy map
 MAX_LAT = 85.0511
 MIN_LAT = -85.0511
 MIN_LON = -180.0

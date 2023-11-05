@@ -11,6 +11,7 @@ from PIL import ImageFont
 
 
 # Most (all?) services will return tiles this size
+# TODO: some tiles are 512x512, depends on service
 DEFAULT_TILESIZE = (256, 256)
 
 
@@ -23,7 +24,7 @@ class MapBuilder:
 
     Optional ``overlay`` is a list of map elements.
 
-    ``icons`` is an _IconProvider_ from the ``icons`` module.
+    ``icons`` is an *IconProvider* from the ``icons`` module.
     '''
 
     def __init__(self, service, map,
@@ -443,6 +444,9 @@ def is_dark(color):
 
 
 def contrast_color(color):
+    '''Get a color that contrasts with the given color.
+
+    ``color`` is a tuple with ``(r, g, b)`` or ``(r, g, b, a)``.'''
     alpha = 255
     if len(color) == 4:
         alpha = color[3]

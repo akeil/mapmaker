@@ -49,6 +49,7 @@ class IconProvider:
         self._cache = _NoCache()
 
     def cached(self):
+        '''Wrap this *IconProvider* in a memory cache.'''
         self._cache = _MemoryCache()
         return self
 
@@ -102,6 +103,9 @@ class IconProvider:
 
     @classmethod
     def default(cls):
+        '''Set up an *IconProvider* with the default ``DATA_DIR`` as the
+        base directory.
+        '''
         data_dir = Path(appdirs.user_data_dir(appname=APP_NAME))
         base = data_dir.joinpath('icons')
         return cls(base)

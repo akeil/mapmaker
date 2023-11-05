@@ -51,6 +51,8 @@ class ServiceRegistry:
 
     @classmethod
     def from_config(cls, cfg):
+        '''Creates a new *ServiceRegistry* from a parsed configuration file.
+        Does *not* include the built-in settings.'''
         d = {}
         sections = [s for s in cfg.sections() if s.startswith('service.')]
         reserved = ('api_key', 'subdomains', 'tile_size')
@@ -71,6 +73,10 @@ class ServiceRegistry:
 
     @classmethod
     def from_file(cls, path):
+        '''Creates a new *ServiceRegistry* from the configuration file at the
+        given ``path``.
+        Will also include the built-in configuration.
+        '''
         cfg = configparser.ConfigParser()
         # built-in defaults
         cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker', 'default.ini')))
@@ -80,7 +86,9 @@ class ServiceRegistry:
 
     @classmethod
     def default(cls):
-        # TODO: include built in config
+        '''Creates a new *ServiceRegistry* from the configuration file at the
+        default location and the built-in settings.
+        '''
         conf_dir = appdirs.user_config_dir(appname=APP_NAME)
         conf_file = Path(conf_dir).joinpath('config.ini')
         return cls.from_file(conf_file)
@@ -201,8 +209,6 @@ class TileService:
             headers['If-None-Match'] = etag
 
         try:
-            #res = self._session.get(url, headers=headers)
-            #res.raise_for_status()
             res = self._request(url, headers)
         except Exception as err:
             log_api = '<API_KEY>' if self._api_key else '<NO_API_KEY>'
