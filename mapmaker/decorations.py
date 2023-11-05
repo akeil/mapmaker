@@ -250,16 +250,35 @@ class Scale(Decoration):
         w = tick_width * num_ticks
         h = 10
 
+        m_top, m_right, m_bottom, m_left = self.margin
+        w += m_left + m_right
+        h += m_top + m_bottom
+
         return (w, h)
 
     def draw(self, draw, rc, map_size):
         tick_size, tick_width, num_ticks = self._determine_tick(rc)
+        tick_height = 10
 
         w = tick_width * num_ticks
 
-        start = (0, 0)
-        end = (w ,0)
+        m_top, m_right, m_bottom, m_left = self.margin
+
+        # The base line
+        start = (m_left, tick_height)
+        end = (w + m_right ,tick_height)
         draw.line([start, end], fill=(255, 0, 0, 255), width=2)
+
+        # Ticks
+        #y0 = 0
+        y1 = tick_height
+        for i in range(num_ticks + 1):
+            major = (i == 0 or i == num_ticks)
+            y0 = 0 if major else ceil(tick_height * 0.5)
+            print('Draw tick', i, major)
+            x = tick_width * i
+            x += m_left
+            draw.line([x, y0, x, y1], fill=(0, 255, 0, 255), width=2)
 
     def _determine_tick(self, rc):
         '''Determine the tick details:
