@@ -161,11 +161,22 @@ class Map:
                             font_name=font_name))
 
     def add_scale(self,
-                  area='MAP'):
+                  area='MAP',
+                  placement='SW',
+                  color=(0, 0, 0, 255),
+                  border_width=2,
+                  label_style='default',
+                  font_size=10,
+                  font_name=None):
         '''Add a scale bar to the map.
 
         See ``Scale``.'''
-        self.add_decoration(area, Scale())
+        self.add_decoration(area, Scale(placement=placement,
+                                        color=color,
+                                        border_width=border_width,
+                                        label_style=label_style,
+                                        font_size=font_size,
+                                        font_name=font_name))
 
     def add_compass_rose(self,
                          area='MAP',

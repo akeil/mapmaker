@@ -235,22 +235,32 @@ class Scale(Decoration):
     '''A scale bar that shows the size of the area on the map in meters or
     kilometers.
 
-
+    :placement:     Where to place this decoration.
+    :color:         The color for the scale and label as an RGBA tuple.
+    :border_width:  Width in pixels for the lines of the scale bar.
+    :draw_label:    Whether to draw a label (*boolean*).
+    :font_name:     Name of the font in which the label should be drawn.
+    :font_size:     Size of the label text.
     '''
+
+    LABEL_STYLES = ('default', 'nolabel')
 
     def __init__(self,
                  placement='SW',
                  color=(0, 0, 0, 255),
                  border_width=2,
+                 label_style='default',
                  font_name=None,
-                 font_size=10,
-                 draw_label=True):
+                 font_size=10):
         super().__init__(placement)
         self.color = color
         self.border_width = border_width
         self.font_name = font_name or 'DejaVuSans'
         self.font_size = font_size
-        self.draw_label = draw_label
+
+        if label_style not in Scale.LABEL_STYLES:
+            raise ValueError('Invalid label style %r' % label_style)
+        self.label_style = label_style
 
         # TODO: might depend on placement?
         self._label_anchor = 'mt'  # centered, align-top
@@ -267,7 +277,7 @@ class Scale(Decoration):
         h += m_top + m_bottom
 
         # Size of the label
-        if self.draw_label:
+        if self._show_label:
             font = load_font(self.font_name, self.font_size)
             label = self._label(tick_size, num_ticks)
             left, top, right, bottom = font.getbbox(label,
@@ -283,7 +293,7 @@ class Scale(Decoration):
 
         self._draw_bar(draw, w, tick_width, num_ticks)
 
-        if self.draw_label:
+        if self._show_label:
             self._draw_label(draw, w, tick_size, num_ticks)
 
     def _draw_bar(self, draw, bar_width, tick_width, num_ticks):
@@ -291,19 +301,24 @@ class Scale(Decoration):
         tick_height = tick_height = self._tick_height()
         m_top, m_right, m_bottom, m_left = self.margin
 
-        # Base line
+        # base line + outer ticks
         y = tick_height + m_top
         start = (m_left, y)
-        end = (bar_width + m_right, y)
-        draw.line([start, end],
-                  fill=self.color,
-                  width=self.border_width)
+        end = (bar_width + m_left, y)
 
-        # Ticks
+        # the "tips" of the start and end ticks
+        start_tick = (m_left, m_top)
+        end_tick = (bar_width + m_left, m_top)
+
+        draw.line([start_tick, start, end, end_tick],
+                  fill=self.color,
+                  width=self.border_width,
+                  joint='curve')
+
+        # minor ticks
         y1 = tick_height + m_top
-        for i in range(num_ticks + 1):
-            major = (i == 0 or i == num_ticks)
-            y0 = 0 if major else ceil(tick_height * 0.4)
+        for i in range(1, num_ticks):
+            y0 = ceil(tick_height * 0.6)
             x = tick_width * i
             x += m_left
             draw.line([x, y0, x, y1],
@@ -377,6 +392,10 @@ class Scale(Decoration):
         unit = 'km' if scale_width >= 1_000 else 'm'
         value = scale_width / 1_000 if scale_width >= 1_000 else scale_width
         return '{0:,.0f} {1}'.format(value, unit)
+
+    @property
+    def _show_label(self):
+        return self.label_style != 'nolabel'
 
     @property
     def _label_margin(self):

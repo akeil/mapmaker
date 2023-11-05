@@ -20,6 +20,7 @@ from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
 from .parse import MarginAction
+from .parse import ScaleAction, ScaleParams
 from .parse import TextAction
 from .service import ServiceRegistry
 from .service import TileService
@@ -136,6 +137,17 @@ def main():
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR and STYLE)'))
 
+    default_scale = ScaleParams(place='SW',
+                                width=2,
+                                color=(0, 0, 0, 255),
+                                label='default')
+    parser.add_argument('--scale',
+                        action=ScaleAction,
+                        metavar='ARGS',
+                        default=default_scale,
+                        help=('Draw a scale bar into the map'
+                              ' (any of: PLACEMENT, WIDTH, COLOR, LABEL)'))
+
     # TODO: placement, color, marker "N"
     parser.add_argument('--compass',
                         action='store_true',
@@ -224,9 +236,14 @@ def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
     if args.compass:
         map.add_compass_rose()
 
-    # TODO args.scale
-    if True:
-        map.add_scale()
+    if args.scale:
+        map.add_scale(area='MAP',
+                      placement=args.scale.place,
+                      color=args.scale.color or (0, 0, 0, 255),
+                      border_width=args.scale.width or 2,
+                      label_style=args.scale.label,
+                      font_size=10,
+                      font_name='DejaVuSans')
 
     if args.geojson:
         for x in args.geojson:
