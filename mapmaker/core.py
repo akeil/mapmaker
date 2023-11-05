@@ -165,6 +165,7 @@ class Map:
                   placement='SW',
                   color=(0, 0, 0, 255),
                   border_width=2,
+                  underlay='compact',
                   label_style='default',
                   font_size=10,
                   font_name=None):
@@ -174,6 +175,7 @@ class Map:
         self.add_decoration(area, Scale(placement=placement,
                                         color=color,
                                         border_width=border_width,
+                                        underlay=underlay,
                                         label_style=label_style,
                                         font_size=font_size,
                                         font_name=font_name))
