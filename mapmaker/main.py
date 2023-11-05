@@ -137,6 +137,7 @@ def main():
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR and STYLE)'))
 
+    # TODO if we set a default, we alwys draw a scale
     default_scale = ScaleParams(place='SW',
                                 width=2,
                                 color=(0, 0, 0, 255),
