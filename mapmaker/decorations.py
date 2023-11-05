@@ -5,8 +5,9 @@ Decorations are placed using pixel coordinates.
 '''
 
 
-from math import floor
+from math import ceil, floor
 
+from . import geo
 from .geo import decimal
 from .geo import dms
 from .render import load_font
@@ -25,17 +26,30 @@ PLACEMENTS = (
 class Decoration:
     '''Base class for decorations.
 
-    Subclasses must implement the ``calc_size`` and ``draw`` methods.
+    Subclasses must implement the ``calc_size()`` and ``draw()`` methods.
     '''
 
     def __init__(self, placement):
         self.placement = placement
         self.margin = (4, 4, 4, 4)
 
-    def calc_size(self, map_size):
+    def calc_size(self, rc, map_size):
+        '''Calculate the size of this decoration in pixels.
+        ``rc`` is the "rendering context" which allows us to project lat/lon
+        coordinates into pixel positions within the map.
+
+        ``map_size`` is the size of the map content.
+        '''
         raise ValueError('Not implemented')
 
-    def draw(self, draw, size):
+    def draw(self, draw, rc, map_size):
+        '''Draw this decoration using the given drawing context.
+
+        ``draw`` is the drawing context.
+        ``rc`` is the "rendering context" which allows us to project lat/lon
+        coordinates into pixel positions within the map.
+        ``map_size`` is the size of the map content.
+        '''
         raise ValueError('Not implemented')
 
 
@@ -148,7 +162,7 @@ class Cartouche(Decoration):
 
         # TODO: when placed at the edge, add 1px padding towards edge
 
-    def calc_size(self, map_size):
+    def calc_size(self, rc, map_size):
         if not self.title or not self.title.strip():
             return 0, 0
 
@@ -170,7 +184,7 @@ class Cartouche(Decoration):
 
         return w, h
 
-    def draw(self, draw, size):
+    def draw(self, draw, rc, size):
         if not self.title or not self.title.strip():
             return
 
@@ -217,15 +231,179 @@ class Cartouche(Decoration):
         return '<Cartouche placement=%r, title=%r>' % (self.placement,
                                                        self.title)
 
+class Scale(Decoration):
+    '''A scale bar that shows the size of the area on the map in meters or
+    kilometers.
 
-class Scale:
+    :placement:     Where to place this decoration.
+    :color:         The color for the scale and label as an RGBA tuple.
+    :border_width:  Width in pixels for the lines of the scale bar.
+    :draw_label:    Whether to draw a label (*boolean*).
+    :font_name:     Name of the font in which the label should be drawn.
+    :font_size:     Size of the label text.
+    '''
 
-    def __init__(self):
-        self.placement = 'SW'
-        self.anchor = 'bottom left'
+    LABEL_STYLES = ('default', 'nolabel')
 
-    def draw(self):
-        pass
+    def __init__(self,
+                 placement='SW',
+                 color=(0, 0, 0, 255),
+                 border_width=2,
+                 label_style='default',
+                 font_name=None,
+                 font_size=10):
+        super().__init__(placement)
+        self.color = color
+        self.border_width = border_width
+        self.font_name = font_name or 'DejaVuSans'
+        self.font_size = font_size
+
+        if label_style not in Scale.LABEL_STYLES:
+            raise ValueError('Invalid label style %r' % label_style)
+        self.label_style = label_style
+
+        # TODO: might depend on placement?
+        self._label_anchor = 'mt'  # centered, align-top
+
+    def calc_size(self, rc, map_size):
+        tick_size, tick_width, num_ticks = self._determine_tick(rc)
+
+        # Size of the scale bar w/ ticks
+        w = tick_width * num_ticks
+        h = tick_height = self._tick_height()
+
+        m_top, m_right, m_bottom, m_left = self.margin
+        w += m_left + m_right
+        h += m_top + m_bottom
+
+        # Size of the label
+        if self._show_label:
+            font = load_font(self.font_name, self.font_size)
+            label = self._label(tick_size, num_ticks)
+            left, top, right, bottom = font.getbbox(label,
+                                                    anchor=self._label_anchor)
+            label_h = bottom - top
+            h += label_h + self._label_margin
+
+        return (w, h)
+
+    def draw(self, draw, rc, map_size):
+        tick_size, tick_width, num_ticks = self._determine_tick(rc)
+        w = tick_width * num_ticks
+
+        self._draw_bar(draw, w, tick_width, num_ticks)
+
+        if self._show_label:
+            self._draw_label(draw, w, tick_size, num_ticks)
+
+    def _draw_bar(self, draw, bar_width, tick_width, num_ticks):
+        '''Draw the scale bar including ticks.'''
+        tick_height = tick_height = self._tick_height()
+        m_top, m_right, m_bottom, m_left = self.margin
+
+        # base line + outer ticks
+        y = tick_height + m_top
+        start = (m_left, y)
+        end = (bar_width + m_left, y)
+
+        # the "tips" of the start and end ticks
+        start_tick = (m_left, m_top)
+        end_tick = (bar_width + m_left, m_top)
+
+        draw.line([start_tick, start, end, end_tick],
+                  fill=self.color,
+                  width=self.border_width,
+                  joint='curve')
+
+        # minor ticks
+        y1 = tick_height + m_top
+        for i in range(1, num_ticks):
+            y0 = ceil(tick_height * 0.6)
+            x = tick_width * i
+            x += m_left
+            draw.line([x, y0, x, y1],
+                      fill=self.color,
+                      width=self.border_width)
+
+    def _draw_label(self, draw, bar_width, tick_size, num_ticks):
+        '''Draw the label below the scale bar.'''
+        tick_height = self._tick_height()
+        m_top, _, _, m_left = self.margin
+        x = bar_width // 2 + m_left
+        y = m_top + tick_height + self._label_margin
+
+        font = load_font(self.font_name, self.font_size)
+        draw.text((x, y),
+                  self._label(tick_size, num_ticks),
+                  font=font,
+                  anchor=self._label_anchor,
+                  fill=self.color)
+
+    def _determine_tick(self, rc):
+        '''Determine the tick details:
+
+        :tick_size: size of one tick in meters
+        :tick_width: width of one tick mark in pixels
+        :num_ticks: number of ticks that fit into the map
+        '''
+        # latitude at which distances are measured
+        bbox = rc.bbox
+        ref_lat = bbox.minlat
+        # width of the map area in meters
+        map_width = geo.distance(bbox.minlon,
+                                 ref_lat,
+                                 bbox.maxlon,
+                                 ref_lat)
+
+        tick_size = None    # in meters
+        tick_count = None
+        tick_area = 10 # "n" to use ca. 1/n of the map
+        max_tick_count = 5 * tick_area
+
+        # if a tick was "s" meters wide, how many would fit on the map?
+        # "s" from 10,000 to 0.5
+        for e in range(14, 0, -1):
+            s = 10 ** e / 2
+            c = floor(map_width / s)
+            if c > max_tick_count:
+                break
+            tick_size = s
+            tick_count = c
+
+        if not (tick_size and tick_count):
+            return (0, 0, 0)
+
+        # tick_count tells how many full ticks fit into the complete map width
+        # but we only want to fill part of the view.
+        num_ticks = ceil(tick_count / tick_area)
+
+        # How wide is a tick in pixels?
+        lon0 = bbox.minlon
+        _, lon1 = geo.destination_point(ref_lat, lon0, geo.BRG_EAST, tick_size)
+
+        x0, _ = rc.to_pixels(ref_lat, lon0)
+        x1, _ = rc.to_pixels(ref_lat, lon1)
+        tick_width = x1 - x0
+
+        return tick_size, tick_width, num_ticks
+
+    def _label(self, tick_size, num_ticks):
+        scale_width = tick_size * num_ticks
+        unit = 'km' if scale_width >= 1_000 else 'm'
+        value = scale_width / 1_000 if scale_width >= 1_000 else scale_width
+        return '{0:,.0f} {1}'.format(value, unit)
+
+    @property
+    def _show_label(self):
+        return self.label_style != 'nolabel'
+
+    @property
+    def _label_margin(self):
+        '''Margin between label and scale bar.'''
+        return max(self.font_size // 2, 4)
+
+    def _tick_height(self):
+        return 10
 
 
 class CompassRose(Decoration):
@@ -253,7 +431,7 @@ class CompassRose(Decoration):
         self.font = 'DejaVuSans.ttf'  # for Marker ("N")
         self.margin = (12, 12, 12, 12)
 
-    def calc_size(self, map_size):
+    def calc_size(self, rc, map_size):
         map_w, map_h = map_size
         w = int(map_w * 0.05)
         h = int(map_h * 0.1)
@@ -264,7 +442,7 @@ class CompassRose(Decoration):
 
         return w, h
 
-    def draw(self, draw, size):
+    def draw(self, draw, rc, size):
         # basic arrow
         #        a
         #       /\
@@ -468,10 +646,6 @@ class Frame:
         d, m, s = dms(span)
         m_half = m * 2
 
-        print('DMS for ticks', d, m, m_half, s)
-        print('N-Ticks:', n)
-        print('Span', span)
-
         steps = []
         if d >= n:
             per_tick = d // n
@@ -483,9 +657,7 @@ class Frame:
             steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
         elif m_half >= n:
             per_tick = (m_half // n) / 2
-            print('Per Tick', per_tick)
             n_ticks = floor(span / decimal(m=per_tick))
-            print('N Ticks', n_ticks)
             steps = [decimal(m=i * per_tick) for i in range(1, n_ticks + 1)]
         else:
             per_tick = s // n
