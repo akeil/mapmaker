@@ -240,15 +240,19 @@ class Scale(Decoration):
 
     def __init__(self,
                  placement='SW',
+                 color=(0, 0, 0, 255),
+                 border_width=2,
                  font_name=None,
-                 font_size=10):
+                 font_size=10,
+                 draw_label=True):
         super().__init__(placement)
-        self.color = (255, 0, 0, 255)
+        self.color = color
+        self.border_width = border_width
         self.font_name = font_name or 'DejaVuSans'
-        self.font_size = font_size or 10
-        self.draw_label = True
+        self.font_size = font_size
+        self.draw_label = draw_label
 
-        # TODO :might depend on placement?
+        # TODO: might depend on placement?
         self._label_anchor = 'mt'  # centered, align-top
 
     def calc_size(self, rc, map_size):
@@ -256,7 +260,7 @@ class Scale(Decoration):
 
         # Size of the scale bar w/ ticks
         w = tick_width * num_ticks
-        h = 10 # TODO tick_height
+        h = tick_height = self._tick_height()
 
         m_top, m_right, m_bottom, m_left = self.margin
         w += m_left + m_right
@@ -284,25 +288,31 @@ class Scale(Decoration):
 
     def _draw_bar(self, draw, bar_width, tick_width, num_ticks):
         '''Draw the scale bar including ticks.'''
-        tick_height = 10  # TODO
+        tick_height = tick_height = self._tick_height()
         m_top, m_right, m_bottom, m_left = self.margin
 
         # Base line
-        start = (m_left, tick_height)
-        end = (bar_width + m_right, tick_height)
-        draw.line([start, end], fill=(255, 0, 0, 255), width=2)
+        y = tick_height + m_top
+        start = (m_left, y)
+        end = (bar_width + m_right, y)
+        draw.line([start, end],
+                  fill=self.color,
+                  width=self.border_width)
 
         # Ticks
-        y1 = tick_height
+        y1 = tick_height + m_top
         for i in range(num_ticks + 1):
             major = (i == 0 or i == num_ticks)
-            y0 = 0 if major else ceil(tick_height * 0.5)
+            y0 = 0 if major else ceil(tick_height * 0.4)
             x = tick_width * i
             x += m_left
-            draw.line([x, y0, x, y1], fill=(0, 255, 0, 255), width=2)
+            draw.line([x, y0, x, y1],
+                      fill=self.color,
+                      width=self.border_width)
 
     def _draw_label(self, draw, bar_width, tick_size, num_ticks):
         '''Draw the label below the scale bar.'''
+        tick_height = self._tick_height()
         m_top, _, _, m_left = self.margin
         x = bar_width // 2 + m_left
         y = m_top + tick_height + self._label_margin
@@ -332,7 +342,7 @@ class Scale(Decoration):
 
         tick_size = None    # in meters
         tick_count = None
-        tick_area = 5 # "5" to use ca. 1/5 of the map
+        tick_area = 10 # "n" to use ca. 1/n of the map
         max_tick_count = 5 * tick_area
 
         # if a tick was "s" meters wide, how many would fit on the map?
@@ -371,7 +381,10 @@ class Scale(Decoration):
     @property
     def _label_margin(self):
         '''Margin between label and scale bar.'''
-        return min(self.font_size // 8, 2)
+        return max(self.font_size // 2, 4)
+
+    def _tick_height(self):
+        return 10
 
 
 class CompassRose(Decoration):
