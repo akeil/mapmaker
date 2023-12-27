@@ -218,7 +218,7 @@ class TextAction(argparse.Action):
         setattr(namespace, self.dest, params)
 
 
-FrameParams = namedtuple('FrameParams', 'width color alt_color style')
+FrameParams = namedtuple('FrameParams', 'active width color alt_color style')
 
 
 class FrameAction(argparse.Action):
@@ -293,13 +293,14 @@ class FrameAction(argparse.Action):
 
         # apply defaults
         if self.default:
-            d_width, d_color, d_alt_color, d_style = self.default
+            _, d_width, d_color, d_alt_color, d_style = self.default
             width = d_width if width is None else width
             primary = d_color if primary is None else primary
             alternate = d_alt_color if alternate is None else alternate
             style = d_style if style is None else style
 
         setattr(namespace, self.dest, FrameParams(
+            active=True,
             width=width,
             color=primary,
             alt_color=alternate,

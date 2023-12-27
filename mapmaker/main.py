@@ -19,6 +19,7 @@ from . import icons
 from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
+from .parse import FrameParams
 from .parse import MarginAction
 from .parse import ScaleAction, ScaleParams
 from .parse import TextAction
@@ -134,6 +135,7 @@ def main():
     parser.add_argument('--frame',
                         action=FrameAction,
                         metavar='ARGS',
+                        default=FrameParams(active=False, width=4, color=(0, 0, 0), alt_color=(255, 255, 255), style='SOLID'),
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR, STYLE and'
                               ' UNDERLAY)'))
@@ -204,7 +206,6 @@ def main():
 
 def _run(report, registry, conf, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
-
     # TODO: adapt bbox argument so that it allows either bbox OR path to ini
     # handle these alternatives her by either reading the ini or reading the args
     # set up the map accordingly
@@ -248,17 +249,17 @@ def _map_from_mapparams(path, report):
 
 def _map_from_args(args, report):
     bbox = args.bbox  # from args
-    print('Aspect', args.aspect)
     bbox = bbox.with_aspect(args.aspect)
 
     m = Map(bbox)
     m.set_background(args.background)
     m.set_margin(*args.margin)
-    if args.frame:
+    if args.frame and args.frame.active:
         m.set_frame(width=args.frame.width or 5,
                     color=args.frame.color or (0, 0, 0, 255),
                     alt_color=args.frame.alt_color or (255, 255, 255, 255),
                     style=args.frame.style or 'solid')
+
     if args.title:
         placement, border, color, bg_color, text = args.title
         m.add_title(text,
