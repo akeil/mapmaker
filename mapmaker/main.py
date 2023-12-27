@@ -19,6 +19,7 @@ from . import icons
 from . import parse
 from .parse import BBoxAction
 from .parse import FrameAction
+from .parse import FrameParams
 from .parse import MarginAction
 from .parse import ScaleAction, ScaleParams
 from .parse import TextAction
@@ -134,6 +135,7 @@ def main():
     parser.add_argument('--frame',
                         action=FrameAction,
                         metavar='ARGS',
+                        default=FrameParams(active=False, width=4, color=(0, 0, 0), alt_color=(255, 255, 255), style='SOLID'),
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR, STYLE and'
                               ' UNDERLAY)'))
@@ -207,7 +209,7 @@ def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
     map = Map(bbox)
     map.set_background(args.background)
     map.set_margin(*args.margin)
-    if args.frame:
+    if args.frame and args.frame.active:
         map.set_frame(width=args.frame.width or 5,
                       color=args.frame.color or (0, 0, 0, 255),
                       alt_color=args.frame.alt_color or (255, 255, 255, 255),
