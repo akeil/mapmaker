@@ -186,13 +186,13 @@ def main():
             for style in registry.list():
                 dst = base.joinpath(style + '.png')
                 try:
-                    _run(bbox, args.zoom, dst, style, reporter, registry, conf,
+                    _run(reporter, registry, conf,
                          args, dry_run=args.dry_run)
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            _run(bbox, args.zoom, args.dst, args.style, reporter, registry,
+            _run(reporter, registry,
                  conf, args, dry_run=args.dry_run)
     except Exception as err:
         reporter('ERROR: %s', err)
@@ -202,75 +202,103 @@ def main():
     return 0
 
 
-def _run(bbox, zoom, dst, style, report, registry, conf, args, dry_run=False):
+def _run(report, registry, conf, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
-    map = Map(bbox)
-    map.set_background(args.background)
-    map.set_margin(*args.margin)
+
+    # TODO: adapt bbox argument so that it allows either bbox OR path to ini
+    # handle these alternatives her by either reading the ini or reading the args
+    # set up the map accordingly
+    #
+    # Follow-up: allow to patch map params from arg
+    # + create default map params that can be patched from ini, then args
+
+    m = _map_from_args(args, report)
+    if dry_run:
+        return
+
+    use_cache = not args.no_cache
+    img = _build_map(m, args.style, args.zoom, use_cache, conf, registry, report)
+
+    with open(args.dst, 'wb') as f:
+        img.save(f, format='png')
+
+    report('Map saved to %s', args.dst)
+
+
+def _build_map(m, style, zoom, use_cache, conf, registry, report):
+    service = registry.get(style)
+    if use_cache:
+        service = service.cached(limit=conf.cache_limit)
+
+    return m.render(service,
+                    zoom,
+                    icons=icons.IconProvider(conf.icons_base),
+                    parallel_downloads=8,
+                    reporter=report)
+
+
+def _map_from_mapparams(path, report):
+    from .mapdef import MapParams
+    report('Read map definition from %r', path)
+    p = MapParams.from_file(path)
+    m = p.create_map()
+
+    return m
+
+
+def _map_from_args(args, report):
+    bbox = args.bbox  # from args
+    print('Aspect', args.aspect)
+    bbox = bbox.with_aspect(args.aspect)
+
+    m = Map(bbox)
+    m.set_background(args.background)
+    m.set_margin(*args.margin)
     if args.frame:
-        map.set_frame(width=args.frame.width or 5,
-                      color=args.frame.color or (0, 0, 0, 255),
-                      alt_color=args.frame.alt_color or (255, 255, 255, 255),
-                      style=args.frame.style or 'solid')
+        m.set_frame(width=args.frame.width or 5,
+                    color=args.frame.color or (0, 0, 0, 255),
+                    alt_color=args.frame.alt_color or (255, 255, 255, 255),
+                    style=args.frame.style or 'solid')
     if args.title:
         placement, border, color, bg_color, text = args.title
-        map.add_title(text,
-                      placement=placement or 'N',
+        m.add_title(text,
+                    placement=placement or 'N',
+                    color=color or (0, 0, 0, 255),
+                    background=bg_color,
+                    border_color=color or (0, 0, 0, 255),
+                    border_width=border or 0,
+                    font_name='DejaVuSans',
+                    font_size=16)
+    if args.comment:
+        placement, border, color, bg_color, text = args.comment
+        m.add_comment(text,
+                      placement=placement or 'SSE',
                       color=color or (0, 0, 0, 255),
                       background=bg_color,
                       border_color=color or (0, 0, 0, 255),
                       border_width=border or 0,
                       font_name='DejaVuSans',
-                      font_size=16)
-    if args.comment:
-        placement, border, color, bg_color, text = args.comment
-        map.add_comment(text,
-                        placement=placement or 'SSE',
-                        color=color or (0, 0, 0, 255),
-                        background=bg_color,
-                        border_color=color or (0, 0, 0, 255),
-                        border_width=border or 0,
-                        font_name='DejaVuSans',
-                        font_size=10)
+                      font_size=10)
 
     if args.compass:
-        map.add_compass_rose()
+        m.add_compass_rose()
 
     if args.scale:
-        map.add_scale(area='MAP',
-                      placement=args.scale.place or 'SW',
-                      color=args.scale.color or (0, 0, 0, 255),
-                      border_width=args.scale.width or 2,
-                      underlay=args.scale.underlay or 'compact',
-                      label_style=args.scale.label or 'default',
-                      font_size=10,
-                      font_name='DejaVuSans')
+        m.add_scale(area='MAP',
+                    placement=args.scale.place or 'SW',
+                    color=args.scale.color or (0, 0, 0, 255),
+                    border_width=args.scale.width or 2,
+                    underlay=args.scale.underlay or 'compact',
+                    label_style=args.scale.label or 'default',
+                    font_size=10,
+                    font_name='DejaVuSans')
 
     if args.geojson:
         for x in args.geojson:
             elem = geojson.read(x)
-            map.add_element(elem)
+            m.add_element(elem)
 
-    service = registry.get(style)
-    if not args.no_cache:
-        service = service.cached(limit=conf.cache_limit)
-
-    if args.copyright:
-        copyright = conf.copyrights.get(service.top_level_domain)
-        map.add_comment(copyright, placement='ENE', font_size=8)
-
-    if dry_run:
-        return
-
-    img = map.render(service,
-                     zoom,
-                     icons=icons.IconProvider(conf.icons_base),
-                     parallel_downloads=8,
-                     reporter=report)
-    with open(dst, 'wb') as f:
-        img.save(f, format='png')
-
-    report('Map saved to %s', dst)
+    return m
 
 
 def _print_reporter(msg, *args):
