@@ -39,6 +39,7 @@ class TileMap:
         self.bx = max(ax, bx)
         self.by = max(ay, by)
         self.zoom = zoom
+        # TODO: why is bbox a member attribute? This class doesn't need it.
         self.bbox = bbox
         self.tiles = None
         self._generate_tiles()
@@ -87,6 +88,16 @@ class TileMap:
         sinlat = sin(lat * PI / 180.0)
         pixel_y = (0.5 - log((1 + sinlat) / (1 - sinlat)) / (4 * PI)) * globe
         return pixel_x, pixel_y
+
+    def __eq__(self, other):
+        if not isinstance(other, TileMap):
+            return False
+
+        return (self.ax == other.ax
+                and self.ay == other.ay
+                and self.bx == other.bx
+                and self.by == other.by
+                and self.zoom == other.zoom)
 
     def __repr__(self):
         return '<TileMap a=%s,%s b=%s,%s, zoom=%s>' % (self.ax,
