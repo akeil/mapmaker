@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from mapmaker.tilemap import _tile_coordinates
+from mapmaker.tilemap import tile_number
 
 
 class TestTiles(TestCase):
@@ -30,7 +30,7 @@ class TestTiles(TestCase):
         for zoom, pairs in cases.items():
             for loc, expected in pairs.items():
                 lat, lon = loc
-                x, y = _tile_coordinates(lat, lon, zoom)
+                x, y = tile_number(lat, lon, zoom)
                 self.assertEqual(x, expected[0])
                 self.assertEqual(y, expected[1])
 
@@ -39,25 +39,25 @@ class TestTiles(TestCase):
         for zoom in range(1, 19):
             tiles = 2**zoom
             half = tiles / 2
-            x, y = _tile_coordinates(*nw, zoom)
+            x, y = tile_number(*nw, zoom)
             self.assertTrue(x < half)
             self.assertTrue(y < half)
 
-            x, y = _tile_coordinates(*ne, zoom)
+            x, y = tile_number(*ne, zoom)
             self.assertTrue(x >= half)
             self.assertTrue(y < half)
 
-            x, y = _tile_coordinates(*sw, zoom)
+            x, y = tile_number(*sw, zoom)
             self.assertTrue(x < half)
             self.assertTrue(y >= half)
 
-            x, y = _tile_coordinates(*se, zoom)
+            x, y = tile_number(*se, zoom)
             self.assertTrue(x >= half)
             self.assertTrue(y >= half)
 
     def test_bounds(self):
-        self.assertRaises(ValueError, _tile_coordinates, -86, 123, 0)
-        self.assertRaises(ValueError, _tile_coordinates, 86, 123, 0)
+        self.assertRaises(ValueError, tile_number, -86, 123, 0)
+        self.assertRaises(ValueError, tile_number, 86, 123, 0)
 
     def disabled_test_bounds(self):
         # this fails on the extreme values for lat/lon and some(?) zoom factors
@@ -66,7 +66,7 @@ class TestTiles(TestCase):
             for lon in range(-180, 181, 1):
                 for zoom in range(20):
                     max_tiles = 2**zoom - 1
-                    x, y = _tile_coordinates(lat, lon, zoom)
+                    x, y = tile_number(lat, lon, zoom)
                     self.assertTrue(x >= 0)
                     self.assertTrue(x <= max_tiles)
                     self.assertTrue(y >= 0)
