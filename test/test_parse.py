@@ -8,7 +8,6 @@ from mapmaker.parse import BBoxAction
 from mapmaker.parse import FrameAction
 from mapmaker.parse import MarginAction
 from mapmaker.parse import TextAction
-from mapmaker.parse import _parse_coordinates
 from mapmaker.parse import _parse_placement
 
 
@@ -36,7 +35,7 @@ class _ParseTest(TestCase):
 
 
 class TestParseCoordinates(_ParseTest):
-    parse_func = _parse_coordinates
+    parse_func = parse.coordinates
     fail = (
         '',
         'xxx',
@@ -65,7 +64,7 @@ class TestParseCoordinates(_ParseTest):
     # override, alomstEqual cannot compare tuples
     def test_valid(self):
         for raw, expected in self.valid:
-            actual_lat, actual_lon = _parse_coordinates(raw)
+            actual_lat, actual_lon = parse.coordinates(raw)
             expected_lat, expected_lon = expected
             self.assertAlmostEqual(actual_lat, expected_lat, places=5)
             self.assertAlmostEqual(actual_lon, expected_lon, places=5)
@@ -211,12 +210,12 @@ class TestFrameAction(_ActionTest):
         ['-5'],
     )
     valid = (
-        ([], (None, None, None, None)),
-        (['8'], (8, None, None, None)),
-        (['200,200,200'], (None, (200, 200, 200, 255), None, None)),
-        (['coordinates'], (None, None, None, 'coordinates')),
-        (['200,200,200', '220,220,220'], (None, (200, 200, 200, 255), (220, 220, 220, 255), None)),
-        (['200,200,200', '220,220,220', '5', 'solid'], (5, (200, 200, 200, 255), (220, 220, 220, 255), 'solid')),
+        ([], (True, None, None, None, None)),
+        (['8'], (True, 8, None, None, None)),
+        (['200,200,200'], (True, None, (200, 200, 200, 255), None, None)),
+        (['coordinates'], (True, None, None, None, 'coordinates')),
+        (['200,200,200', '220,220,220'], (True, None, (200, 200, 200, 255), (220, 220, 220, 255), None)),
+        (['200,200,200', '220,220,220', '5', 'solid'], (True, 5, (200, 200, 200, 255), (220, 220, 220, 255), 'solid')),
     )
 
 
