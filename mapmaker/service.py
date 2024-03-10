@@ -17,8 +17,8 @@ import appdirs
 from PIL import Image
 import requests
 
-from mapmaker import __version__
-from mapmaker import __author__
+from mapmaker import __version__ as VERSION
+from mapmaker import __author__ as AUTHOR
 from mapmaker import __name__ as APP_NAME
 from mapmaker.tilemap import Tile
 
@@ -45,9 +45,9 @@ class ServiceRegistry:
 
     def list(self):
         '''List the names of all registered styles.'''
-        l = [k for k in self._services]
-        l.sort()
-        return l
+        services = [s for s in self._services]
+        services.sort()
+        return services
 
     @classmethod
     def from_config(cls, cfg):
@@ -63,7 +63,8 @@ class ServiceRegistry:
             subdomains = cfg.get(s, 'subdomains', fallback='')
             for style in styles:
                 if style in d:
-                    _LOG.warning('Ignore duplicate service definition for %r in [%s]', style, s)
+                    _LOG.warning(('Ignore duplicate service definition for'
+                                  ' %r in [%s]'), style, s)
                     continue
 
                 url_pattern = cfg[s][style]
@@ -79,7 +80,8 @@ class ServiceRegistry:
         '''
         cfg = configparser.ConfigParser()
         # built-in defaults
-        cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker', 'default.ini')))
+        cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker',
+                                                    'default.ini')))
         # user settings
         cfg.read([path, ])
         return cls.from_config(cfg)
@@ -134,7 +136,7 @@ class TileService:
         self.max_retries = max_retries
 
         s = requests.Session()
-        ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
+        ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, VERSION)
         s.headers['User-Agent'] = ua
         # TODO: should we use a custom HTTPAdapter with increased pool size?
         self._session = s
@@ -193,7 +195,7 @@ class TileService:
         Returns the response ``etag`` and the raw image data.
         '''
         if cached_only:
-            raise LookupError('No cached tile for x=%s, y=%s, z=%s' % (x, y, z))
+            raise LookupError('No cached tile for x=%s,y=%s,z=%s' % (x, y, z))
 
         s = self._subdomain()
         url = self.url_pattern.format(
@@ -289,7 +291,7 @@ class Cache:
 
         if not basedir:
             basedir = appdirs.user_cache_dir(appname=APP_NAME,
-                                             appauthor=__author__)
+                                             appauthor=AUTHOR)
         self._base = Path(basedir)
 
     def memory_cache(self, size=100):

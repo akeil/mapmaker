@@ -60,7 +60,7 @@ class TestTiles(TestCase):
             self.assertTrue(x >= half)
             self.assertTrue(y >= half)
 
-    def test_bounds(self):
+    def test_invalid_bounds_raises(self):
         self.assertRaises(ValueError, tile_number, -86, 123, 0)
         self.assertRaises(ValueError, tile_number, 86, 123, 0)
 
@@ -165,8 +165,9 @@ class TestTileMap(TestCase):
         self.assertEqual(tm0, tm1)
 
     # from_bbox
-    # we should be able to construct a tile map for any Bbox within MIN/MAX lat/lon
-    # and valid zoom
+    # we should be able to construct a tile map for any Bbox
+    # ... within MIN/MAX lat/lon
+    # ... valid zoom
 
     # when we construct for bbox, the resulting map must hold exactly one tile
     # which contains each of the corners of the BBox
@@ -175,4 +176,3 @@ class TestTileMap(TestCase):
     # we can calculate pixel fractions for every valid lat/lon
     # pixel fractions are always >= 0.0
     # ... and are <= the number of tiles in x/y direction
-

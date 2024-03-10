@@ -120,9 +120,8 @@ class _Provider:
         self._ext = '.svg'
 
     def _icon_path(self, name):
-        #filename = self._pattern.format(name=name)
         filename = '{prefix}{name}{suffix}{ext}'.format(
-            prefix = self._prefix or '',
+            prefix=self._prefix or '',
             name=name,
             suffix=self._suffix or '',
             ext=self._ext or '')

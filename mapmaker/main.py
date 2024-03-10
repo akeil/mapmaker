@@ -12,9 +12,7 @@ import sys
 
 from . import __author__
 from . import __version__
-from .core import Map
 from .geo import distance
-from . import geojson
 from . import icons
 from . import parse
 from .mapdef import MapParams
@@ -24,7 +22,6 @@ from .parse import MarginAction
 from .parse import ScaleAction
 from .parse import TitleAction, CommentAction
 from .service import ServiceRegistry
-from .service import TileService
 from .tilemap import MIN_ZOOM, MAX_ZOOM
 
 import appdirs
@@ -58,7 +55,7 @@ def main():
             base = Path(args.dst)
             base.mkdir(exist_ok=True)
             for style in registry.list():
-                dst = base.joinpath(style + '.png')
+                args.dst = base.joinpath(style + '.png')
                 try:
                     _run(reporter, registry, conf, defaults,
                          args, dry_run=args.dry_run)
@@ -202,6 +199,7 @@ def _setup_parser(registry, defaults):
                         help='Do not output messages to the console')
 
     return parser
+
 
 def _run(report, registry, conf, defaults, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''

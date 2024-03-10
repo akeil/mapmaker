@@ -431,7 +431,7 @@ def load_font(font_name, font_size):
     '''Load the given true type font, return fallback on failure.'''
     try:
         return ImageFont.truetype(font=font_name, size=font_size)
-    except OSError as e:
+    except OSError:
         return ImageFont.load_default()
 
 

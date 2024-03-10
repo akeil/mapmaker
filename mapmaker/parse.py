@@ -1,24 +1,18 @@
 '''Helpers for parsing various information from strings.
 Intended to be used in conjunction with the Python ``argparse`` module.
 '''
-
-
 import argparse
 from argparse import ArgumentError
-from collections import namedtuple
 
-from .core import Map
 from .decorations import Frame
 from .decorations import PLACEMENTS
 from .decorations import Scale
-from .geo import BBox
 from .geo import decimal
 from .mapdef import MapParams
 from .mapdef import FrameParams
 from .mapdef import TitleParams
 from .mapdef import CommentParams
 from .mapdef import ScaleParams
-from .tilemap import MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
 
 
 class MapParamsAction(argparse.Action):
@@ -36,15 +30,17 @@ class MapParamsAction(argparse.Action):
                 with open(values[0]) as f:
                     p = MapParams.from_file(f)
             except Exception as err:
-                raise ArgumentError(self, ('could not read map definition from'
-                    ' %r: %s') % (values[0], err))
+                msg = ('could not read map definition from'
+                       ' %r: %s') % (values[0], err)
+                raise ArgumentError(self, msg)
         else:
             # assume bbox coordinates
             try:
                 p = self._with_bbox(values)
             except Exception as err:
-                raise ArgumentError(self, ('failed to parse bounding box from'
-                                       ' %r: %s') % (' '.join(values), err))
+                msg = ('failed to parse bounding box from'
+                       ' %r: %s') % (' '.join(values), err)
+                raise ArgumentError(self, msg)
 
         setattr(namespace, self.dest, p)
 
@@ -147,7 +143,7 @@ class _TextAction(argparse.Action):
         super().__init__(option_strings, dest, nargs='+', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        placement, border, foreground, background = None, None, None, None
+        placement, border, fg, bg = None, None, None, None
 
         consumed = 0
         for value in values:
@@ -172,17 +168,17 @@ class _TextAction(argparse.Action):
                 except ValueError:
                     pass
 
-            if foreground is None:
+            if fg is None:
                 try:
-                    foreground = color(value)
+                    fg = color(value)
                     consumed += 1
                     continue
                 except ValueError:
                     pass
 
-            if background is None:
+            if bg is None:
                 try:
-                    background = color(value)
+                    bg = color(value)
                     consumed += 1
                     continue
                 except ValueError:
@@ -200,9 +196,9 @@ class _TextAction(argparse.Action):
         p = self._factory.default()
         p.placement = placement if placement is not None else p.placement
         p.border_width = border if border is not None else p.border_width
-        p.color = foreground if foreground is not None else p.color
-        p.border_color = foreground if foreground is not None else p.border_color
-        p.background = background if background is not None else p.background
+        p.color = fg if fg is not None else p.color
+        p.border_color = fg if fg is not None else p.border_color
+        p.background = bg if bg is not None else p.background
         p.text = text if text is not None else p.text
         setattr(namespace, self.dest, p)
 
@@ -291,9 +287,6 @@ class FrameAction(argparse.Action):
         p.alt_color = alternate if alternate is not None else p.alt_color
         p.style = style if style is not None else p.style
         setattr(namespace, self.dest, p)
-
-
-_ScaleParams = namedtuple('ScaleParams', 'placement width color label underlay')
 
 
 class ScaleAction(argparse.Action):

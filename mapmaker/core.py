@@ -67,7 +67,10 @@ class Map:
 
         return self._decorations or self._frame
 
-    def render(self, service, zoom, icons=None, parallel_downloads=None, reporter=None):
+    def render(self, service, zoom,
+               icons=None,
+               parallel_downloads=None,
+               reporter=None):
         '''Render this map into a PIL image.
 
         Uses the given *TileService* and zoom level to obtain map tiles.
@@ -109,7 +112,8 @@ class Map:
         '''
         try:
             if decoration.placement not in Map._SLOTS[area]:
-                raise ValueError('invalid area/placement %r and %r' % (area, decoration.placement))
+                raise ValueError(('invalid placement %r for'
+                                  ' area %r') % (decoration.placement, area))
         except (KeyError, AttributeError):
             raise ValueError('area/placement not defined %r' % area)
 

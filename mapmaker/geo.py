@@ -42,7 +42,7 @@ class BBox:
         if self.minlon < -180.0:
             raise ValueError('minlon must not be < -180, got %s' % self.minlon)
         if self.maxlon > 180.0:
-            raise ValueError('maxlon must not be > 180.0, got %s' % self.maxlon)
+            raise ValueError('maxlon must not be > 180, got %s' % self.maxlon)
 
     def with_aspect(self, aspect):
         '''Extend the given bounding box so that it adheres to the given aspect

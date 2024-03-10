@@ -233,6 +233,7 @@ class Cartouche(Decoration):
         return '<Cartouche placement=%r, title=%r>' % (self.placement,
                                                        self.title)
 
+
 class Scale(Decoration):
     '''A scale bar that shows the size of the area on the map in meters or
     kilometers.
@@ -289,7 +290,7 @@ class Scale(Decoration):
             w = tick_width * num_ticks
             w += m_left + m_right
 
-        h = tick_height = self._tick_height()
+        h = self._tick_height()
         h += m_top + m_bottom
 
         # Size of the label
@@ -338,7 +339,7 @@ class Scale(Decoration):
 
     def _draw_bar(self, draw, bar_width, tick_width, num_ticks):
         '''Draw the scale bar including ticks.'''
-        tick_height = tick_height = self._tick_height()
+        tick_height = self._tick_height()
         m_top, m_right, m_bottom, m_left = self.margin
 
         # base line + outer ticks
@@ -397,7 +398,7 @@ class Scale(Decoration):
 
         tick_size = None    # in meters
         tick_count = None
-        tick_area = 10 # "n" to use ca. 1/n of the map
+        tick_area = 10  # "n" to use ca. 1/n of the map
         max_tick_count = 5 * tick_area
 
         # if a tick was "s" meters wide, how many would fit on the map?

@@ -1,6 +1,5 @@
 import io
 from pathlib import Path
-import unittest
 from unittest import TestCase
 
 from mapmaker.mapdef import MapParams
@@ -54,7 +53,7 @@ class TestMapParams(TestCase):
 
             p = MapParams.from_file(io.StringIO(ini))
             self.assertEqual(p.pos0, (12.0, 34.0),
-                              msg='Section name %s not recognized' % name)
+                             msg='Section name %s not recognized' % name)
 
     def test_parse(self):
         ini = '''[map]

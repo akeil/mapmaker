@@ -4,7 +4,6 @@ Map Elements are additional content such as *Placemarks* or *Tracks* that are
 painted over the map content.
 They are typically placed using lat/lon coordinates.
 '''
-from functools import partial
 from math import sqrt
 from math import floor
 from math import radians
@@ -73,7 +72,7 @@ class Track(DrawLayer):
 
 
 class Placemark(DrawLayer):
-    '''Draw a placemark with a ``symbol`` and a ``label`` at the given location.
+    '''Draw a placemark with ``symbol`` and ``label`` at the given location.
 
     :label:         Text the will be shown on the map.
     :symbol:        The icon that will be drawn on the map. Must be one of
@@ -147,7 +146,8 @@ class Placemark(DrawLayer):
             all.append(marker)
 
         if self.label:
-            offset=(0, (self.size + self.border) // 2 + 2)  # draw label slightly below marker
+            # draw label slightly below marker
+            offset = (0, (self.size + self.border) // 2 + 2)
             label = Label(self.lat, self.lon, self.label,
                           offset=offset,
                           color=self.label_color,
@@ -280,7 +280,6 @@ class Icon(DrawLayer):
         x, y = rc.to_pixels(self.lat, self.lon)
         # flat background "behind" the icon
         if self.fill:
-            #self._draw_background(draw, x, y)
             self._draw_glow(draw, x, y)
 
         # icon is a PILImage
@@ -299,8 +298,9 @@ class Icon(DrawLayer):
         at the center to 0.0 on the edges.
         This creates a "glow" behind the icon.
         '''
-        # Image.radial_gradient creates a gradient from black to white at 256x256
-        # where only the outermost pixel (at the corners) are completely white
+        # Image.radial_gradient creates a gradient from black to white
+        # at 256x256 where only the outermost pixel (at the corners) are
+        # completely white.
         # https://pillow.readthedocs.io/en/stable/reference/Image.html
         #
         # So this WILL NOT work
@@ -421,7 +421,6 @@ class Label(DrawLayer):
             stroke_fill = contrast_color(self.color)
 
         self._draw_text(draw, loc, text, font, stroke_width, stroke_fill)
-
 
     def _draw_text(self, draw, loc, text, font, stroke_width, stroke_fill):
         '''Draw the label.'''

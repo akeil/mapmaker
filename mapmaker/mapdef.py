@@ -126,7 +126,8 @@ class _TextParams:
                    placement=cfg.get(section, 'placement'),
                    border_width=cfg.getint(section, 'border_width'),
                    color=_parsed(cfg, section, 'color', parse.color),
-                   border_color=_parsed(cfg, section, 'border_color', parse.color),
+                   border_color=_parsed(cfg, section, 'border_color',
+                                        parse.color),
                    background=_parsed(cfg, section, 'background', parse.color),
                    font_name=cfg.get(section, 'font_name'),
                    font_size=cfg.getint(section, 'font_size'))
@@ -310,7 +311,8 @@ class MapParams:
 
         if self.zoom is not None:
             if self.zoom < MIN_ZOOM or self.zoom > MAX_ZOOM:
-                raise ValueError('zoom %s must be in interval %s..%s' % (self.zoom, MIN_ZOOM, MAX_ZOOM))
+                raise ValueError(('zoom %s must be in interval'
+                                  ' %s..%s') % (self.zoom, MIN_ZOOM, MAX_ZOOM))
 
         # TODO implement
         # check bbox in valid range
@@ -436,7 +438,6 @@ class MapParams:
                    aspect=1.0,
                    margin=(0, 0, 0, 0),
                    background=_WHITE)
-
 
 
 def _parsed(cfg, s, k, parsefunc):

@@ -13,7 +13,6 @@ from math import sinh
 from math import tan
 
 from .geo import BBox
-from .geo import mercator_to_lat
 
 
 # supported lat/lon bounds for slippy map
@@ -202,9 +201,11 @@ def tile_number(lat, lon, zoom):
     Raises *ValueError* if lat or lon are outside the allowed range.
     '''
     if lat < MIN_LAT or lat > MAX_LAT:
-        raise ValueError('latitude must be %s..%s, got %s' % (MIN_LAT, MAX_LAT, lat))
+        raise ValueError('latitude must be %s..%s, got %s' % (MIN_LAT,
+                                                              MAX_LAT, lat))
     if lon < MIN_LON or lon > MAX_LON:
-        raise ValueError('longitude must be %s..%s, got %s' % (MIN_LON, MAX_LON, lon))
+        raise ValueError('longitude must be %s..%s, got %s' % (MIN_LON,
+                                                               MAX_LON, lon))
 
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = pow(2.0, zoom)

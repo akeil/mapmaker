@@ -330,7 +330,6 @@ class _Polygon(_Wrapper):
                      color=self._color('color'),
                      fill=self._color('fill'))
 
-
     def drawables(self):
         points = self.coordinates
         return self._shape(points).drawables()
