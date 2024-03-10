@@ -247,7 +247,7 @@ def _build_map(m, style, zoom, use_cache, conf, registry, report):
 def _map_from_mapparams(path, report):
     from .mapdef import MapParams
     report('Read map definition from %r', path)
-    p = MapParams.from_file(path)
+    p = MapParams.from_path(path)
     m = p.create_map()
 
     return m

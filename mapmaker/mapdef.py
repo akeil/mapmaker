@@ -180,15 +180,15 @@ class CompassParams:
 
 @dataclass
 class MapParams:
-    style: str
-    zoom: int
-
     # Bounding Box
     # either a single lat/lon + radius
     # or a pair of minlat/minlon or maxlat/maxlon
     pos0: tuple[float, float]
     pos1: tuple[float, float] = None
     radius: float = None
+
+    style: str = None
+    zoom: int = None
 
     aspect: float = None  # calculated from e.g. 16:9
     margin: tuple[int, int, int, int] = None
@@ -225,8 +225,16 @@ class MapParams:
         return m
 
     def validate(self):
+        if self.pos1 is not None and self.radius is not None:
+            raise ValueError('Only one of `pos1` and `radius` must be set')
+
+        if self.pos0 is None:
+            raise ValueError('Missing `pos0` for BBox')
+
+        if self.pos1 is None and self.radius is None:
+            raise ValueError('Missing `pos1` or `radius` for BBox')
         # TODO implement
-        # check if only one variant of the bbox definition is set
+        # radius >0 or None
         # check bbox in valid range
         # check zoom in valid range
         pass
@@ -254,7 +262,11 @@ class MapParams:
 
     @classmethod
     def from_config(cls, cfg):
-        s = 'map'
+        defined = [s for s in cfg.sections()]
+        if defined:
+            s = defined[0]
+        else:
+            s = cfg.default_section
 
         title = None
         if 'title' in cfg.sections():
@@ -276,8 +288,8 @@ class MapParams:
         if 'compass' in cfg.sections():
             compass = CompassParams._from_config(cfg, 'compass')
 
-        return cls(style=cfg.get(s, 'style'),
-                   zoom=cfg.getint(s, 'zoom'),
+        return cls(style=_parsed(cfg, s, 'style', str),
+                   zoom=_parsed(cfg, s, 'zoom', int),
                    pos0=_parsed(cfg, s, 'pos0', parse.coordinates),
                    pos1=_parsed(cfg, s, 'pos1', parse.coordinates),
                    radius=_parsed(cfg, s, 'radius', parse.distance),
@@ -291,14 +303,25 @@ class MapParams:
                    comment=comment)
 
     @classmethod
-    def from_file(cls, path):
+    def from_path(cls, path):
         cfg = configparser.ConfigParser()
         cfg.read([path, ])
         return cls.from_config(cfg)
 
+    @classmethod
+    def from_file(cls, f):
+        cfg = configparser.ConfigParser()
+        cfg.read_file(f)
+        return cls.from_config(cfg)
+
+
 
 def _parsed(cfg, s, k, parsefunc):
-    value = cfg.get(s, k)
+    try:
+        value = cfg.get(s, k, fallback=None)
+    except configparser.NoSectionError:
+        value = None
+
     if value is None or value == '':
         return None
     return parsefunc(value)
