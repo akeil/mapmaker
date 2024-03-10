@@ -73,7 +73,7 @@ from .core import Map
 from .decorations import Cartouche, Scale, CompassRose
 from .geo import BBox
 from .tilemap import MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
-
+from .tilemap import MIN_ZOOM, MAX_ZOOM
 
 _BLACK = (0, 0, 0, 255)
 _WHITE = (255, 255, 255, 255)
@@ -296,18 +296,24 @@ class MapParams:
 
     def validate(self):
         if self.pos1 is not None and self.radius is not None:
-            raise ValueError('Only one of `pos1` and `radius` must be set')
+            raise ValueError('only one of `pos1` and `radius` must be set')
 
         if self.pos0 is None:
-            raise ValueError('Missing `pos0` for BBox')
+            raise ValueError('missing `pos0` for BBox')
 
         if self.pos1 is None and self.radius is None:
-            raise ValueError('Missing `pos1` or `radius` for BBox')
+            raise ValueError('missing `pos1` or `radius` for BBox')
+
+        if self.radius is not None:
+            if self.radius <= 0:
+                raise ValueError('radius must be >0')
+
+        if self.zoom is not None:
+            if self.zoom < MIN_ZOOM or self.zoom > MAX_ZOOM:
+                raise ValueError('zoom %s must be in interval %s..%s' % (self.zoom, MIN_ZOOM, MAX_ZOOM))
+
         # TODO implement
-        # radius >0 or None
         # check bbox in valid range
-        # check zoom in valid range
-        pass
 
     @property
     def bbox(self):
