@@ -44,7 +44,38 @@ def main():
     conf_file = Path(conf_dir).joinpath('config.ini')
     conf = read_config(conf_file)
     registry = ServiceRegistry.default()
+    parser = _setup_parser(registry)
+    args = parser.parse_args()
 
+    reporter = _no_reporter if args.silent else _print_reporter
+    bbox = args.bbox.with_aspect(args.aspect)
+
+    reporter('Using configuration from %r', str(conf_file))
+
+    try:
+        if args.gallery:
+            base = Path(args.dst)
+            base.mkdir(exist_ok=True)
+            for style in registry.list():
+                dst = base.joinpath(style + '.png')
+                try:
+                    _run(reporter, registry, conf,
+                         args, dry_run=args.dry_run)
+                except Exception as err:
+                    # on error, continue with next service
+                    reporter('ERROR for %r: %s', style, err)
+        else:
+            _run(reporter, registry,
+                 conf, args, dry_run=args.dry_run)
+    except Exception as err:
+        reporter('ERROR: %s', err)
+        raise
+        return 1
+
+    return 0
+
+
+def _setup_parser(registry):
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
         description=APP_DESC,
@@ -174,35 +205,7 @@ def main():
                         action='store_true',
                         help='Do not output messages to the console')
 
-    args = parser.parse_args()
-
-    reporter = _no_reporter if args.silent else _print_reporter
-    bbox = args.bbox.with_aspect(args.aspect)
-
-    reporter('Using configuration from %r', str(conf_file))
-
-    try:
-        if args.gallery:
-            base = Path(args.dst)
-            base.mkdir(exist_ok=True)
-            for style in registry.list():
-                dst = base.joinpath(style + '.png')
-                try:
-                    _run(reporter, registry, conf,
-                         args, dry_run=args.dry_run)
-                except Exception as err:
-                    # on error, continue with next service
-                    reporter('ERROR for %r: %s', style, err)
-        else:
-            _run(reporter, registry,
-                 conf, args, dry_run=args.dry_run)
-    except Exception as err:
-        reporter('ERROR: %s', err)
-        raise
-        return 1
-
-    return 0
-
+    return parser
 
 def _run(report, registry, conf, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
