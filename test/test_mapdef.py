@@ -65,6 +65,8 @@ class TestMapParams(TestCase):
         aspect = 16:9
         margin = 50, 25, 25, 25
         background = #ffffff
+        geojson = /path/to/file1.json
+            /path/to/file2.json
 
         [frame]
         width       = 5
@@ -121,6 +123,8 @@ class TestMapParams(TestCase):
         self.assertEqual(p.aspect, 16/9)
         self.assertEqual(p.margin, (50, 25, 25, 25))
         self.assertEqual(p.background, (255, 255, 255, 255))
+        self.assertEqual(p.geojson, ['/path/to/file1.json',
+                                     '/path/to/file2.json'])
 
         self.assertIsNot(None, p.frame)
         self.assertEqual(p.frame.width, 5)

@@ -14,6 +14,8 @@ Can be read from an .ini file:
     aspect = 16:9
     margin = 50, 25, 25, 25
     background = #ffffff
+    geojson = /path/to/file-1.json
+        /path/to/file-2.json
 
     [frame]
     width       = 5
@@ -68,6 +70,7 @@ from . import parse
 from .core import Map
 from .decorations import Cartouche, Scale, CompassRose
 from .geo import BBox
+from .tilemap import MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
 
 
 _BLACK = (0, 0, 0, 255)
@@ -193,6 +196,7 @@ class MapParams:
     aspect: float = None  # calculated from e.g. 16:9
     margin: tuple[int, int, int, int] = None
     background: tuple[int, int, int, int] = (255, 255, 255, 255)
+    geojson: list[str] = None
     title: TextParams = None
     comment: TextParams = None
     frame: FrameParams = None
@@ -258,7 +262,19 @@ class MapParams:
         if self.aspect:
             bbox = bbox.with_aspect(self.aspect)
 
+        # in case radius or aspect generated values outside allows range
+        bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT,
+                                minlon=MIN_LON, maxlon=MAX_LON)
+
         return bbox
+
+    def update(self, other):
+        attrs = ['style', 'zoom', 'aspect', 'margin', 'background']
+        attrs += ['title', 'comment', 'frame', 'compass', 'scale']
+        for attr in attrs:
+            v = getattr(other, attr)
+            if v is not None:
+                setattr(self, attr, v)
 
     @classmethod
     def from_config(cls, cfg):
@@ -296,6 +312,7 @@ class MapParams:
                    aspect=_parsed(cfg, s, 'aspect', parse.aspect),
                    margin=_parsed(cfg, s, 'margin', parse.margin),
                    background=_parsed(cfg, s, 'background', parse.color),
+                   geojson=_parsed(cfg, s, 'geojson', _list),
                    frame=frame,
                    scale=scale,
                    compass=compass,
@@ -325,3 +342,9 @@ def _parsed(cfg, s, k, parsefunc):
     if value is None or value == '':
         return None
     return parsefunc(value)
+
+
+def _list(raw):
+    if raw is None:
+        return None
+    return [s.strip() for s in raw.split('\n')]
