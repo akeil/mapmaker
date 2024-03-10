@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 import unittest
 from unittest import TestCase
 
@@ -123,8 +124,8 @@ class TestMapParams(TestCase):
         self.assertEqual(p.aspect, 16/9)
         self.assertEqual(p.margin, (50, 25, 25, 25))
         self.assertEqual(p.background, (255, 255, 255, 255))
-        self.assertEqual(p.geojson, ['/path/to/file1.json',
-                                     '/path/to/file2.json'])
+        self.assertEqual(p.geojson, [Path('/path/to/file1.json'),
+                                     Path('/path/to/file2.json')])
 
         self.assertIsNot(None, p.frame)
         self.assertEqual(p.frame.width, 5)

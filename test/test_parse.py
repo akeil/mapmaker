@@ -4,7 +4,7 @@ from unittest import TestCase
 
 from mapmaker.geo import BBox
 from mapmaker import parse
-from mapmaker.parse import BBoxAction
+from mapmaker.parse import MapParamsAction, BBoxAction
 from mapmaker.parse import FrameAction
 from mapmaker.parse import MarginAction
 from mapmaker.parse import TextAction

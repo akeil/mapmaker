@@ -17,7 +17,8 @@ from .geo import distance
 from . import geojson
 from . import icons
 from . import parse
-from .parse import BBoxAction
+from .mapdef import MapParams
+from .parse import MapParamsAction
 from .parse import FrameAction
 from .parse import FrameParams
 from .parse import MarginAction
@@ -45,11 +46,11 @@ def main():
     conf_file = Path(conf_dir).joinpath('config.ini')
     conf = read_config(conf_file)
     registry = ServiceRegistry.default()
-    parser = _setup_parser(registry)
+    defaults = MapParams.default()
+    parser = _setup_parser(registry, defaults)
     args = parser.parse_args()
 
     reporter = _no_reporter if args.silent else _print_reporter
-    bbox = args.bbox.with_aspect(args.aspect)
 
     reporter('Using configuration from %r', str(conf_file))
 
@@ -60,14 +61,14 @@ def main():
             for style in registry.list():
                 dst = base.joinpath(style + '.png')
                 try:
-                    _run(reporter, registry, conf,
+                    _run(reporter, registry, conf, defaults,
                          args, dry_run=args.dry_run)
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
-            _run(reporter, registry,
-                 conf, args, dry_run=args.dry_run)
+            _run(reporter, registry, conf,
+                 defaults, args, dry_run=args.dry_run)
     except Exception as err:
         reporter('ERROR: %s', err)
         raise
@@ -76,7 +77,7 @@ def main():
     return 0
 
 
-def _setup_parser(registry):
+def _setup_parser(registry, defaults):
     parser = argparse.ArgumentParser(
         prog=APP_NAME,
         description=APP_DESC,
@@ -92,18 +93,19 @@ def _setup_parser(registry):
                         version=__version__,
                         help='Print version number and exit')
 
-    parser.add_argument('bbox',
-                        metavar='AREA',
-                        action=BBoxAction,
-                        nargs=2,
-                        help=('Bounding box coordinates. Either two lat,lon'
+    parser.add_argument('mapdef',
+                        metavar='MAPDEF',
+                        action=MapParamsAction,
+                        nargs='+',
+                        help=('Map definition. Either two lat,lon'
                               ' pairs ("47.437,10.953 47.374,11.133")'
                               ' or a center point and a radius'
-                              ' ("47.437,10.953 4km").'))
+                              ' ("47.437,10.953 4km")'
+                              ' or the path to an ini-file.'))
 
     default_dst = 'map.png'
     parser.add_argument('dst',
-                        metavar='PATH',
+                        metavar='OUTPUT',
                         nargs='?',
                         default=default_dst,
                         help=('Where to save the generated image'
@@ -116,23 +118,18 @@ def _setup_parser(registry):
                               ' %s..%s') % (MIN_ZOOM, MAX_ZOOM))
         return v
 
-    default_zoom = 8
     parser.add_argument('-z', '--zoom',
-                        default=default_zoom,
                         type=zoom,
                         help=('Zoom level (%s..%s), higher means more detailed'
                               ' (default: %s).') % (MIN_ZOOM, MAX_ZOOM,
-                                                    default_zoom))
+                                                    defaults.zoom))
 
-    default_style = 'osm'
     parser.add_argument('-s', '--style',
                         choices=registry.list(),
-                        default=default_style,
-                        help='Map style (default: %r)' % default_style)
+                        help='Map style (default: %r)' % defaults.style)
 
     parser.add_argument('-a', '--aspect',
                         type=parse.aspect,
-                        default=1.0,
                         help=(
                             'Aspect ratio (e.g. "16:9") for the generated map.'
                             ' Extends the bounding box to match the given'
@@ -180,7 +177,7 @@ def _setup_parser(registry):
                         help=('Draw a scale bar into the map'
                               ' (any of: PLACEMENT, WIDTH, COLOR, LABEL)'))
 
-    # TODO: placement, color, marker "N"
+    # TODO: placement, color, outline, marker "N"
     parser.add_argument('--compass',
                         action='store_true',
                         help='Draw a compass rose on the map')
@@ -210,21 +207,20 @@ def _setup_parser(registry):
 
     return parser
 
-def _run(report, registry, conf, args, dry_run=False):
+def _run(report, registry, conf, defaults, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
-    # TODO: adapt bbox argument so that it allows either bbox OR path to ini
-    # handle these alternatives her by either reading the ini or reading the args
-    # set up the map accordingly
-    #
-    # Follow-up: allow to patch map params from arg
-    # + create default map params that can be patched from ini, then args
+    p = defaults
+    p.update(args.mapdef)
+    p.update(args)
 
-    m = _map_from_args(args, report)
+    m = p.create_map()
+
     if dry_run:
+        _show_info(report, p)
         return
 
     use_cache = not args.no_cache
-    img = _build_map(m, args.style, args.zoom, use_cache, conf, registry, report)
+    img = _build_map(m, p.style, p.zoom, use_cache, conf, registry, report)
 
     with open(args.dst, 'wb') as f:
         img.save(f, format='png')
@@ -244,70 +240,6 @@ def _build_map(m, style, zoom, use_cache, conf, registry, report):
                     reporter=report)
 
 
-def _map_from_mapparams(path, report):
-    from .mapdef import MapParams
-    report('Read map definition from %r', path)
-    p = MapParams.from_path(path)
-    m = p.create_map()
-
-    return m
-
-
-def _map_from_args(args, report):
-    bbox = args.bbox  # from args
-    bbox = bbox.with_aspect(args.aspect)
-
-    m = Map(bbox)
-    m.set_background(args.background)
-    m.set_margin(*args.margin)
-    if args.frame and args.frame.active:
-        m.set_frame(width=args.frame.width or 5,
-                    color=args.frame.color or (0, 0, 0, 255),
-                    alt_color=args.frame.alt_color or (255, 255, 255, 255),
-                    style=args.frame.style or 'solid')
-
-    if args.title:
-        placement, border, color, bg_color, text = args.title
-        m.add_title(text,
-                    placement=placement or 'N',
-                    color=color or (0, 0, 0, 255),
-                    background=bg_color,
-                    border_color=color or (0, 0, 0, 255),
-                    border_width=border or 0,
-                    font_name='DejaVuSans',
-                    font_size=16)
-    if args.comment:
-        placement, border, color, bg_color, text = args.comment
-        m.add_comment(text,
-                      placement=placement or 'SSE',
-                      color=color or (0, 0, 0, 255),
-                      background=bg_color,
-                      border_color=color or (0, 0, 0, 255),
-                      border_width=border or 0,
-                      font_name='DejaVuSans',
-                      font_size=10)
-
-    if args.compass:
-        m.add_compass_rose()
-
-    if args.scale:
-        m.add_scale(area='MAP',
-                    placement=args.scale.place or 'SW',
-                    color=args.scale.color or (0, 0, 0, 255),
-                    border_width=args.scale.width or 2,
-                    underlay=args.scale.underlay or 'compact',
-                    label_style=args.scale.label or 'default',
-                    font_size=10,
-                    font_name='DejaVuSans')
-
-    if args.geojson:
-        for x in args.geojson:
-            elem = geojson.read(x)
-            m.add_element(elem)
-
-    return m
-
-
 def _print_reporter(msg, *args):
     print(msg % args)
 
@@ -316,8 +248,8 @@ def _no_reporter(msg, *args):
     pass
 
 
-def _show_info(report, service, map, rc):
-    bbox = map.bbox
+def _show_info(report, mapdef):
+    bbox = mapdef.bbox
     area_w = int(distance(bbox.minlat, bbox.minlon, bbox.maxlat, bbox.minlon))
     area_h = int(distance(bbox.minlat, bbox.minlon, bbox.minlat, bbox.maxlon))
     unit = 'm'
@@ -326,16 +258,11 @@ def _show_info(report, service, map, rc):
         area_h = int(area_h / 100) / 10
         unit = 'km'
 
-    x0, y0, x1, y1 = rc.crop_box
-    w = x1 - x0
-    h = y1 - y0
     report('-------------------------------')
     report('Area:        %s x %s %s', area_w, area_h, unit)
-    report('Zoom Level:  %s', map.zoom)
-    report('Dimensions:  %s x %s px', w, h)
-    report('Tiles:       %s', map.num_tiles)
-    report('Map Style:   %s', service.name)
-    report('URL Pattern: %s', service.url_pattern)
+    report('Dimensions:  %s x %s px', area_w, area_h)
+    report('Zoom Level:  %s', mapdef.zoom)
+    report('Style:       %s', mapdef.style)
     report('-------------------------------')
 
 

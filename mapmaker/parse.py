@@ -9,10 +9,54 @@ from collections import namedtuple
 
 from .geo import BBox
 from .geo import decimal
-from .tilemap import MIN_LAT, MAX_LAT
+from .tilemap import MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
 from .decorations import PLACEMENTS
 from .decorations import Frame
 from .decorations import Scale
+from .mapdef import MapParams
+
+
+class MapParamsAction(argparse.Action):
+    '''Create a MapParams object either from an ini-file
+    or from a BBox definition'''
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) > 2:
+            raise ArgumentError('Maximum number of arguments exceeded')
+
+        p = None
+        if len(values) == 1:
+            # assume path to ini
+            try:
+                with open(values[0]) as f:
+                    p = MapParams.from_file(f)
+            except Exception as err:
+                raise ArgumentError(self, ('could not read map definition from'
+                    ' %r: %s') % (values[0], err))
+        else:
+            # assume bbox coordinates
+            try:
+                p = self._with_bbox(values)
+            except Exception as err:
+                raise ArgumentError(self, ('failed to parse bounding box from'
+                                       ' %r: %s') % (' '.join(values), err))
+
+        setattr(namespace, self.dest, p)
+
+    def _with_bbox(self, values):
+        pos0 = coordinates(values[0])
+        p = MapParams(pos0)
+
+        # simple case, BBox from lat,lon pairs
+        if ',' in values[1]:
+            pos1 = coordinates(values[1])
+            p.pos1 = pos1
+        # bbox from point and radius
+        else:
+            radius = distance(values[1])
+            p.radius = radius
+
+        return p
 
 
 class BBoxAction(argparse.Action):
@@ -67,7 +111,8 @@ def bbox(values):
         bbox = BBox.from_radius(lat0, lon0, value)
 
     # constrain to min/max values of slippy tile map
-    bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT)
+    bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT,
+                            minlon=MIN_LON, maxlon=MAX_LON)
 
     # Validate
     if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:

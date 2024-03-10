@@ -65,7 +65,9 @@ Can be read from an .ini file:
 '''
 import configparser
 from dataclasses import dataclass
+from pathlib import Path
 
+from . import geojson
 from . import parse
 from .core import Map
 from .decorations import Cartouche, Scale, CompassRose
@@ -196,7 +198,7 @@ class MapParams:
     aspect: float = None  # calculated from e.g. 16:9
     margin: tuple[int, int, int, int] = None
     background: tuple[int, int, int, int] = (255, 255, 255, 255)
-    geojson: list[str] = None
+    geojson: list[Path] = None
     title: TextParams = None
     comment: TextParams = None
     frame: FrameParams = None
@@ -225,6 +227,12 @@ class MapParams:
             m.add_decoration('MARGIN', self.title.as_decoration())
         if self.comment:
             m.add_decoration('MARGIN', self.comment.as_decoration())
+
+        if self.geojson:
+            for x in self.geojson:
+                with x.open() as f:
+                    elem = geojson.read(f)
+                    m.add_element(elem)
 
         return m
 
@@ -262,19 +270,31 @@ class MapParams:
         if self.aspect:
             bbox = bbox.with_aspect(self.aspect)
 
-        # in case radius or aspect generated values outside allows range
+        # in case radius or aspect generated values outside allowed range
         bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT,
                                 minlon=MIN_LON, maxlon=MAX_LON)
 
         return bbox
 
     def update(self, other):
-        attrs = ['style', 'zoom', 'aspect', 'margin', 'background']
+        attrs = ['pos0', 'pos1', 'radius', 'style', 'zoom', 'aspect',
+                 'margin', 'background']
         attrs += ['title', 'comment', 'frame', 'compass', 'scale']
         for attr in attrs:
-            v = getattr(other, attr)
+            try:
+                v = getattr(other, attr)
+            except AttributeError:
+                # `other` may be any type, not necessarily MapParams
+                continue
+
             if v is not None:
                 setattr(self, attr, v)
+
+        if other.geojson:
+            if self.geojson is None:
+                self.geojson = []
+            for x in other.geojson:
+                self.geojson.append(Path(x))
 
     @classmethod
     def from_config(cls, cfg):
@@ -304,6 +324,9 @@ class MapParams:
         if 'compass' in cfg.sections():
             compass = CompassParams._from_config(cfg, 'compass')
 
+        # TODO: assume geojson paths relative to .ini
+        # convert to absolute paths here
+
         return cls(style=_parsed(cfg, s, 'style', str),
                    zoom=_parsed(cfg, s, 'zoom', int),
                    pos0=_parsed(cfg, s, 'pos0', parse.coordinates),
@@ -312,7 +335,7 @@ class MapParams:
                    aspect=_parsed(cfg, s, 'aspect', parse.aspect),
                    margin=_parsed(cfg, s, 'margin', parse.margin),
                    background=_parsed(cfg, s, 'background', parse.color),
-                   geojson=_parsed(cfg, s, 'geojson', _list),
+                   geojson=_parsed(cfg, s, 'geojson', _path_list),
                    frame=frame,
                    scale=scale,
                    compass=compass,
@@ -331,6 +354,13 @@ class MapParams:
         cfg.read_file(f)
         return cls.from_config(cfg)
 
+    @classmethod
+    def default(cls):
+        return cls(None,
+                   style='osm',
+                   zoom=8,
+                   aspect=1.0)
+
 
 
 def _parsed(cfg, s, k, parsefunc):
@@ -344,7 +374,7 @@ def _parsed(cfg, s, k, parsefunc):
     return parsefunc(value)
 
 
-def _list(raw):
+def _path_list(raw):
     if raw is None:
         return None
-    return [s.strip() for s in raw.split('\n')]
+    return [Path(s.strip()) for s in raw.split('\n')]
