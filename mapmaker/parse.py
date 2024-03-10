@@ -189,6 +189,10 @@ def margin(raw):
     return margins
 
 
+TextParams = namedtuple('TextParams', ('area placement border_width'
+                                       ' border_color foreground background'
+                                       ' text font_name, font_size'))
+
 class TextAction(argparse.Action):
     '''Parse title or comment arguments.
     Expect three "formal" arguments:
@@ -203,7 +207,7 @@ class TextAction(argparse.Action):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
-            raise ValueError("nargs must None")
+            raise ValueError("nargs must be None")
 
         super().__init__(option_strings, dest, nargs='+', **kwargs)
 
@@ -259,7 +263,15 @@ class TextAction(argparse.Action):
             msg = 'missing title string in %r' % ' '.join(values)
             raise ArgumentError(self, msg)
 
-        params = (placement, border, foreground, background, text)
+        params = TextParams(area='MARGIN',
+                            placement=placement,
+                            border_width=border,
+                            foreground=foreground,
+                            border_color=foreground,
+                            background=background,
+                            text=text,
+                            font_name=None,
+                            font_size=None)
         setattr(namespace, self.dest, params)
 
 
@@ -352,7 +364,7 @@ class FrameAction(argparse.Action):
             style=style))
 
 
-ScaleParams = namedtuple('ScaleParams', 'place width color label underlay')
+ScaleParams = namedtuple('ScaleParams', 'placement width color label underlay')
 
 
 class ScaleAction(argparse.Action):
@@ -438,7 +450,7 @@ class ScaleAction(argparse.Action):
             underlay = d_underlay if underlay is None else underlay
 
         setattr(namespace, self.dest, ScaleParams(
-            place=place,
+            placement=place,
             width=width,
             color=fg_color,
             label=label,

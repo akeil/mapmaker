@@ -78,6 +78,7 @@ from .tilemap import MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
 _BLACK = (0, 0, 0, 255)
 _WHITE = (255, 255, 255, 255)
 _DEFAULT_FONT = 'DejaVuSans'
+_DEFAULT_FONT_SIZE = 10
 
 
 @dataclass
@@ -103,6 +104,24 @@ class TextParams:
                          border_color=self.border_color,
                          font_size=self.font_size,
                          font_name=self.font_name)
+
+    def _update(self, other):
+        attrs = ['text', 'area', 'placement', 'border_width', 'color',
+                 'border_color', 'background', 'font_name', 'font_size']
+        for attr in attrs:
+            v = getattr(other, attr, None)
+            if v is not None:
+                setattr(self, attr, v)
+
+    @classmethod
+    def _default(cls, role=None):
+        placement = {
+            'title': 'N',
+            'comment': 'S'
+        }.get(role, 'N')
+        return cls('', 'MARGIN', placement,
+                   font_name=_DEFAULT_FONT,
+                   font_size=_DEFAULT_FONT_SIZE)
 
     @classmethod
     def _from_config(cls, cfg, section):
@@ -135,6 +154,18 @@ class ScaleParams:
                      label_style=self.label_style,
                      font_size=self.font_size,
                      font_name=self.font_name or _DEFAULT_FONT)
+
+    def _update(self, other):
+        attrs = ['placement', 'color', 'border_width', 'underlay',
+                 'label_style', 'font_size', 'font_name']
+        for attr in attrs:
+            v = getattr(other, attr, None)
+            if v is not None:
+                setattr(self, attr, v)
+
+    @classmethod
+    def _default(cls, role=None):
+        return cls()
 
     @classmethod
     def _from_config(cls, cfg, section):
@@ -224,7 +255,7 @@ class MapParams:
 
         # TODO: make sure to apply default values
         if self.title:
-            m.add_decoration('MARGIN', self.title.as_decoration())
+            m.add_decoration(self.title.area, self.title.as_decoration())
         if self.comment:
             m.add_decoration('MARGIN', self.comment.as_decoration())
 
@@ -279,7 +310,7 @@ class MapParams:
     def update(self, other):
         attrs = ['pos0', 'pos1', 'radius', 'style', 'zoom', 'aspect',
                  'margin', 'background']
-        attrs += ['title', 'comment', 'frame', 'compass', 'scale']
+        attrs += ['frame', 'compass']
         for attr in attrs:
             try:
                 v = getattr(other, attr)
@@ -289,6 +320,21 @@ class MapParams:
 
             if v is not None:
                 setattr(self, attr, v)
+
+        special = [('title', TextParams),
+                   ('comment', TextParams),
+                   ('scale', ScaleParams)]
+        for attr, cls in special:
+            x = getattr(other, attr, None)
+            if x is None:
+                continue
+
+            target = getattr(self, attr)
+            if target is None:
+                target = cls._default(role=attr)
+                setattr(self, attr, target)
+
+            target._update(x)
 
         if other.geojson:
             if self.geojson is None:
