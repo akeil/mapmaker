@@ -7,79 +7,61 @@ import argparse
 from argparse import ArgumentError
 from collections import namedtuple
 
+from .core import Map
+from .decorations import Frame
+from .decorations import PLACEMENTS
+from .decorations import Scale
 from .geo import BBox
 from .geo import decimal
-from .tilemap import MIN_LAT, MAX_LAT
-from .decorations import PLACEMENTS
-from .decorations import Frame
-from .decorations import Scale
+from .mapdef import MapParams
+from .mapdef import FrameParams
+from .mapdef import TitleParams
+from .mapdef import CommentParams
+from .mapdef import ScaleParams
+from .tilemap import MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
 
 
-class BBoxAction(argparse.Action):
-    '''Parse a bounding box (see ``bbox()``).'''
+class MapParamsAction(argparse.Action):
+    '''Create a MapParams object either from an ini-file
+    or from a BBox definition'''
 
     def __call__(self, parser, namespace, values, option_string=None):
-        # expect one of;
-        #
-        # A: two lat/lon pairs
-        #    e.g. 47.437,10.953 47.374,11.133
-        #
-        # B: lat/lon and radius
-        #    e.g. 47.437,10.953 2km
-        try:
-            box = bbox(values)
-            setattr(namespace, self.dest, box)
-        except ValueError as err:
-            raise ArgumentError(self, ('failed to parse bounding box from'
+        if len(values) > 2:
+            raise ArgumentError('Maximum number of arguments exceeded')
+
+        p = None
+        if len(values) == 1:
+            # assume path to ini
+            try:
+                with open(values[0]) as f:
+                    p = MapParams.from_file(f)
+            except Exception as err:
+                raise ArgumentError(self, ('could not read map definition from'
+                    ' %r: %s') % (values[0], err))
+        else:
+            # assume bbox coordinates
+            try:
+                p = self._with_bbox(values)
+            except Exception as err:
+                raise ArgumentError(self, ('failed to parse bounding box from'
                                        ' %r: %s') % (' '.join(values), err))
 
+        setattr(namespace, self.dest, p)
 
-def bbox(values):
-    '''Parse a bounding box from a pair of coordinates or from a single
-    coordinate and a radius.
+    def _with_bbox(self, values):
+        pos0 = coordinates(values[0])
+        p = MapParams(pos0)
 
-    1. two lat lon pairs::
+        # simple case, BBox from lat,lon pairs
+        if ',' in values[1]:
+            pos1 = coordinates(values[1])
+            p.pos1 = pos1
+        # bbox from point and radius
+        else:
+            radius = distance(values[1])
+            p.radius = radius
 
-        ["47.437,10.953", "47.374,11.133"]
-
-    2. single coordinate and radius::
-
-        ["47.437,10.953", "2km"]
-
-    If successful, returns a ``BBox`` object.
-
-    Raises *ValueError* on failure.
-    '''
-    lat0, lon0 = coordinates(values[0])
-
-    # simple case, BBox from lat,lon pairs
-    if ',' in values[1]:
-        lat1, lon1 = coordinates(values[1])
-        bbox = BBox(
-            minlat=min(lat0, lat1),
-            minlon=min(lon0, lon1),
-            maxlat=max(lat0, lat1),
-            maxlon=max(lon0, lon1),
-        )
-    # bbox from point and radius
-    else:
-        value = distance(values[1])
-        bbox = BBox.from_radius(lat0, lon0, value)
-
-    # constrain to min/max values of slippy tile map
-    bbox = bbox.constrained(minlat=MIN_LAT, maxlat=MAX_LAT)
-
-    # Validate
-    if bbox.minlat < MIN_LAT or bbox.minlat > MAX_LAT:
-        raise ValueError
-    if bbox.maxlat < MIN_LAT or bbox.maxlat > MAX_LAT:
-        raise ValueError
-    if bbox.minlon < -180.0 or bbox.minlon > 180.0:
-        raise ValueError
-    if bbox.maxlon < -180.0 or bbox.maxlon > 180.0:
-        raise ValueError
-
-    return bbox
+        return p
 
 
 class MarginAction(argparse.Action):
@@ -144,7 +126,7 @@ def margin(raw):
     return margins
 
 
-class TextAction(argparse.Action):
+class _TextAction(argparse.Action):
     '''Parse title or comment arguments.
     Expect three "formal" arguments:
 
@@ -156,14 +138,15 @@ class TextAction(argparse.Action):
     title string.
     '''
 
+    _factory = None
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
-            raise ValueError("nargs must None")
+            raise ValueError("nargs must be None")
 
         super().__init__(option_strings, dest, nargs='+', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-
         placement, border, foreground, background = None, None, None, None
 
         consumed = 0
@@ -214,11 +197,22 @@ class TextAction(argparse.Action):
             msg = 'missing title string in %r' % ' '.join(values)
             raise ArgumentError(self, msg)
 
-        params = (placement, border, foreground, background, text)
-        setattr(namespace, self.dest, params)
+        p = self._factory.default()
+        p.placement = placement if placement is not None else p.placement
+        p.border_width = border if border is not None else p.border_width
+        p.color = foreground if foreground is not None else p.color
+        p.border_color = foreground if foreground is not None else p.border_color
+        p.background = background if background is not None else p.background
+        p.text = text if text is not None else p.text
+        setattr(namespace, self.dest, p)
 
 
-FrameParams = namedtuple('FrameParams', 'active width color alt_color style')
+class TitleAction(_TextAction):
+    _factory = TitleParams
+
+
+class CommentAction(_TextAction):
+    _factory = CommentParams
 
 
 class FrameAction(argparse.Action):
@@ -291,23 +285,15 @@ class FrameAction(argparse.Action):
             msg = 'unrecognized frame parameters: %r' % ', '.join(unrecognized)
             raise ArgumentError(self, msg)
 
-        # apply defaults
-        if self.default:
-            _, d_width, d_color, d_alt_color, d_style = self.default
-            width = d_width if width is None else width
-            primary = d_color if primary is None else primary
-            alternate = d_alt_color if alternate is None else alternate
-            style = d_style if style is None else style
-
-        setattr(namespace, self.dest, FrameParams(
-            active=True,
-            width=width,
-            color=primary,
-            alt_color=alternate,
-            style=style))
+        p = FrameParams.default()
+        p.width = width if width is not None else p.width
+        p.color = primary if primary is not None else p.color
+        p.alt_color = alternate if alternate is not None else p.alt_color
+        p.style = style if style is not None else p.style
+        setattr(namespace, self.dest, p)
 
 
-ScaleParams = namedtuple('ScaleParams', 'place width color label underlay')
+_ScaleParams = namedtuple('ScaleParams', 'placement width color label underlay')
 
 
 class ScaleAction(argparse.Action):
@@ -383,21 +369,14 @@ class ScaleAction(argparse.Action):
             msg = 'unrecognized scale parameters: %r' % ', '.join(unrecognized)
             raise ArgumentError(self, msg)
 
-        # apply defaults
-        if self.default:
-            d_place, d_width, d_color, d_label, d_underlay = self.default
-            place = d_place if place is None else place
-            width = d_width if width is None else width
-            fg_color = d_color if fg_color is None else fg_color
-            label = d_label if label is None else label
-            underlay = d_underlay if underlay is None else underlay
+        p = ScaleParams.default()
+        p.placement = place if place is not None else p.placement
+        p.border_width = width if width is not None else p.border_width
+        p.color = fg_color if fg_color is not None else p.color
+        p.label_style = label if label is not None else p.label_style
+        p.underlay = underlay if underlay is not None else p.underlay
 
-        setattr(namespace, self.dest, ScaleParams(
-            place=place,
-            width=width,
-            color=fg_color,
-            label=label,
-            underlay=underlay))
+        setattr(namespace, self.dest, p)
 
 
 def coordinates(raw):

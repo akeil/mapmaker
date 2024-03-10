@@ -199,10 +199,12 @@ class Cartouche(Decoration):
         p_top, p_right, p_bottom, p_left = self.padding
 
         # border/decoration
-        draw.rectangle([m_left, m_top, w - m_right - 1, h - m_bottom - 1],
-                       fill=self.background,
-                       outline=self.border_color or self.color,
-                       width=self.border_width)
+        if self.border_width:
+            draw.rectangle([m_left, m_top, w - m_right - 1, h - m_bottom - 1],
+                           fill=self.background,
+                           outline=self.border_color or self.color,
+                           width=self.border_width)
+
         # text
         x = {
             'l': 0 + p_left + m_left,
