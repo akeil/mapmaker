@@ -82,7 +82,7 @@ _DEFAULT_FONT_SIZE = 10
 
 
 @dataclass
-class TextParams:
+class _TextParams:
 
     text: str
     area: str
@@ -114,11 +114,7 @@ class TextParams:
                 setattr(self, attr, v)
 
     @classmethod
-    def _default(cls, role=None):
-        placement = {
-            'title': 'N',
-            'comment': 'S'
-        }.get(role, 'N')
+    def _default(cls, placement='N'):
         return cls('', 'MARGIN', placement,
                    font_name=_DEFAULT_FONT,
                    font_size=_DEFAULT_FONT_SIZE)
@@ -134,6 +130,26 @@ class TextParams:
                    background=_parsed(cfg, section, 'background', parse.color),
                    font_name=cfg.get(section, 'font_name'),
                    font_size=cfg.getint(section, 'font_size'))
+
+
+class TitleParams(_TextParams):
+
+    @classmethod
+    def default(cls):
+        return cls._default(placement='N')
+        return cls('', 'MARGIN', 'N',
+                   font_name=_DEFAULT_FONT,
+                   font_size=_DEFAULT_FONT_SIZE)
+
+
+class CommentParams(_TextParams):
+
+    @classmethod
+    def default(cls):
+        return cls._default(placement='S')
+        return cls('', 'MARGIN', 'S',
+                   font_name=_DEFAULT_FONT,
+                   font_size=_DEFAULT_FONT_SIZE)
 
 
 @dataclass
@@ -164,7 +180,7 @@ class ScaleParams:
                 setattr(self, attr, v)
 
     @classmethod
-    def _default(cls, role=None):
+    def default(cls):
         return cls()
 
     @classmethod
@@ -193,7 +209,7 @@ class FrameParams:
                 setattr(self, attr, v)
 
     @classmethod
-    def _default(cls, role=None):
+    def default(cls):
         return cls()
 
     @classmethod
@@ -241,8 +257,8 @@ class MapParams:
     margin: tuple[int, int, int, int] = None
     background: tuple[int, int, int, int] = (255, 255, 255, 255)
     geojson: list[Path] = None
-    title: TextParams = None
-    comment: TextParams = None
+    title: TitleParams = None
+    comment: CommentParams = None
     frame: FrameParams = None
     scale: ScaleParams = None
     compass: CompassParams = None
@@ -332,21 +348,15 @@ class MapParams:
             if v is not None:
                 setattr(self, attr, v)
 
-        special = [('title', TextParams),
-                   ('comment', TextParams),
-                   ('scale', ScaleParams),
-                   ('frame', FrameParams)]
-        for attr, cls in special:
+        obj = ['title', 'comment', 'frame', 'scale']
+        for attr in obj:
             x = getattr(other, attr, None)
-            if x is None:
-                continue
-
-            target = getattr(self, attr)
-            if target is None:
-                target = cls._default(role=attr)
-                setattr(self, attr, target)
-
-            target._update(x)
+            if x is not None:
+                target = getattr(self, attr, None)
+                if target is None:
+                    setattr(self, attr, x)
+                else:
+                    target.update(x)
 
         if other.geojson:
             if self.geojson is None:
@@ -364,11 +374,11 @@ class MapParams:
 
         title = None
         if 'title' in cfg.sections():
-            title = TextParams._from_config(cfg, 'title')
+            title = TitleParams._from_config(cfg, 'title')
 
         comment = None
         if 'comment' in cfg.sections():
-            comment = TextParams._from_config(cfg, 'comment')
+            comment = CommentParams._from_config(cfg, 'comment')
 
         frame = None
         if 'frame' in cfg.sections():

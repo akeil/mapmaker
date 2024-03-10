@@ -20,10 +20,9 @@ from . import parse
 from .mapdef import MapParams
 from .parse import MapParamsAction
 from .parse import FrameAction
-from .parse import FrameParams
 from .parse import MarginAction
-from .parse import ScaleAction, ScaleParams
-from .parse import TextAction
+from .parse import ScaleAction
+from .parse import TitleAction, CommentAction
 from .service import ServiceRegistry
 from .service import TileService
 from .tilemap import MIN_ZOOM, MAX_ZOOM
@@ -140,14 +139,14 @@ def _setup_parser(registry, defaults):
                         help='Add copyright notice')
 
     parser.add_argument('--title',
-                        action=TextAction,
+                        action=TitleAction,
                         metavar='ARGS',
                         help=('Add a title to the map'
                               ' (optional args: PLACEMENT, COLOR, BORDER'
                               ' followed by title string)'))
 
     parser.add_argument('--comment',
-                        action=TextAction,
+                        action=CommentAction,
                         help='Add a comment to the map')
 
     parser.add_argument('--margin',

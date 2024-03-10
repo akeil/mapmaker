@@ -109,9 +109,9 @@ class Map:
         '''
         try:
             if decoration.placement not in Map._SLOTS[area]:
-                raise ValueError('invalid area/placement %r' % area)
+                raise ValueError('invalid area/placement %r and %r' % (area, decoration.placement))
         except (KeyError, AttributeError):
-            raise ValueError('invalid area/placement %r' % area)
+            raise ValueError('area/placement not defined %r' % area)
 
         self._decorations[area].append(decoration)
 
