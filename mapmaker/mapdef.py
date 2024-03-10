@@ -185,6 +185,17 @@ class FrameParams:
     alt_color: tuple[int, int, int, int] = None
     style: str = 'solid'
 
+    def _update(self, other):
+        attrs = ['width', 'color', 'alt_color', 'style']
+        for attr in attrs:
+            v = getattr(other, attr, None)
+            if v is not None:
+                setattr(self, attr, v)
+
+    @classmethod
+    def _default(cls, role=None):
+        return cls()
+
     @classmethod
     def _from_config(cls, cfg, section):
         return cls(width=cfg.getint(section, 'width'),
@@ -253,11 +264,11 @@ class MapParams:
         if self.compass:
             m.add_decoration('MAP', self.compass.as_decoration())
 
-        # TODO: make sure to apply default values
         if self.title:
             m.add_decoration(self.title.area, self.title.as_decoration())
+
         if self.comment:
-            m.add_decoration('MARGIN', self.comment.as_decoration())
+            m.add_decoration(self.comment.area, self.comment.as_decoration())
 
         if self.geojson:
             for x in self.geojson:
@@ -310,7 +321,7 @@ class MapParams:
     def update(self, other):
         attrs = ['pos0', 'pos1', 'radius', 'style', 'zoom', 'aspect',
                  'margin', 'background']
-        attrs += ['frame', 'compass']
+        attrs += ['compass', ]
         for attr in attrs:
             try:
                 v = getattr(other, attr)
@@ -323,7 +334,8 @@ class MapParams:
 
         special = [('title', TextParams),
                    ('comment', TextParams),
-                   ('scale', ScaleParams)]
+                   ('scale', ScaleParams),
+                   ('frame', FrameParams)]
         for attr, cls in special:
             x = getattr(other, attr, None)
             if x is None:
@@ -405,7 +417,9 @@ class MapParams:
         return cls(None,
                    style='osm',
                    zoom=8,
-                   aspect=1.0)
+                   aspect=1.0,
+                   margin=(0, 0, 0, 0),
+                   background=_WHITE)
 
 
 

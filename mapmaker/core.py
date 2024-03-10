@@ -243,11 +243,11 @@ class Map:
         '''Set the background color for the map (margin area).
         The color is an RGBA tuple.'''
         if len(args) == 1:
-            self.background = args[0]
+            self._background = args[0]
         elif len(args) == 3:
-            self.background = (args[0], args[1], args[2], 255)
+            self._background = (args[0], args[1], args[2], 255)
         elif len(args) == 4:
-            self.background = args
+            self._background = args
         else:
             raise ValueError(('invalid number of arguments,'
                               ' expected 1, 3 or 4 args'))

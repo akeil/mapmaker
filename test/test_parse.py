@@ -190,12 +190,12 @@ class TestTextAction(_ActionTest):
         ['-8', 'My', 'Title'],
     )
     valid = (
-        (['My', 'Title'], (None, None, None, None, 'My Title')),
-        (['NW', 'My', 'Title'], ('NW', None, None, None, 'My Title')),
-        (['8', 'My', 'Title'], (None, 8, None, None, 'My Title')),
-        (['120,120,120', 'My', 'Title'], (None, None, (120, 120, 120, 255), None, 'My Title')),
-        (['120,120,120', '50,50,50,200', 'My', 'Title'], (None, None, (120, 120, 120, 255), (50, 50, 50, 200), 'My Title')),
-        (['120,120,120', '50,50,50,200', 'SW', '12', 'My', 'Title'], ('SW', 12, (120, 120, 120, 255), (50, 50, 50, 200), 'My Title')),
+        (['My', 'Title'], ('MARGIN', None, None, None, None, None, 'My Title', None, None)),
+        (['NW', 'My', 'Title'], ('MARGIN', 'NW', None, None, None, None, 'My Title', None, None)),
+        (['8', 'My', 'Title'], ('MARGIN', None, 8, None, None, None, 'My Title', None, None)),
+        (['120,120,120', 'My', 'Title'], ('MARGIN', None, None, (120, 120, 120, 255), (120, 120, 120, 255), None, 'My Title', None, None)),
+        (['120,120,120', '50,50,50,200', 'My', 'Title'], ('MARGIN', None, None, (120, 120, 120, 255), (120, 120, 120, 255), (50, 50, 50, 200), 'My Title', None, None)),
+        (['120,120,120', '50,50,50,200', 'SW', '12', 'My', 'Title'], ('MARGIN', 'SW', 12, (120, 120, 120, 255), (120, 120, 120, 255), (50, 50, 50, 200), 'My Title', None, None)),
     )
 
 

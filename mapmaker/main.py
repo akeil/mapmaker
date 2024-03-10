@@ -152,21 +152,18 @@ def _setup_parser(registry, defaults):
 
     parser.add_argument('--margin',
                         action=MarginAction,
-                        default=(0, 0, 0, 0),
                         help=('Add a margin (white space) around the map'
                               ' ("TOP RIGHT BOTTOM LEFT" or "ALL")'))
 
     parser.add_argument('--background',
                         type=parse.color,
                         metavar='RGBA',
-                        default=(255, 255, 255, 255),
                         help=('Background color for map margin'
                               ' (default: white)'))
 
     parser.add_argument('--frame',
                         action=FrameAction,
                         metavar='ARGS',
-                        default=FrameParams(active=False, width=4, color=(0, 0, 0), alt_color=(255, 255, 255), style='SOLID'),
                         help=('Draw a frame around the map area'
                               ' (any of: WIDTH, COLOR, ALT_COLOR, STYLE and'
                               ' UNDERLAY)'))
