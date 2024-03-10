@@ -25,6 +25,7 @@ from .parse import ScaleAction, ScaleParams
 from .parse import TextAction
 from .service import ServiceRegistry
 from .service import TileService
+from .tilemap import MIN_ZOOM, MAX_ZOOM
 
 import appdirs
 
@@ -110,16 +111,18 @@ def _setup_parser(registry):
 
     def zoom(raw):
         v = int(raw)
-        if v < 0 or v > 19:
-            raise ValueError('Zoom value must be in interval 0..19')
+        if v < MIN_ZOOM or v > MAX_ZOOM:
+            raise ValueError(('Zoom value must be in interval'
+                              ' %s..%s') % (MIN_ZOOM, MAX_ZOOM))
         return v
 
     default_zoom = 8
     parser.add_argument('-z', '--zoom',
                         default=default_zoom,
                         type=zoom,
-                        help=('Zoom level (0..19), higher means more detailed'
-                              ' (default: %s).') % default_zoom)
+                        help=('Zoom level (%s..%s), higher means more detailed'
+                              ' (default: %s).') % (MIN_ZOOM, MAX_ZOOM,
+                                                    default_zoom))
 
     default_style = 'osm'
     parser.add_argument('-s', '--style',
