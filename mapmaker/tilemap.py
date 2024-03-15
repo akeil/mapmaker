@@ -33,6 +33,12 @@ class TileMap:
     '''
 
     def __init__(self, ax, ay, bx, by, zoom, bbox):
+        if ax < 0 or ay < 0 or bx < 0 or by < 0:
+            raise ValueError(('Tile numbers must be >0,'
+                              ' got %s,%s,%s,%s') % (ax, ay, bx, by))
+        if zoom < 0:
+            raise ValueError('Zoom level must be >0, got %s' % zoom)
+
         self.ax = min(ax, bx)
         self.ay = min(ay, by)
         self.bx = max(ax, bx)

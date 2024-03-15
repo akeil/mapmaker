@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from mapmaker.geo import BBox
 from mapmaker.tilemap import Tile
 from mapmaker.tilemap import TileMap
 from mapmaker.tilemap import tile_number
@@ -138,6 +139,18 @@ class TestTile(TestCase):
 class TestTileMap(TestCase):
     '''Tests for the ``TileMap`` class.'''
 
+    def assertValid(self, tilemap):
+        self.assertGreaterEqual(tilemap.num_tiles, 0)
+        self.assertGreaterEqual(tilemap.bx, tilemap.ax)
+        self.assertGreaterEqual(tilemap.by, tilemap.ay)
+        self.assertGreaterEqual(tilemap.zoom, 0)
+
+        for tile in tilemap.tiles.values():
+            self.assertGreaterEqual(tile.x, tilemap.ax)
+            self.assertLessEqual(tile.x, tilemap.bx)
+            self.assertGreaterEqual(tile.y, tilemap.ay)
+            self.assertLessEqual(tile.y, tilemap.by)
+
     def test_equal(self):
         tm0 = TileMap(0, 0, 10, 10, 5, None)
         tm1 = TileMap(0, 0, 10, 10, 5, None)
@@ -152,10 +165,37 @@ class TestTileMap(TestCase):
         self.assertNotEqual(tm0, None)
         self.assertNotEqual(tm0, 'xyz')
 
-    # __init__
-    # should validate xy tile numbers against MIN/MAX for zoom
-    # should validate Zoom aginst MIN/MAX
-    # also: integers only
+    def test_validate_on_init(self):
+        self.assertRaises(ValueError, TileMap, -1, 1, 1, 1, 5, None)
+        self.assertRaises(ValueError, TileMap, 1, -1, 1, 1, 5, None)
+        self.assertRaises(ValueError, TileMap, 1, 1, -1, 1, 5, None)
+        self.assertRaises(ValueError, TileMap, 1, 1, 1, -1, 5, None)
+
+        self.assertRaises(ValueError, TileMap, 1, 1, 1, 1, -1, None)
+
+        # valid min values
+        self.assertValid(TileMap(0, 0, 0, 0, 0, None))
+
+        # should validate xy tile numbers against MIN/MAX for zoom
+        # also: integers only
+
+    def test_validate_from_bbox(self):
+        # special MIN/MAX for latitude
+        min_lat = BBox(minlat=MIN_LAT - 1, minlon=10, maxlat=10, maxlon=10)
+        self.assertRaises(ValueError, TileMap.from_bbox, min_lat, 5)
+        max_lat = BBox(minlat=10, minlon=10, maxlat=MAX_LAT + 1, maxlon=10)
+        self.assertRaises(ValueError, TileMap.from_bbox, max_lat, 5)
+
+        # invalid zoom
+        valid_box = BBox(minlat=10, minlon=10, maxlat=10, maxlon=10)
+        self.assertRaises(ValueError, TileMap.from_bbox, valid_box, -5)
+
+    # from_bbox should work with any valid BBox and zoom level
+    # (note: different min/max for lat)
+    # should always produce a tile map with at least 1 tile
+    # all generated tiles must have valid x,y coords
+    # numbers ax < by, ay < by
+
 
     def test_auto_sort_xy(self):
         '''Assert that the sequence of arguments for min/max tile numbers
