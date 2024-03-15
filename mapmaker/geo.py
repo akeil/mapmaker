@@ -54,6 +54,8 @@ class BBox:
         #  2:3  =>  0.66  width < height, aspect is < 1.0
         if aspect == 1.0:
             return self
+        elif aspect <= 0.0:
+            raise ValueError('aspect must be >0.0, got %s' % aspect)
 
         lat = self.minlat
         lon = self.minlon
@@ -92,7 +94,7 @@ class BBox:
             return self
 
         if pad < 0:
-            raise ValueError('Pad must be a positive value, got %s' % pad)
+            raise ValueError('pad must be a positive value, got %s' % pad)
 
         north = self.maxlat
         west = self.minlon
@@ -142,6 +144,9 @@ class BBox:
     @classmethod
     def from_radius(cls, lat, lon, radius):
         '''Create a bounding box from a center point an a radius.'''
+        if radius <= 0:
+            raise ValueError('radius must be >0, got %s' % radius)
+
         lat_n, lon_n = destination_point(lat, lon, BRG_NORTH, radius)
         lat_e, lon_e = destination_point(lat, lon, BRG_EAST, radius)
         lat_s, lon_s = destination_point(lat, lon, BRG_SOUTH, radius)
