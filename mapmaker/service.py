@@ -155,14 +155,25 @@ class TileService:
     def memory_cache(self, size=100):
         '''Wrap this cache into a *MemoryCache*.
 
-        Note that if you also want a file system cahce (recommended), then
+        Note that if you also want a file system cache (recommended), then
         wrap the service in an FS-cache first, then with a memory cache.
+
+        .. code:: python
+
+            service = Service().cached().memory_cache()
         '''
         return MemoryCache(self, size=size)
 
     def with_fallback(self):
         '''Use lower resolution tiles as fallback if the requested zoom level
         is not available.
+
+        If you are also using a cache, set up the cache(s) first and then the
+        fallback wrapper:
+
+        .. code:: python
+
+            service = Service().cached().with_fallback()
         '''
         return Fallback(self)
 
@@ -281,6 +292,12 @@ class Cache:
     the ETAG. Since it is unlikely that tiles change frequently *and* it is
     (assumed) likely that the same tiles are requested multiple times within
     a short timespan, this saves the additional request.
+
+    When the cache ``limit`` (in bytes) is set to a value above *0*, the cache
+    is trimmed to that size (more or less).
+    If multiple instances use the same cache directory with different limits,
+    the cache will eventually be trimmed to the lowest limit.
+    However, this will only happen when a new entry is written to the cache.
     '''
 
     def __init__(self, service, basedir=None, limit=None, min_hours=24):
