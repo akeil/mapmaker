@@ -329,6 +329,11 @@ class Cache:
         from the backing service.
         On a successful service call, put the result into the cache.
 
+        When ``etag`` is given, then a request against the service is always
+        made, using the etag.
+        If no etag is given, a request can still be made if we have a cached
+        entry beyond its max age.
+
         When ``cached_only`` is *True*, the cache entry is only returned
         if it can be done so without checking the ETAG against the server.
         That is, if the cache entry is younger than ``min_hours``.
@@ -336,6 +341,8 @@ class Cache:
         # etag is likely to be None
         if etag is None:
             etag, mtime = self._find(x, y, z)
+        else:
+            mtime = None
 
         # If the cached entry is not "too old", return it without checking
         # the ETAG.
@@ -344,6 +351,7 @@ class Cache:
             now = datetime.now(timezone.utc)
             age = now - modified
             if age < self._min_age:
+                # TODO: possible race-condition between _find() ... _get()
                 cached = self._get(x, y, z, etag)
                 return etag, cached
 
@@ -392,7 +400,7 @@ class Cache:
                     if entry.is_file():
                         try:
                             safe_etag = entry.name.split('.')[1]
-                            etag_bytes = base64.b64decode(safe_etag)
+                            etag_bytes = base64.urlsafe_b64decode(safe_etag)
                             etag = etag_bytes.decode('ascii')
 
                             stat = entry.stat()
@@ -434,7 +442,7 @@ class Cache:
             p.unlink(missing_ok=True)
 
     def _path(self, x, y, z, etag):
-        safe_etag = base64.b64encode(etag.encode()).decode('ascii')
+        safe_etag = base64.urlsafe_b64encode(etag.encode()).decode('ascii')
         filename = '%06d.%s.png' % (y, safe_etag)
 
         return self._base.joinpath(
