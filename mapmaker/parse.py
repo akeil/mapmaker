@@ -21,7 +21,7 @@ class MapParamsAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) > 2:
-            raise ArgumentError('Maximum number of arguments exceeded')
+            raise ArgumentError(self, 'Maximum number of arguments exceeded')
 
         p = None
         if len(values) == 1:

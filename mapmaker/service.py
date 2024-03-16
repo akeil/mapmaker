@@ -80,8 +80,10 @@ class ServiceRegistry:
         '''
         cfg = configparser.ConfigParser()
         # built-in defaults
-        cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker',
-                                                    'default.ini')))
+        with resource_stream('mapmaker', 'default.ini') as res:
+            with io.TextIOWrapper(res) as f:
+                cfg.read_file(f)
+
         # user settings
         cfg.read([path, ])
         return cls.from_config(cfg)

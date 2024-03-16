@@ -42,35 +42,49 @@ def main():
     conf_file = Path(conf_dir).joinpath('config.ini')
     conf = read_config(conf_file)
     registry = ServiceRegistry.default()
-    defaults = MapParams.default()
-    parser = _setup_parser(registry, defaults)
-    args = parser.parse_args()
+
+    args, params = parse_args(registry, sys.argv[1:])
 
     reporter = _no_reporter if args.silent else _print_reporter
+
 
     reporter('Using configuration from %r', str(conf_file))
 
     try:
+        params.validate()
+
         if args.gallery:
             base = Path(args.dst)
             base.mkdir(exist_ok=True)
             for style in registry.list():
                 args.dst = base.joinpath(style + '.png')
                 try:
-                    _run(reporter, registry, conf, defaults,
+                    _run(reporter, registry, conf, params,
                          args, dry_run=args.dry_run)
                 except Exception as err:
                     # on error, continue with next service
                     reporter('ERROR for %r: %s', style, err)
         else:
             _run(reporter, registry, conf,
-                 defaults, args, dry_run=args.dry_run)
+                 params, args, dry_run=args.dry_run)
     except Exception as err:
         reporter('ERROR: %s', err)
         raise
         return 1
 
     return 0
+
+
+def parse_args(registry, argv):
+    defaults = MapParams.default()
+    parser = _setup_parser(registry, defaults)
+    args = parser.parse_args(argv)
+
+    params = defaults
+    params.update(args.mapdef)
+    params.update(args)
+
+    return args, params
 
 
 def _setup_parser(registry, defaults):
@@ -201,12 +215,9 @@ def _setup_parser(registry, defaults):
     return parser
 
 
-def _run(report, registry, conf, defaults, args, dry_run=False):
+def _run(report, registry, conf, params, args, dry_run=False):
     '''Build the tilemap, download tiles and create the image.'''
-    p = defaults
-    p.update(args.mapdef)
-    p.update(args)
-
+    p = params
     m = p.create_map()
 
     if dry_run:

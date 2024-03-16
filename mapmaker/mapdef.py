@@ -138,9 +138,6 @@ class TitleParams(_TextParams):
     @classmethod
     def default(cls):
         return cls._default(placement='N')
-        return cls('', 'MARGIN', 'N',
-                   font_name=_DEFAULT_FONT,
-                   font_size=_DEFAULT_FONT_SIZE)
 
 
 class CommentParams(_TextParams):
@@ -148,9 +145,6 @@ class CommentParams(_TextParams):
     @classmethod
     def default(cls):
         return cls._default(placement='S')
-        return cls('', 'MARGIN', 'S',
-                   font_name=_DEFAULT_FONT,
-                   font_size=_DEFAULT_FONT_SIZE)
 
 
 @dataclass
@@ -161,7 +155,7 @@ class ScaleParams:
     underlay: str = 'compact'
     label_style: str = 'default'
     font_size: int = 10
-    font_name: str = None
+    font_name: str = _DEFAULT_FONT
 
     def as_decoration(self):
         return Scale(placement=self.placement,
@@ -170,7 +164,7 @@ class ScaleParams:
                      underlay=self.underlay,
                      label_style=self.label_style,
                      font_size=self.font_size,
-                     font_name=self.font_name or _DEFAULT_FONT)
+                     font_name=self.font_name)
 
     def _update(self, other):
         attrs = ['placement', 'color', 'border_width', 'underlay',
@@ -314,8 +308,8 @@ class MapParams:
                 raise ValueError(('zoom %s must be in interval'
                                   ' %s..%s') % (self.zoom, MIN_ZOOM, MAX_ZOOM))
 
-        # TODO implement
         # check bbox in valid range
+        _ = self.bbox  # side-effect: constructing BBox validates coordinates
 
     @property
     def bbox(self):
