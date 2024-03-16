@@ -72,19 +72,19 @@ Higher values mean more detail and result in larger map images.
 
 .. code:: shell-session
 
-    $ mapmaker --zoom 12 63.0695,-151.0074 100km
+    $ mapmaker 63.0695,-151.0074 100km --zoom 12
 
 Use ``--style`` to control the **look** of the map:
 
 .. code:: shell-session
 
-    $ mapmaker --style human 63.0695,-151.0074 100km
+    $ mapmaker 63.0695,-151.0074 100km --style human
 
 To control the resulting image format, use ``--aspect``:
 
 .. code:: shell-session
 
-    $ mapmaker --aspect 16:9 45.83,6.88 100km
+    $ mapmaker 45.83,6.88 100km --aspect 16:9
 
 The aspect ratio is given in the format ``W:H`` (e.g. 4:3 or 19:9).
 The resulting map image will contain the given bounding box (or point w/ radius)
@@ -104,23 +104,24 @@ large enough to accommodate the title.
 :COLOR:       RGB(A) tuple as a comma separated string, e.g. "255,0,0".
 :BACKGROUND:  RGB(A) tuple as a comma separated string, e.g. "255,0,0".
 
+Colors can also be specified as hex values, e.g. ``#ff0000``
+or ``#ff000080`` (with opacity).
+
 .. code:: shell-session
 
-    $ mapmaker --title My Map -- 45.83,6.88 100km
-    $ mapmaker --title NNW My Map -- 45.83,6.88 100km
-    $ mapmaker --title NNW 5 My Map -- 45.83,6.88 100km
-    $ mapmaker --title NNW 5 255,0,0 My Map -- 45.83,6.88 100km
-    $ mapmaker --title NNW 5 255,0,0 0,0,255 My Map -- 45.83,6.88 100km
-
-*Note the ``--`` to indicate the end of non-positional arguments.*
+    $ mapmaker 45.83,6.88 100km --title My Map
+    $ mapmaker 45.83,6.88 100km --title NNW My Map
+    $ mapmaker 45.83,6.88 100km --title NNW 5 My Map
+    $ mapmaker 45.83,6.88 100km --title NNW 5 255,0,0 My Map
+    $ mapmaker 45.83,6.88 100km --title NNW 5 255,0,0 0,0,255 My Map
 
 Use ``--comment`` to add a comment in small print. Arguments are the same
 as for ``--title``:
 
 .. code:: shell-session
 
-    $ mapmaker --comment My Comment 45.83,6.88 100km
-    $ mapmaker --comment SE 200,200,200 My Comment 45.83,6.88 100km
+    $ mapmaker 45.83,6.88 100km --comment My Comment
+    $ mapmaker 45.83,6.88 100km --comment SE 200,200,200 My Comment
 
 Use ``--margin`` and ``--background`` to apply a border around the map.
 Note that some decoration arguments will automatically add a margin area.
@@ -131,16 +132,17 @@ or as four separate values for top, right, bottom, left (clockwise).
 
 .. code:: shell-session
 
-    $ mapmaker --margin 50 45.83,6.88 100km
-    $ mapmaker --margin 20 40 45.83,6.88 100km
-    $ mapmaker --margin 10 15 20 15 45.83,6.88 100km
+    $ mapmaker 45.83,6.88 100km --margin 50
+    $ mapmaker 45.83,6.88 100km --margin 20 40
+    $ mapmaker 45.83,6.88 100km --margin 10 15 20 15
 
+The color of the margin area can be controlled with ``--background``.
 ``background`` is given as a comma separated RGB(A) value:
 
 .. code:: shell-session
 
-    $ mapmaker --background 200,200,200 45.83,6.88 100km
-    $ mapmaker --background 200,200,200,128 45.83,6.88 100km
+    $ mapmaker 45.83,6.88 100km --margin 10 --background 200,200,200
+    $ mapmaker 45.83,6.88 100km --margin 10 --background 200,200,200,128
 
 The ``--frame`` argument adds a border around the map content, that is between
 the map and the (optional) margin area.
@@ -162,11 +164,11 @@ Examples:
 
 .. code:: shell-session
 
-    $ mapmaker --frame 45.83,6.88 100km
-    $ mapmaker --frame 12 45.83,6.88 100km
-    $ mapmaker --frame 12 255,0,0 45.83,6.88 100km
-    $ mapmaker --frame 12 255,0,0 0,0,255 coordinates 45.83,6.88 100km
-    $ mapmaker --frame coordinates 45.83,6.88 100km
+    $ mapmaker 45.83,6.88 100km --frame
+    $ mapmaker 45.83,6.88 100km --frame 12
+    $ mapmaker 45.83,6.88 100km --frame 12 255,0,0
+    $ mapmaker 45.83,6.88 100km --frame 12 255,0,0 0,0,255 coordinates
+    $ mapmaker 45.83,6.88 100km --frame coordinates
 
 Use ``--scale`` to show a scale bar on the map.
 Optional arguments for scale are:
@@ -185,13 +187,13 @@ Examples:
 
 .. code:: shell-session
 
-    $ mapmaker --scale -- 45.83,6.88 100km
-    $ mapmaker --scale SE -- 45.83,6.88 100km
-    $ mapmaker --scale 1 -- 45.83,6.88 100km
-    $ mapmaker --scale 120,120,120 -- 45.83,6.88 100km
-    $ mapmaker --scale nolabel -- 45.83,6.88 100km
-    $ mapmaker --scale full -- 45.83,6.88 100km
-    $ mapmaker --scale SE 1 120,120,120 nolabel full -- 45.83,6.88 100km
+    $ mapmaker 45.83,6.88 100km --scale
+    $ mapmaker 45.83,6.88 100km --scale SE
+    $ mapmaker 45.83,6.88 100km --scale 1
+    $ mapmaker 45.83,6.88 100km --scale 120,120,120
+    $ mapmaker 45.83,6.88 100km --scale nolabel
+    $ mapmaker 45.83,6.88 100km --scale full
+    $ mapmaker 45.83,6.88 100km --scale SE 1 120,120,120 nolabel full
 
 
 GeoJSON
