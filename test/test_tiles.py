@@ -66,7 +66,6 @@ class TestTiles(TestCase):
         self.assertRaises(ValueError, tile_number, 86, 123, 0)
 
     def test_bounds(self):
-        # this fails when 180° is included - why?
         for lat in range(-85, 86, 1):
             for lon in range(-180, 180, 1):
                 for zoom in range(20):
