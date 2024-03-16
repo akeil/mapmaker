@@ -143,7 +143,7 @@ class BBox:
 
     @classmethod
     def from_radius(cls, lat, lon, radius):
-        '''Create a bounding box from a center point an a radius.'''
+        '''Create a bounding box from a center point and a radius.'''
         if radius <= 0:
             raise ValueError('radius must be >0, got %s' % radius)
 
@@ -168,6 +168,9 @@ def distance(lat0, lon0, lat1, lon1):
         P0 ------------> P1
 
     '''
+    if lat0 == lat1 and lon0 == lon1:
+        return 0
+
     lat0 = radians(lat0)
     lon0 = radians(lon0)
     lat1 = radians(lat1)
@@ -189,9 +192,20 @@ def destination_point(lat, lon, bearing, distance):
     '''Determine a destination point from a start location, a bearing
     and a distance.
 
-    Distance is given in METERS.
-    Bearing is given in DEGREES
+    Distance is given in METERS and must be non-negative.
+    Bearing is given in DEGREES and is in range 0...360
     '''
+    if distance == 0:
+        return lat, lon
+
+    if bearing == 360:
+        bearing = 0
+
+    if distance < 0:
+        raise ValueError('distance must be >0, got %s', distance)
+    if bearing < 0 or bearing > 360:
+        raise ValueError('bearing must be in range 0..360,got %s', bearing)
+
     # http://www.movable-type.co.uk/scripts/latlong.html
     # search for destinationPoint
     d = distance / EARTH_RADIUS  # angular distance

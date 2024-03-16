@@ -1,6 +1,8 @@
 from unittest import TestCase
 
 from mapmaker.geo import BBox
+from mapmaker.geo import BRG_NORTH, BRG_EAST, BRG_SOUTH, BRG_WEST
+from mapmaker.geo import destination_point
 from mapmaker.geo import distance
 from mapmaker.geo import dms, decimal
 
@@ -130,6 +132,107 @@ class TestDistance(TestCase):
         lon = 10.0
         self.assertEqual(distance(lat, lon, lat, lon), 0)
 
-        # distance() can be calculated for any two valid points
-        # its always >= 0
+    def test_distance_basic(self):
+        # distance() can be calculated for any two points
         # when points are not identical, it is always > 0
+        lat0 = 10.0
+        lon0 = 10.0
+        lat1 = 11.0
+        lon1 = 11.0
+        self.assertGreater(distance(lat0, lon0, lat1, lon1), 0)
+
+
+class TestDestinationPoint(TestCase):
+
+    def assertValidCoordinates(self, lat, lon):
+        self.assertGreater(lat, -90)
+        self.assertLess(lat, 90)
+        self.assertGreater(lon, -180)
+        self.assertLess(lon, 180)
+
+    def assertDifferentPoints(self, lat0, lon0, lat1, lon1):
+        d_lat = abs(lat0 - lat1)
+        d_lon = abs(lon0 - lon1)
+
+        if (d_lat + d_lon) == 0:
+            self.fail(('expected points to be different:'
+                       ' (%s, %s) and (%s, %s)') % (lat0, lon0, lat1, lon1))
+
+    def test_validate_distance(self):
+        self.assertRaises(ValueError, destination_point, 10.0, 10.0, 90, -1)
+
+    def test_validate_bearing(self):
+        self.assertRaises(ValueError, destination_point, 10.0, 10.0, -1, 50)
+        self.assertRaises(ValueError, destination_point, 10.0, 10.0, 361, 50)
+
+    def test_distance_zero_is_same_point(self):
+        lat0, lon0 = 10.0, 20.0
+        # should hold true for any bearing
+        lat1, lon1 = destination_point(lat0, lon0, 90, 0)
+        self.assertEqual(lat0, lat1)
+        self.assertEqual(lon0, lon1)
+
+    def test_axis_longitude(self):
+        # lat (lon) does not change for certain bearings
+        lat0, lon0 = 10.0, 20.0
+        for brg in (BRG_NORTH, BRG_SOUTH):
+            lat1, lon1 = destination_point(lat0, lon0, brg, 1000)
+            self.assertAlmostEqual(lon0, lon1, places=5)
+            self.assertNotAlmostEqual(lat0, lat1, places=5)
+
+    def test_axis_latitude(self):
+        # lat (lon) does not change for certain bearings
+        lat0, lon0 = 10.0, 20.0
+        for brg in (BRG_EAST, BRG_WEST):
+            lat1, lon1 = destination_point(lat0, lon0, brg, 1000)
+            self.assertAlmostEqual(lat0, lat1, places=5)
+            self.assertNotAlmostEqual(lon0, lon1, places=5)
+
+    # fails, not sure if it should
+    def test_wrap_east(self):
+        '''Make sure that we do not produce coordinates that are out of the
+        valid range for lat/lon.'''
+        lat, lon = destination_point(0, 180, BRG_EAST, 100_000)
+        self.assertValidCoordinates(lat, lon)
+
+    def test_wrap_west(self):
+        '''Make sure that we do not produce coordinates that are out of the
+        valid range for lat/lon.'''
+        lat, lon = destination_point(0, -180, BRG_WEST, 100_000)
+        self.assertValidCoordinates(lat, lon)
+
+    def test_wrap_north(self):
+        '''Make sure that we do not produce coordinates that are out of the
+        valid range for lat/lon.'''
+        lat, lon = destination_point(90, 0, BRG_NORTH, 100_000)
+        self.assertValidCoordinates(lat, lon)
+
+    def test_wrap_south(self):
+        '''Make sure that we do not produce coordinates that are out of the
+        valid range for lat/lon.'''
+        lat, lon = destination_point(-90, 0, BRG_SOUTH, 100_000)
+        self.assertValidCoordinates(lat, lon)
+
+    def test_distance_vs_destination(self):
+        '''If we determine a ``destination_point)=`` that in a given DISTANCE,
+        then the calculated ``disctance()`` to that point should be the same.
+        '''
+        # should hold true for any valid destination params
+        lat0, lon0 = 10.0, 20.0
+        d0 = 1_000
+        brg = 60
+        lat1, lon1 = destination_point(lat0, lon0, brg, d0)
+        d1 = distance(lat0, lon0, lat1, lon1)
+
+        self.assertAlmostEqual(d0, d1)
+
+    def test_destination_basics(self):
+        # should hold true for any valid destination params
+        # with distance >0
+        lat0, lon0 = 10.0, 20.0
+        d0 = 1_000
+        brg = 60
+        lat1, lon1 = destination_point(lat0, lon0, brg, d0)
+
+        self.assertValidCoordinates(lat1, lon1)
+        self.assertDifferentPoints(lat0, lon0, lat1, lon1)
