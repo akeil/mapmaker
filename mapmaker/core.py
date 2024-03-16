@@ -97,7 +97,7 @@ class Map:
 
         Drawable elements are considered part of the map contents. Their
         position is defined by lat/lon coordinates and they are drawn over the
-        map image but blow decorations.
+        map image but below decorations.
         '''
         self.elements.append(element)
 
