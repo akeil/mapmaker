@@ -278,7 +278,7 @@ def read_config(path):
     cfg = configparser.ConfigParser()
 
     # built-in defaults
-    cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker', 'default.ini')))
+    cfg.read_file(io.TextIOWrapper(resource_stream('mapmaker', 'default.ini')))
 
     # user settings
     cfg.read([path, ])

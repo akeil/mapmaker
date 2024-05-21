@@ -4,3 +4,5 @@ requests
 geojson
 # icons
 cairosvg
+# pkg_resources
+setuptools
