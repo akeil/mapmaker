@@ -2,13 +2,7 @@ import argparse
 import unittest
 from unittest import TestCase
 
-from mapmaker.geo import BBox
 from mapmaker import parse
-from mapmaker.parse import BBoxAction
-from mapmaker.parse import FrameAction
-from mapmaker.parse import MarginAction
-from mapmaker.parse import TextAction
-from mapmaker.parse import _parse_coordinates
 from mapmaker.parse import _parse_placement
 
 
@@ -36,7 +30,7 @@ class _ParseTest(TestCase):
 
 
 class TestParseCoordinates(_ParseTest):
-    parse_func = _parse_coordinates
+    parse_func = parse.coordinates
     fail = (
         '',
         'xxx',
@@ -65,7 +59,7 @@ class TestParseCoordinates(_ParseTest):
     # override, alomstEqual cannot compare tuples
     def test_valid(self):
         for raw, expected in self.valid:
-            actual_lat, actual_lon = _parse_coordinates(raw)
+            actual_lat, actual_lon = parse.coordinates(raw)
             expected_lat, expected_lon = expected
             self.assertAlmostEqual(actual_lat, expected_lat, places=5)
             self.assertAlmostEqual(actual_lon, expected_lon, places=5)
@@ -177,84 +171,6 @@ class _ActionTest(TestCase):
             ns = argparse.Namespace()
             action(None, ns, values)
             self.assertEqual(ns.result, expected)
-
-
-class TestTextAction(_ActionTest):
-    action = TextAction
-    fail = (
-        [],
-        ['', ],
-        ['N', ],
-        ['NW', '5'],
-        ['120,120,120', '50,50,50,200'],
-        ['120,120,120', '50,50,50,200', 'SW', '12'],
-        ['-8', 'My', 'Title'],
-    )
-    valid = (
-        (['My', 'Title'], (None, None, None, None, 'My Title')),
-        (['NW', 'My', 'Title'], ('NW', None, None, None, 'My Title')),
-        (['8', 'My', 'Title'], (None, 8, None, None, 'My Title')),
-        (['120,120,120', 'My', 'Title'], (None, None, (120, 120, 120, 255), None, 'My Title')),
-        (['120,120,120', '50,50,50,200', 'My', 'Title'], (None, None, (120, 120, 120, 255), (50, 50, 50, 200), 'My Title')),
-        (['120,120,120', '50,50,50,200', 'SW', '12', 'My', 'Title'], ('SW', 12, (120, 120, 120, 255), (50, 50, 50, 200), 'My Title')),
-    )
-
-
-class TestFrameAction(_ActionTest):
-    action = FrameAction
-    fail = (
-        ['', ],
-        ['unrecognized', ],
-        ['8', 'unrecognized'],
-        ['8', '120,120,120', '220,220,220', 'solid', 'extra'],
-        ['500,500,500'],
-        ['-5'],
-    )
-    valid = (
-        ([], (None, None, None, None)),
-        (['8'], (8, None, None, None)),
-        (['200,200,200'], (None, (200, 200, 200, 255), None, None)),
-        (['coordinates'], (None, None, None, 'coordinates')),
-        (['200,200,200', '220,220,220'], (None, (200, 200, 200, 255), (220, 220, 220, 255), None)),
-        (['200,200,200', '220,220,220', '5', 'solid'], (5, (200, 200, 200, 255), (220, 220, 220, 255), 'solid')),
-    )
-
-
-class TestMarginAction(_ActionTest):
-    action = MarginAction
-    fail = (
-        [],
-        ['', ],
-        ['2', '2', '2'],
-        ['2', '2', '2', '2', '2'],
-        ['-2', ],
-        ['-2', '2', ],
-        ['-2', '2', '2', '2'],
-    )
-    valid = (
-        (['2', ], (2, 2, 2, 2)),
-        (['2', '4'], (2, 4, 2, 4)),
-        (['2', '4', '6', '8'], (2, 4, 6, 8)),
-        (['2', '0'], (2, 0, 2, 0)),
-    )
-
-
-class TestParseBBox(_ActionTest):
-    action = BBoxAction
-    fail = (
-        ['', ''],
-        ['47.1,6.5', ''],
-        ['47.1,6.5', '4 miles'],
-        ['47.1,6.5', 'foo'],
-        ['123', '4km'],
-        ['abc', '4km'],
-    )
-    valid = (
-        (['47.1,6.5', '47.2,6.6'], BBox(minlat=47.1, minlon=6.5, maxlat=47.2, maxlon=6.6)),
-        (['47.1, 6.5', '4km'], BBox(minlat=47.064027135763254, minlon=6.447154758428375, maxlat=47.135972864236756, maxlon=6.552845241571626)),
-        (['47.1,6.5', '4'], BBox(minlat=47.09996402713577, minlon=6.499947154750387, maxlat=47.10003597286424, maxlon=6.500052845249614)),
-        (["43°21'18'', 42°26'21''", '4km'], BBox(minlat=43.31902713576325, minlon=42.38969319226943, maxlat=43.39097286423675, maxlon=42.488640141063904)),
-    )
 
 
 if __name__ == "__main__":

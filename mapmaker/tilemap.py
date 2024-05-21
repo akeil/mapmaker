@@ -13,7 +13,6 @@ from math import sinh
 from math import tan
 
 from .geo import BBox
-from .geo import mercator_to_lat
 
 
 # supported lat/lon bounds for slippy map
@@ -34,11 +33,18 @@ class TileMap:
     '''
 
     def __init__(self, ax, ay, bx, by, zoom, bbox):
+        if ax < 0 or ay < 0 or bx < 0 or by < 0:
+            raise ValueError(('Tile numbers must be >0,'
+                              ' got %s,%s,%s,%s') % (ax, ay, bx, by))
+        if zoom < 0:
+            raise ValueError('Zoom level must be >0, got %s' % zoom)
+
         self.ax = min(ax, bx)
         self.ay = min(ay, by)
         self.bx = max(ax, bx)
         self.by = max(ay, by)
         self.zoom = zoom
+        # TODO: why is bbox a member attribute? This class doesn't need it.
         self.bbox = bbox
         self.tiles = None
         self._generate_tiles()
@@ -87,6 +93,16 @@ class TileMap:
         sinlat = sin(lat * PI / 180.0)
         pixel_y = (0.5 - log((1 + sinlat) / (1 - sinlat)) / (4 * PI)) * globe
         return pixel_x, pixel_y
+
+    def __eq__(self, other):
+        if not isinstance(other, TileMap):
+            return False
+
+        return (self.ax == other.ax
+                and self.ay == other.ay
+                and self.bx == other.bx
+                and self.by == other.by
+                and self.zoom == other.zoom)
 
     def __repr__(self):
         return '<TileMap a=%s,%s b=%s,%s, zoom=%s>' % (self.ax,
@@ -191,9 +207,11 @@ def tile_number(lat, lon, zoom):
     Raises *ValueError* if lat or lon are outside the allowed range.
     '''
     if lat < MIN_LAT or lat > MAX_LAT:
-        raise ValueError('latitude must be %s..%s, got %s' % (MIN_LAT, MAX_LAT, lat))
+        raise ValueError('latitude must be %s..%s, got %s' % (MIN_LAT,
+                                                              MAX_LAT, lat))
     if lon < MIN_LON or lon > MAX_LON:
-        raise ValueError('longitude must be %s..%s, got %s' % (MIN_LON, MAX_LON, lon))
+        raise ValueError('longitude must be %s..%s, got %s' % (MIN_LON,
+                                                               MAX_LON, lon))
 
     # taken from https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
     n = pow(2.0, zoom)

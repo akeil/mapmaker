@@ -10,7 +10,7 @@ from math import ceil, floor
 from . import geo
 from .geo import decimal
 from .geo import dms
-from .render import load_font
+from .render import contrast_color, load_font
 
 
 # Placment locations on the MAP and MARGIN area.
@@ -199,10 +199,12 @@ class Cartouche(Decoration):
         p_top, p_right, p_bottom, p_left = self.padding
 
         # border/decoration
-        draw.rectangle([m_left, m_top, w - m_right - 1, h - m_bottom - 1],
-                       fill=self.background,
-                       outline=self.border_color or self.color,
-                       width=self.border_width)
+        if self.border_width:
+            draw.rectangle([m_left, m_top, w - m_right - 1, h - m_bottom - 1],
+                           fill=self.background,
+                           outline=self.border_color or self.color,
+                           width=self.border_width)
+
         # text
         x = {
             'l': 0 + p_left + m_left,
@@ -231,6 +233,7 @@ class Cartouche(Decoration):
         return '<Cartouche placement=%r, title=%r>' % (self.placement,
                                                        self.title)
 
+
 class Scale(Decoration):
     '''A scale bar that shows the size of the area on the map in meters or
     kilometers.
@@ -238,17 +241,22 @@ class Scale(Decoration):
     :placement:     Where to place this decoration.
     :color:         The color for the scale and label as an RGBA tuple.
     :border_width:  Width in pixels for the lines of the scale bar.
+    :underlay:      Draws a transparent background below the scale to improve
+                    readability against the map content.
+                    One of ``compact``, ``full`` (width), ``none``.
     :draw_label:    Whether to draw a label (*boolean*).
     :font_name:     Name of the font in which the label should be drawn.
     :font_size:     Size of the label text.
     '''
 
     LABEL_STYLES = ('default', 'nolabel')
+    UNDERLAY_STYLES = ('compact', 'full', 'none')
 
     def __init__(self,
                  placement='SW',
                  color=(0, 0, 0, 255),
                  border_width=2,
+                 underlay='compact',
                  label_style='default',
                  font_name=None,
                  font_size=10):
@@ -257,6 +265,10 @@ class Scale(Decoration):
         self.border_width = border_width
         self.font_name = font_name or 'DejaVuSans'
         self.font_size = font_size
+
+        if underlay not in Scale.UNDERLAY_STYLES:
+            raise ValueError('Invalid underlay style %r' % underlay)
+        self.underlay_style = underlay
 
         if label_style not in Scale.LABEL_STYLES:
             raise ValueError('Invalid label style %r' % label_style)
@@ -268,12 +280,17 @@ class Scale(Decoration):
     def calc_size(self, rc, map_size):
         tick_size, tick_width, num_ticks = self._determine_tick(rc)
 
-        # Size of the scale bar w/ ticks
-        w = tick_width * num_ticks
-        h = tick_height = self._tick_height()
-
         m_top, m_right, m_bottom, m_left = self.margin
-        w += m_left + m_right
+
+        # Size of the scale bar w/ ticks
+        if self.underlay_style == 'full':
+            map_width, _ = map_size
+            w = map_width
+        else:
+            w = tick_width * num_ticks
+            w += m_left + m_right
+
+        h = self._tick_height()
         h += m_top + m_bottom
 
         # Size of the label
@@ -291,14 +308,38 @@ class Scale(Decoration):
         tick_size, tick_width, num_ticks = self._determine_tick(rc)
         w = tick_width * num_ticks
 
+        if self.underlay_style != 'none':
+            self._draw_underlay(draw, rc, map_size)
+
         self._draw_bar(draw, w, tick_width, num_ticks)
 
         if self._show_label:
             self._draw_label(draw, w, tick_size, num_ticks)
 
+    def _draw_underlay(self, draw, rc, map_size):
+        '''Draw a flat background in a light color with some opacity
+        to improve the readability for the scale bar.'''
+        w, h = self.calc_size(rc, map_size)
+        p0 = (0, 0)
+        p1 = None
+        if self.underlay_style == 'compact':
+            p1 = (w, h)
+        elif self.underlay_style == 'full':
+            map_width, _ = map_size
+            p1 = (map_width, h)
+        else:
+            # should not happen
+            raise RuntimeError('Bad underlay style: %r' % self.underlay_style)
+
+        r, g, b, _ = contrast_color(self.color)
+        alpha = 255 // 3
+        draw.rectangle([p0, p1],
+                       fill=(r, g, b, alpha),
+                       width=0)
+
     def _draw_bar(self, draw, bar_width, tick_width, num_ticks):
         '''Draw the scale bar including ticks.'''
-        tick_height = tick_height = self._tick_height()
+        tick_height = self._tick_height()
         m_top, m_right, m_bottom, m_left = self.margin
 
         # base line + outer ticks
@@ -357,7 +398,7 @@ class Scale(Decoration):
 
         tick_size = None    # in meters
         tick_count = None
-        tick_area = 10 # "n" to use ca. 1/n of the map
+        tick_area = 10  # "n" to use ca. 1/n of the map
         max_tick_count = 5 * tick_area
 
         # if a tick was "s" meters wide, how many would fit on the map?

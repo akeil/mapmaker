@@ -17,8 +17,8 @@ import appdirs
 from PIL import Image
 import requests
 
-from mapmaker import __version__
-from mapmaker import __author__
+from mapmaker import __version__ as VERSION
+from mapmaker import __author__ as AUTHOR
 from mapmaker import __name__ as APP_NAME
 from mapmaker.tilemap import Tile
 
@@ -45,9 +45,9 @@ class ServiceRegistry:
 
     def list(self):
         '''List the names of all registered styles.'''
-        l = [k for k in self._services]
-        l.sort()
-        return l
+        services = [s for s in self._services]
+        services.sort()
+        return services
 
     @classmethod
     def from_config(cls, cfg):
@@ -63,7 +63,8 @@ class ServiceRegistry:
             subdomains = cfg.get(s, 'subdomains', fallback='')
             for style in styles:
                 if style in d:
-                    _LOG.warning('Ignore duplicate service definition for %r in [%s]', style, s)
+                    _LOG.warning(('Ignore duplicate service definition for'
+                                  ' %r in [%s]'), style, s)
                     continue
 
                 url_pattern = cfg[s][style]
@@ -79,7 +80,10 @@ class ServiceRegistry:
         '''
         cfg = configparser.ConfigParser()
         # built-in defaults
-        cfg.readfp(io.TextIOWrapper(resource_stream('mapmaker', 'default.ini')))
+        with resource_stream('mapmaker', 'default.ini') as res:
+            with io.TextIOWrapper(res) as f:
+                cfg.read_file(f)
+
         # user settings
         cfg.read([path, ])
         return cls.from_config(cfg)
@@ -134,7 +138,7 @@ class TileService:
         self.max_retries = max_retries
 
         s = requests.Session()
-        ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, __version__)
+        ua = '%s/%s +https://github.com/akeil/mapmaker' % (APP_NAME, VERSION)
         s.headers['User-Agent'] = ua
         # TODO: should we use a custom HTTPAdapter with increased pool size?
         self._session = s
@@ -153,14 +157,25 @@ class TileService:
     def memory_cache(self, size=100):
         '''Wrap this cache into a *MemoryCache*.
 
-        Note that if you also want a file system cahce (recommended), then
+        Note that if you also want a file system cache (recommended), then
         wrap the service in an FS-cache first, then with a memory cache.
+
+        .. code:: python
+
+            service = Service().cached().memory_cache()
         '''
         return MemoryCache(self, size=size)
 
     def with_fallback(self):
         '''Use lower resolution tiles as fallback if the requested zoom level
         is not available.
+
+        If you are also using a cache, set up the cache(s) first and then the
+        fallback wrapper:
+
+        .. code:: python
+
+            service = Service().cached().with_fallback()
         '''
         return Fallback(self)
 
@@ -193,7 +208,7 @@ class TileService:
         Returns the response ``etag`` and the raw image data.
         '''
         if cached_only:
-            raise LookupError('No cached tile for x=%s, y=%s, z=%s' % (x, y, z))
+            raise LookupError('No cached tile for x=%s,y=%s,z=%s' % (x, y, z))
 
         s = self._subdomain()
         url = self.url_pattern.format(
@@ -279,6 +294,12 @@ class Cache:
     the ETAG. Since it is unlikely that tiles change frequently *and* it is
     (assumed) likely that the same tiles are requested multiple times within
     a short timespan, this saves the additional request.
+
+    When the cache ``limit`` (in bytes) is set to a value above *0*, the cache
+    is trimmed to that size (more or less).
+    If multiple instances use the same cache directory with different limits,
+    the cache will eventually be trimmed to the lowest limit.
+    However, this will only happen when a new entry is written to the cache.
     '''
 
     def __init__(self, service, basedir=None, limit=None, min_hours=24):
@@ -289,7 +310,7 @@ class Cache:
 
         if not basedir:
             basedir = appdirs.user_cache_dir(appname=APP_NAME,
-                                             appauthor=__author__)
+                                             appauthor=AUTHOR)
         self._base = Path(basedir)
 
     def memory_cache(self, size=100):
@@ -327,6 +348,11 @@ class Cache:
         from the backing service.
         On a successful service call, put the result into the cache.
 
+        When ``etag`` is given, then a request against the service is always
+        made, using the etag.
+        If no etag is given, a request can still be made if we have a cached
+        entry beyond its max age.
+
         When ``cached_only`` is *True*, the cache entry is only returned
         if it can be done so without checking the ETAG against the server.
         That is, if the cache entry is younger than ``min_hours``.
@@ -334,6 +360,8 @@ class Cache:
         # etag is likely to be None
         if etag is None:
             etag, mtime = self._find(x, y, z)
+        else:
+            mtime = None
 
         # If the cached entry is not "too old", return it without checking
         # the ETAG.
@@ -342,6 +370,7 @@ class Cache:
             now = datetime.now(timezone.utc)
             age = now - modified
             if age < self._min_age:
+                # TODO: possible race-condition between _find() ... _get()
                 cached = self._get(x, y, z, etag)
                 return etag, cached
 
@@ -390,7 +419,7 @@ class Cache:
                     if entry.is_file():
                         try:
                             safe_etag = entry.name.split('.')[1]
-                            etag_bytes = base64.b64decode(safe_etag)
+                            etag_bytes = base64.urlsafe_b64decode(safe_etag)
                             etag = etag_bytes.decode('ascii')
 
                             stat = entry.stat()
@@ -432,7 +461,7 @@ class Cache:
             p.unlink(missing_ok=True)
 
     def _path(self, x, y, z, etag):
-        safe_etag = base64.b64encode(etag.encode()).decode('ascii')
+        safe_etag = base64.urlsafe_b64encode(etag.encode()).decode('ascii')
         filename = '%06d.%s.png' % (y, safe_etag)
 
         return self._base.joinpath(

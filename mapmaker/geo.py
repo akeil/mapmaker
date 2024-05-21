@@ -42,7 +42,7 @@ class BBox:
         if self.minlon < -180.0:
             raise ValueError('minlon must not be < -180, got %s' % self.minlon)
         if self.maxlon > 180.0:
-            raise ValueError('maxlon must not be > 180.0, got %s' % self.maxlon)
+            raise ValueError('maxlon must not be > 180, got %s' % self.maxlon)
 
     def with_aspect(self, aspect):
         '''Extend the given bounding box so that it adheres to the given aspect
@@ -54,6 +54,8 @@ class BBox:
         #  2:3  =>  0.66  width < height, aspect is < 1.0
         if aspect == 1.0:
             return self
+        elif aspect <= 0.0:
+            raise ValueError('aspect must be >0.0, got %s' % aspect)
 
         lat = self.minlat
         lon = self.minlon
@@ -92,7 +94,7 @@ class BBox:
             return self
 
         if pad < 0:
-            raise ValueError('Pad must be a positive value, got %s' % pad)
+            raise ValueError('pad must be a positive value, got %s' % pad)
 
         north = self.maxlat
         west = self.minlon
@@ -141,7 +143,10 @@ class BBox:
 
     @classmethod
     def from_radius(cls, lat, lon, radius):
-        '''Create a bounding box from a center point an a radius.'''
+        '''Create a bounding box from a center point and a radius.'''
+        if radius <= 0:
+            raise ValueError('radius must be >0, got %s' % radius)
+
         lat_n, lon_n = destination_point(lat, lon, BRG_NORTH, radius)
         lat_e, lon_e = destination_point(lat, lon, BRG_EAST, radius)
         lat_s, lon_s = destination_point(lat, lon, BRG_SOUTH, radius)
@@ -163,6 +168,9 @@ def distance(lat0, lon0, lat1, lon1):
         P0 ------------> P1
 
     '''
+    if lat0 == lat1 and lon0 == lon1:
+        return 0
+
     lat0 = radians(lat0)
     lon0 = radians(lon0)
     lat1 = radians(lat1)
@@ -184,9 +192,20 @@ def destination_point(lat, lon, bearing, distance):
     '''Determine a destination point from a start location, a bearing
     and a distance.
 
-    Distance is given in METERS.
-    Bearing is given in DEGREES
+    Distance is given in METERS and must be non-negative.
+    Bearing is given in DEGREES and is in range 0...360
     '''
+    if distance == 0:
+        return lat, lon
+
+    if bearing == 360:
+        bearing = 0
+
+    if distance < 0:
+        raise ValueError('distance must be >0, got %s', distance)
+    if bearing < 0 or bearing > 360:
+        raise ValueError('bearing must be in range 0..360,got %s', bearing)
+
     # http://www.movable-type.co.uk/scripts/latlong.html
     # search for destinationPoint
     d = distance / EARTH_RADIUS  # angular distance

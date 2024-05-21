@@ -67,7 +67,10 @@ class Map:
 
         return self._decorations or self._frame
 
-    def render(self, service, zoom, icons=None, parallel_downloads=None, reporter=None):
+    def render(self, service, zoom,
+               icons=None,
+               parallel_downloads=None,
+               reporter=None):
         '''Render this map into a PIL image.
 
         Uses the given *TileService* and zoom level to obtain map tiles.
@@ -94,7 +97,7 @@ class Map:
 
         Drawable elements are considered part of the map contents. Their
         position is defined by lat/lon coordinates and they are drawn over the
-        map image but blow decorations.
+        map image but below decorations.
         '''
         self.elements.append(element)
 
@@ -109,9 +112,10 @@ class Map:
         '''
         try:
             if decoration.placement not in Map._SLOTS[area]:
-                raise ValueError('invalid area/placement %r' % area)
+                raise ValueError(('invalid placement %r for'
+                                  ' area %r') % (decoration.placement, area))
         except (KeyError, AttributeError):
-            raise ValueError('invalid area/placement %r' % area)
+            raise ValueError('area/placement not defined %r' % area)
 
         self._decorations[area].append(decoration)
 
@@ -165,6 +169,7 @@ class Map:
                   placement='SW',
                   color=(0, 0, 0, 255),
                   border_width=2,
+                  underlay='compact',
                   label_style='default',
                   font_size=10,
                   font_name=None):
@@ -174,6 +179,7 @@ class Map:
         self.add_decoration(area, Scale(placement=placement,
                                         color=color,
                                         border_width=border_width,
+                                        underlay=underlay,
                                         label_style=label_style,
                                         font_size=font_size,
                                         font_name=font_name))
@@ -241,11 +247,11 @@ class Map:
         '''Set the background color for the map (margin area).
         The color is an RGBA tuple.'''
         if len(args) == 1:
-            self.background = args[0]
+            self._background = args[0]
         elif len(args) == 3:
-            self.background = (args[0], args[1], args[2], 255)
+            self._background = (args[0], args[1], args[2], 255)
         elif len(args) == 4:
-            self.background = args
+            self._background = args
         else:
             raise ValueError(('invalid number of arguments,'
                               ' expected 1, 3 or 4 args'))
